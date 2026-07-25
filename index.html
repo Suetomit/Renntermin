@@ -275,6 +275,44 @@ input[type=time]::-webkit-calendar-picker-indicator{filter:invert(0.45);cursor:p
   border-radius:50%;animation:spin 0.8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-text{font-family:'Bebas Neue',sans-serif;letter-spacing:4px;color:var(--m2);font-size:0.9rem;}
+/* STANDINGS */
+.standings-table{width:100%;border-collapse:collapse;}
+.standings-row{display:grid;grid-template-columns:32px 1fr auto auto;align-items:center;gap:10px;
+  padding:9px 12px;border-radius:9px;margin-bottom:5px;transition:background 0.15s;}
+.standings-row:hover{background:var(--s2);}
+.standings-row.me{background:rgba(245,225,0,0.06);border:1px solid rgba(245,225,0,0.2);}
+.st-pos{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--m2);text-align:center;letter-spacing:1px;}
+.st-pos.p1{color:gold;} .st-pos.p2{color:silver;} .st-pos.p3{color:#cd7f32;}
+.st-driver{display:flex;align-items:center;gap:9px;}
+.st-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.st-name{font-weight:600;font-size:0.9rem;}
+.st-pts{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--y);letter-spacing:1px;text-align:right;}
+.st-pts-lbl{font-size:0.6rem;color:var(--m2);text-transform:uppercase;letter-spacing:1px;text-align:right;}
+.st-bar-wrap{grid-column:1/-1;height:2px;background:var(--border);border-radius:2px;margin:-4px 0 2px;overflow:hidden;}
+.st-bar-fill{height:100%;border-radius:2px;transition:width 0.6s ease;}
+.st-empty{text-align:center;color:var(--m);font-size:0.82rem;padding:20px 0;font-style:italic;}
+.st-meta{font-size:0.72rem;color:var(--m2);text-align:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);}
+.standings-input-row{display:grid;grid-template-columns:1fr 100px;align-items:center;gap:10px;
+  background:var(--s2);border-radius:8px;padding:8px 12px;}
+.si-driver{display:flex;align-items:center;gap:8px;font-weight:600;font-size:0.85rem;}
+.si-input{background:var(--s3);border:1px solid var(--border);color:var(--text);
+  padding:7px 10px;border-radius:7px;font-family:'Barlow',sans-serif;font-size:0.88rem;
+  outline:none;width:100%;text-align:center;transition:all 0.2s;}
+.si-input:focus{border-color:var(--y);box-shadow:0 0 0 2px var(--yglow);}
+
+/* REMINDER BANNER */
+.reminder-banner{background:linear-gradient(135deg,#1a0e00,#120800);border-bottom:1px solid rgba(255,145,0,0.3);padding:12px 28px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;position:relative;}
+.reminder-banner::before{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 60% 100% at 0% 50%,rgba(255,145,0,0.07),transparent 70%);}
+.rb-icon{font-size:1.2rem;flex-shrink:0;}
+.rb-text{flex:1;}
+.rb-title{font-size:0.78rem;font-weight:700;color:#ff9100;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;}
+.rb-names{font-size:0.82rem;color:var(--m3);}
+.rb-names strong{color:var(--text);}
+.rb-wa{display:flex;align-items:center;gap:7px;background:#25d366;color:#fff;border:none;padding:9px 16px;border-radius:8px;font-family:'Barlow',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap;transition:all 0.2s;flex-shrink:0;box-shadow:0 2px 12px rgba(37,211,102,0.25);}
+.rb-wa:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(37,211,102,0.4);}
+.rb-close{background:transparent;border:none;color:var(--m);cursor:pointer;font-size:1rem;padding:4px 6px;transition:color 0.2s;flex-shrink:0;}
+.rb-close:hover{color:var(--text);}
+
 ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:var(--bg);}
 ::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:3px;}
 </style>
@@ -303,6 +341,9 @@ input[type=time]::-webkit-calendar-picker-indicator{filter:invert(0.45);cursor:p
     <button class="admin-btn" id="adminBtn" onclick="toggleAdmin()"><span>⚙ Admin</span></button>
   </div>
 </header>
+
+<!-- REMINDER BANNER -->
+<div id="reminderBanner" style="display:none;position:relative;z-index:1;"></div>
 
 <div class="wrap">
   <!-- FORM -->
@@ -349,6 +390,28 @@ input[type=time]::-webkit-calendar-picker-indicator{filter:invert(0.45);cursor:p
     </div>
 
     <div id="confirmedArea"></div>
+
+    <!-- STANDINGS -->
+    <div class="panel" id="standingsPanel">
+      <div class="rspace" style="margin-bottom:14px;padding-bottom:13px;border-bottom:1px solid var(--border);">
+        <div class="ptitle" style="margin:0;padding:0;border:none;">🏆 Fahrer-WM</div>
+        <span class="pill" id="standingsSeason">Saison 2025</span>
+      </div>
+      <div id="standingsContent"></div>
+      <div id="standingsAdminArea" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
+        <p style="font-size:0.78rem;color:var(--m2);margin-bottom:12px;">Standings aktualisieren — Punkte pro Fahrer eingeben:</p>
+        <div id="standingsInputs" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+          <button class="btn-conf" onclick="saveStandings()">💾 Speichern</button>
+          <div style="flex:1;">
+            <label style="font-size:0.68rem;color:var(--m2);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:5px;">Rennen absolviert</label>
+            <input type="number" id="racesCompleted" min="0" max="50" value="0"
+              style="width:80px;background:var(--s2);border:1px solid var(--border);color:var(--text);
+              padding:8px 10px;border-radius:7px;font-family:'Barlow',sans-serif;font-size:0.88rem;outline:none;"/>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div class="panel" id="adminSec">
       <div class="ptitle">⚙ Admin — Termin festlegen</div>
@@ -434,6 +497,7 @@ try {
     document.getElementById('statusDot').classList.add('live');
     document.getElementById('statusText').textContent = 'Live verbunden';
     cleanupPastDates();
+    initStandings(db);
     render();
     renderNameButtons();
   }, (error) => {
@@ -464,7 +528,80 @@ async function saveState() {
   }
 }
 
-// ── CLEANUP PAST DATES ───────────────────────────────────────────────────────
+// ── STANDINGS ────────────────────────────────────────────────────────────────
+let standings = { drivers: DRIVERS.map(n=>({name:n,points:0})), racesCompleted:0 };
+let standingsRef;
+
+function initStandings(database) {
+  standingsRef = ref(database, 'standings');
+  onValue(standingsRef, snap => {
+    const data = snap.val();
+    if(data) standings = data;
+    else standings = { drivers: DRIVERS.map(n=>({name:n,points:0})), racesCompleted:0 };
+    renderStandings();
+    if(adminUnlocked) renderStandingsInputs();
+  });
+}
+
+function renderStandings() {
+  const el = document.getElementById('standingsContent');
+  const sorted = [...standings.drivers].sort((a,b)=>b.points-a.points);
+  const maxPts = sorted[0]?.points || 1;
+
+  if(sorted.every(d=>d.points===0)){
+    el.innerHTML='<div class="st-empty">Noch keine Punkte eingetragen.<br>Admin kann die Standings aktualisieren.</div>';
+    return;
+  }
+
+  el.innerHTML = sorted.map((d,i)=>{
+    const di = DRIVERS.indexOf(d.name);
+    const color = ac(di);
+    const posClass = i===0?'p1':i===1?'p2':i===2?'p3':'';
+    const pct = Math.round(d.points/maxPts*100);
+    return `<div class="standings-row">
+      <div class="st-pos ${posClass}">${i+1}</div>
+      <div class="st-driver">
+        <div class="st-dot" style="background:${color}"></div>
+        <span class="st-name">${d.name}</span>
+      </div>
+      <div>
+        <div class="st-pts">${d.points}</div>
+        <div class="st-pts-lbl">Punkte</div>
+      </div>
+      <div class="st-bar-wrap">
+        <div class="st-bar-fill" style="width:${pct}%;background:${color}"></div>
+      </div>
+    </div>`;
+  }).join('')
+  + `<div class="st-meta">🏁 ${standings.racesCompleted || 0} Rennen absolviert</div>`;
+}
+
+function renderStandingsInputs() {
+  const el = document.getElementById('standingsInputs');
+  document.getElementById('racesCompleted').value = standings.racesCompleted || 0;
+  el.innerHTML = DRIVERS.map((name,di)=>{
+    const entry = standings.drivers.find(d=>d.name===name);
+    const pts = entry ? entry.points : 0;
+    return `<div class="standings-input-row">
+      <div class="si-driver">
+        <div class="st-dot" style="background:${ac(di)}"></div>
+        ${name}
+      </div>
+      <input type="number" class="si-input" id="pts_${name}" value="${pts}" min="0" placeholder="0"/>
+    </div>`;
+  }).join('');
+}
+
+window.saveStandings = async function() {
+  const drivers = DRIVERS.map(name => ({
+    name,
+    points: parseInt(document.getElementById('pts_'+name)?.value)||0
+  }));
+  const racesCompleted = parseInt(document.getElementById('racesCompleted')?.value)||0;
+  standings = { drivers, racesCompleted };
+  if(standingsRef){ try{ await set(standingsRef, standings); } catch(e){ console.error(e); } }
+  renderStandings();
+};
 async function cleanupPastDates() {
   const today = new Date();
   today.setHours(0,0,0,0);
@@ -748,7 +885,36 @@ function sortedDates(){
 }
 
 // ── RENDER ────────────────────────────────────────────────────────────────────
-function render(){ renderPersons(); renderOverview(); renderConfirmed(); renderAdminPicker(); }
+function render(){ renderReminderBanner(); renderPersons(); renderOverview(); renderConfirmed(); renderAdminPicker(); }
+
+function renderReminderBanner(){
+  const el = document.getElementById('reminderBanner');
+  const missing = DRIVERS.filter(n => !S.persons.find(p=>p.name===n));
+  if(!missing.length){ el.style.display='none'; el.innerHTML=''; return; }
+
+  const waMsg = encodeURIComponent(
+    `🏁 Gurkensöhne Cup — Terminerinnerung!\n\n`+
+    `Hey ${missing.join(', ')} 👋\n\n`+
+    `Bitte tragt eure Verfügbarkeit auf dem Renntermin-Planer ein, damit wir einen passenden Termin finden können!\n\n`+
+    `Noch ${missing.length} von 8 Fahrern fehlen:\n`+
+    missing.map(n=>`• ${n}`).join('\n')+
+    `\n\nDanke! 🚗💨`
+  );
+
+  el.style.display = 'block';
+  el.innerHTML = `<div class="reminder-banner">
+    <span class="rb-icon">⚠️</span>
+    <div class="rb-text">
+      <div class="rb-title">Noch ${missing.length} Fahrer ohne Termine</div>
+      <div class="rb-names">Fehlt noch: <strong>${missing.join(', ')}</strong></div>
+    </div>
+    <a class="rb-wa" href="https://wa.me/?text=${waMsg}" target="_blank">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.131.558 4.13 1.535 5.864L.057 23.997l6.304-1.654C8.008 23.447 9.967 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.885 0-3.652-.523-5.157-1.431l-.371-.22-3.741.981.999-3.648-.242-.376C2.524 15.67 2 13.9 2 12 2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+      Erinnerung senden
+    </a>
+    <button class="rb-close" onclick="document.getElementById('reminderBanner').style.display='none'" title="Schließen">✕</button>
+  </div>`;
+}
 
 function renderPersons(){
   const el = document.getElementById('personList');
@@ -956,7 +1122,10 @@ window.checkPin=function(){
   if(document.getElementById('pinIn').value.trim()===PIN){
     document.getElementById('pinArea').style.display='none';
     document.getElementById('adminCtrl').style.display='block';
-    adminUnlocked=true;render();
+    document.getElementById('standingsAdminArea').style.display='block';
+    adminUnlocked=true;
+    render();
+    renderStandingsInputs();
   }else{document.getElementById('pinErr').textContent='Falscher PIN. Nochmal versuchen.';}
 };
 
