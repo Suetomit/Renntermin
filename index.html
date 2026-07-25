@@ -276,11 +276,9 @@ input[type=time]::-webkit-calendar-picker-indicator{filter:invert(0.45);cursor:p
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-text{font-family:'Bebas Neue',sans-serif;letter-spacing:4px;color:var(--m2);font-size:0.9rem;}
 /* STANDINGS */
-.standings-table{width:100%;border-collapse:collapse;}
-.standings-row{display:grid;grid-template-columns:32px 1fr auto auto;align-items:center;gap:10px;
+.standings-row{display:grid;grid-template-columns:32px 1fr auto;align-items:center;gap:10px;
   padding:9px 12px;border-radius:9px;margin-bottom:5px;transition:background 0.15s;}
 .standings-row:hover{background:var(--s2);}
-.standings-row.me{background:rgba(245,225,0,0.06);border:1px solid rgba(245,225,0,0.2);}
 .st-pos{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--m2);text-align:center;letter-spacing:1px;}
 .st-pos.p1{color:gold;} .st-pos.p2{color:silver;} .st-pos.p3{color:#cd7f32;}
 .st-driver{display:flex;align-items:center;gap:9px;}
@@ -395,7 +393,7 @@ input[type=time]::-webkit-calendar-picker-indicator{filter:invert(0.45);cursor:p
     <div class="panel" id="standingsPanel">
       <div class="rspace" style="margin-bottom:14px;padding-bottom:13px;border-bottom:1px solid var(--border);">
         <div class="ptitle" style="margin:0;padding:0;border:none;">🏆 Fahrer-WM</div>
-        <span class="pill" id="standingsSeason">Saison 2026</span>
+        <span class="pill" id="standingsSeason">Saison 2025</span>
       </div>
       <div id="standingsContent"></div>
       <div id="standingsAdminArea" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
@@ -529,73 +527,156 @@ async function saveState() {
 }
 
 // ── STANDINGS ────────────────────────────────────────────────────────────────
-let standings = { drivers: DRIVERS.map(n=>({name:n,points:0})), racesCompleted:0 };
+const ALL_DRIVERS = [
+  { name:'RealSuetomit (Timo)',       team:'Visa Cash App RB',        human:'Timo'    },
+  { name:'lafillederue (Pascale)',     team:'Visa Cash App RB',        human:'Pascale' },
+  { name:'niklasschwei (Niklas)',      team:'Aston Martin',            human:'Niklas'  },
+  { name:'loeffel00 (Tim)',            team:'Kick Sauber',             human:'Tim'     },
+  { name:'Bidox2 (Marcel)',            team:'Red Bull',                human:'Marcel'  },
+  { name:'HenkelPog (Yannis)',         team:'Alpine',                  human:'Yannis'  },
+  { name:'PotatokingDE (Eric)',        team:'Ferrari',                 human:'Eric'    },
+  { name:'beiunszuhause (Philipp)',    team:'McLaren',                 human:'Philipp' },
+  { name:'Charles Leclerc',           team:'Ferrari',                 human:null      },
+  { name:'Lando Norris',              team:'McLaren',                 human:null      },
+  { name:'Andrea Kimi Antonelli',     team:'Mercedes-AMG Petronas',   human:null      },
+  { name:'Max Verstappen',            team:'Red Bull',                human:null      },
+  { name:'George Russell',            team:'Mercedes-AMG Petronas',   human:null      },
+  { name:'Alex Albon',                team:'Williams',                human:null      },
+  { name:'Carlos Sainz',              team:'Williams',                human:null      },
+  { name:'Pierre Gasly',              team:'Alpine',                  human:null      },
+  { name:'Oliver Bearman',            team:'Haas',                    human:null      },
+  { name:'Nico Hulkenberg',           team:'Kick Sauber',             human:null      },
+  { name:'Esteban Ocon',              team:'Haas',                    human:null      },
+  { name:'Lance Stroll',              team:'Aston Martin',            human:null      },
+];
+
+const TEAM_COLORS = {
+  'Ferrari':                '#e8002d',
+  'McLaren':                '#ff8000',
+  'Red Bull':               '#3671c6',
+  'Mercedes-AMG Petronas':  '#27f4d2',
+  'Aston Martin':           '#358c75',
+  'Alpine':                 '#ff87bc',
+  'Williams':               '#64c4ff',
+  'Visa Cash App RB':       '#6692ff',
+  'Kick Sauber':            '#52e252',
+  'Haas':                   '#b6babd',
+};
+
+const DEFAULT_STANDINGS = ALL_DRIVERS.map(d=>({ name:d.name, points:0 }));
+
+let standings = { drivers: DEFAULT_STANDINGS, racesCompleted: 0 };
 let standingsRef;
+
+// Pre-fill with the known standings from Racenet
+const INITIAL_STANDINGS = [
+  { name:'RealSuetomit (Timo)',       points:50 },
+  { name:'Charles Leclerc',           points:28 },
+  { name:'lafillederue (Pascale)',     points:23 },
+  { name:'Lando Norris',              points:19 },
+  { name:'niklasschwei (Niklas)',      points:18 },
+  { name:'Andrea Kimi Antonelli',     points:16 },
+  { name:'Max Verstappen',            points:14 },
+  { name:'George Russell',            points:12 },
+  { name:'loeffel00 (Tim)',            points:8  },
+  { name:'Bidox2 (Marcel)',            points:6  },
+  { name:'Alex Albon',                points:4  },
+  { name:'Carlos Sainz',              points:2  },
+  { name:'HenkelPog (Yannis)',         points:1  },
+  { name:'Pierre Gasly',              points:1  },
+  { name:'PotatokingDE (Eric)',        points:0  },
+  { name:'beiunszuhause (Philipp)',    points:0  },
+  { name:'Oliver Bearman',            points:0  },
+  { name:'Nico Hulkenberg',           points:0  },
+  { name:'Esteban Ocon',              points:0  },
+  { name:'Lance Stroll',              points:0  },
+];
 
 function initStandings(database) {
   standingsRef = ref(database, 'standings');
   onValue(standingsRef, snap => {
     const data = snap.val();
-    if(data) standings = data;
-    else standings = { drivers: DRIVERS.map(n=>({name:n,points:0})), racesCompleted:0 };
+    if(data && data.drivers && data.drivers.length > 0){
+      standings = data;
+    } else {
+      // First time — use the initial standings from Racenet
+      standings = { drivers: INITIAL_STANDINGS, racesCompleted: 3 };
+      set(standingsRef, standings);
+    }
     renderStandings();
     if(adminUnlocked) renderStandingsInputs();
   });
 }
 
+function getDriverInfo(name){ return ALL_DRIVERS.find(d=>d.name===name) || { name, team:'', human:null }; }
+
 function renderStandings() {
   const el = document.getElementById('standingsContent');
-  const sorted = [...standings.drivers].sort((a,b)=>b.points-a.points);
-  const maxPts = sorted[0]?.points || 1;
-
-  if(sorted.every(d=>d.points===0)){
-    el.innerHTML='<div class="st-empty">Noch keine Punkte eingetragen.<br>Admin kann die Standings aktualisieren.</div>';
-    return;
-  }
+  const sorted = [...standings.drivers].sort((a,b)=>b.points-a.points||a.name.localeCompare(b.name));
+  const maxPts = Math.max(sorted[0]?.points || 1, 1);
 
   el.innerHTML = sorted.map((d,i)=>{
-    const di = DRIVERS.indexOf(d.name);
-    const color = ac(di);
+    const info = getDriverInfo(d.name);
+    const isHuman = !!info.human;
+    const humanIdx = isHuman ? DRIVERS.indexOf(info.human) : -1;
+    const dotColor = isHuman ? ac(humanIdx) : (TEAM_COLORS[info.team] || '#555');
+    const teamColor = TEAM_COLORS[info.team] || '#555';
     const posClass = i===0?'p1':i===1?'p2':i===2?'p3':'';
     const pct = Math.round(d.points/maxPts*100);
-    return `<div class="standings-row">
-      <div class="st-pos ${posClass}">${i+1}</div>
-      <div class="st-driver">
-        <div class="st-dot" style="background:${color}"></div>
-        <span class="st-name">${d.name}</span>
+    const nameParts = isHuman
+      ? `<span class="st-name">${d.name}</span>`
+      : `<span class="st-name" style="color:var(--m3)">${d.name}</span>`;
+    const teamBadge = info.team
+      ? `<span style="font-size:0.62rem;color:${teamColor};font-weight:600;margin-left:4px;opacity:0.85;">${info.team}</span>`
+      : '';
+    return `<div class="standings-row ${isHuman?'human-row':'ai-row'}" style="${isHuman?'background:rgba(245,225,0,0.04);border-left:2px solid '+dotColor+';':''}border-radius:8px;margin-bottom:4px;">
+      <div class="st-pos ${posClass}" style="min-width:28px">${i+1}</div>
+      <div class="st-driver" style="flex-direction:column;align-items:flex-start;gap:1px;">
+        <div style="display:flex;align-items:center;gap:7px;">
+          <div class="st-dot" style="background:${dotColor};${isHuman?'box-shadow:0 0 6px '+dotColor:''}"></div>
+          ${nameParts}
+          ${isHuman?'<span style="font-size:0.6rem;background:rgba(245,225,0,0.12);border:1px solid rgba(245,225,0,0.25);color:var(--y);padding:1px 5px;border-radius:10px;font-weight:700;">HUMAN</span>':''}
+        </div>
+        ${teamBadge}
       </div>
-      <div>
-        <div class="st-pts">${d.points}</div>
-        <div class="st-pts-lbl">Punkte</div>
+      <div style="text-align:right;min-width:60px;">
+        <div class="st-pts" style="color:${isHuman?'var(--y)':'var(--m3)'}">${d.points}</div>
+        <div class="st-pts-lbl">Pts</div>
       </div>
       <div class="st-bar-wrap">
-        <div class="st-bar-fill" style="width:${pct}%;background:${color}"></div>
+        <div class="st-bar-fill" style="width:${pct}%;background:${isHuman?dotColor:teamColor};opacity:${isHuman?1:0.5}"></div>
       </div>
     </div>`;
   }).join('')
-  + `<div class="st-meta">🏁 ${standings.racesCompleted || 0} Rennen absolviert</div>`;
+  + `<div class="st-meta">🏁 ${standings.racesCompleted || 0} Rennen absolviert &nbsp;·&nbsp; <span style="color:var(--y)">●</span> Ligaspieler &nbsp;·&nbsp; <span style="color:var(--m2)">●</span> KI</div>`;
 }
 
 function renderStandingsInputs() {
   const el = document.getElementById('standingsInputs');
   document.getElementById('racesCompleted').value = standings.racesCompleted || 0;
-  el.innerHTML = DRIVERS.map((name,di)=>{
-    const entry = standings.drivers.find(d=>d.name===name);
+  el.innerHTML = ALL_DRIVERS.map((info, i)=>{
+    const entry = standings.drivers.find(d=>d.name===info.name);
     const pts = entry ? entry.points : 0;
-    return `<div class="standings-input-row">
+    const isHuman = !!info.human;
+    const humanIdx = isHuman ? DRIVERS.indexOf(info.human) : -1;
+    const dotColor = isHuman ? ac(humanIdx) : (TEAM_COLORS[info.team] || '#555');
+    return `<div class="standings-input-row" style="${isHuman?'border-left:2px solid '+dotColor:''}">
       <div class="si-driver">
-        <div class="st-dot" style="background:${ac(di)}"></div>
-        ${name}
+        <div class="st-dot" style="background:${dotColor}"></div>
+        <div>
+          <div style="font-size:0.82rem;font-weight:${isHuman?700:500};color:${isHuman?'var(--text)':'var(--m3)'};">${info.name}</div>
+          <div style="font-size:0.65rem;color:${TEAM_COLORS[info.team]||'var(--m)'};font-weight:600;">${info.team}</div>
+        </div>
       </div>
-      <input type="number" class="si-input" id="pts_${name}" value="${pts}" min="0" placeholder="0"/>
+      <input type="number" class="si-input" id="pts_${i}" value="${pts}" min="0" placeholder="0"/>
     </div>`;
   }).join('');
 }
 
 window.saveStandings = async function() {
-  const drivers = DRIVERS.map(name => ({
-    name,
-    points: parseInt(document.getElementById('pts_'+name)?.value)||0
+  const drivers = ALL_DRIVERS.map((info, i) => ({
+    name: info.name,
+    points: parseInt(document.getElementById('pts_'+i)?.value)||0
   }));
   const racesCompleted = parseInt(document.getElementById('racesCompleted')?.value)||0;
   standings = { drivers, racesCompleted };
