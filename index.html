@@ -470,6 +470,34 @@ input[type=number]:focus{border-color:var(--y);box-shadow:0 0 0 2px var(--yglow)
   color:var(--r2);cursor:pointer;font-size:0.63rem;padding:2px 6px;border-radius:5px;transition:all 0.2s;white-space:nowrap;}
 .btn-del-self:hover{background:rgba(255,40,0,0.15);}
 
+/* ── RACE CALENDAR ── */
+.race-list{display:flex;flex-direction:column;gap:5px;}
+.race-row{
+  display:grid;grid-template-columns:32px 28px 1fr auto;
+  align-items:center;gap:10px;
+  padding:9px 12px;border-radius:9px;
+  border:1px solid transparent;transition:all 0.18s;
+  position:relative;overflow:hidden;
+}
+.race-row::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;}
+.race-row.done{background:rgba(255,255,255,0.03);border-color:var(--border);}
+.race-row.done::before{background:var(--g);}
+.race-row.next{background:rgba(240,192,0,0.06);border-color:rgba(240,192,0,0.3);box-shadow:0 0 16px rgba(240,192,0,0.06);}
+.race-row.next::before{background:var(--y);}
+.race-row.upcoming{background:transparent;border-color:transparent;}
+.race-row.upcoming::before{background:var(--border);}
+.race-row:hover{border-color:var(--border2);background:rgba(255,255,255,0.03);}
+.race-num{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--m);text-align:center;line-height:1;}
+.race-flag{font-size:1.1rem;text-align:center;}
+.race-info{}
+.race-country{font-weight:700;font-size:0.84rem;color:var(--text);}
+.race-city{font-size:0.68rem;color:var(--m2);margin-top:1px;}
+.race-status{}
+.race-done-badge{background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.3);color:var(--g);font-size:0.62rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;}
+.race-next-badge{background:rgba(240,192,0,0.12);border:1px solid rgba(240,192,0,0.35);color:var(--y);font-size:0.62rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;animation:nextpulse 2s ease-in-out infinite;}
+@keyframes nextpulse{0%,100%{box-shadow:0 0 0 rgba(240,192,0,0)}50%{box-shadow:0 0 8px rgba(240,192,0,0.3)}}
+.race-upcoming-badge{color:var(--m);font-size:0.68rem;}
+
 /* ── TABS ── */
 .tab-switcher{display:flex;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:3px;gap:3px;}
 .tab-btn{background:transparent;border:none;color:var(--m2);padding:5px 14px;border-radius:6px;
@@ -501,7 +529,7 @@ input[type=number]:focus{border-color:var(--y);box-shadow:0 0 0 2px var(--yglow)
       <img src="logo.png" alt="Gurkensöhne Cup" class="logo-img">
       <div class="logo-text">
         <div class="logo-title">Gurkensöhne Cup</div>
-        <div class="logo-sub">Renntermin-Planer · Saison 2026</div>
+        <div class="logo-sub">Renntermin-Planer · Saison 2025</div>
       </div>
     </div>
     <div class="header-right">
@@ -586,6 +614,12 @@ input[type=number]:focus{border-color:var(--y);box-shadow:0 0 0 2px var(--yglow)
       </div>
     </div>
 
+    <!-- RACE CALENDAR -->
+    <div class="panel" id="calendarPanel">
+      <div class="ptitle">🗓 Rennkalender 2025</div>
+      <div id="calendarContent"></div>
+    </div>
+
     <!-- ADMIN -->
     <div class="panel" id="adminSec">
       <div class="ptitle">⚙ Admin — Termin festlegen</div>
@@ -666,29 +700,29 @@ function helmetImgByTeam(team){
   return src ? `<img src="${src}" style="width:36px;height:36px;object-fit:contain;flex-shrink:0;" alt="${team}">`
              : `<div style="width:36px;height:36px;background:var(--s3);border-radius:50%;flex-shrink:0;"></div>`;
 }
-
+}
 
 const ALL_DRIVERS = [
-  { name:'Timotheus Müller',    racenet:'RealSuetomit',    team:'Visa Cash App RB',       human:'Timo'    },
-  { name:'Pascale Braasch',     racenet:'lafillederue', team:'Visa Cash App RB',       human:'Pascale' },
-  { name:'Niklas Schweisfurth', racenet:'niklasschwei',  team:'Aston Martin',           human:'Niklas'  },
-  { name:'Tim Löffler',         racenet:'loeffel00',        team:'Kick Sauber',            human:'Tim'     },
-  { name:'Marcel Walle',        racenet:'Bidox2',        team:'Red Bull',               human:'Marcel'  },
-  { name:'Yannis Herling',      racenet:'HenkelPog',     team:'Alpine',                 human:'Yannis'  },
-  { name:'Eric Walter',         racenet:'PotatokingDE',    team:'Ferrari',                human:'Eric'    },
-  { name:'Philipp Juny',        racenet:'beiunszuhause',team:'McLaren',                human:'Philipp' },
-  { name:'Charles Leclerc',     racenet:null,                     team:'Ferrari',                human:null      },
-  { name:'Lando Norris',        racenet:null,                     team:'McLaren',                human:null      },
-  { name:'Andrea Kimi Antonelli',racenet:null,                    team:'Mercedes-AMG Petronas',  human:null      },
-  { name:'Max Verstappen',      racenet:null,                     team:'Red Bull',               human:null      },
-  { name:'George Russell',      racenet:null,                     team:'Mercedes-AMG Petronas',  human:null      },
-  { name:'Alex Albon',          racenet:null,                     team:'Williams',               human:null      },
-  { name:'Carlos Sainz',        racenet:null,                     team:'Williams',               human:null      },
-  { name:'Pierre Gasly',        racenet:null,                     team:'Alpine',                 human:null      },
-  { name:'Oliver Bearman',      racenet:null,                     team:'Haas',                   human:null      },
-  { name:'Nico Hulkenberg',     racenet:null,                     team:'Kick Sauber',            human:null      },
-  { name:'Esteban Ocon',        racenet:null,                     team:'Haas',                   human:null      },
-  { name:'Lance Stroll',        racenet:null,                     team:'Aston Martin',           human:null      },
+  { name:'Timotheus Müller',    racenet:'RealSuetomit',    team:'Visa Cash App RB',       human:'Timo',    photo:'timotheus-mueller-racingbulls.png'      },
+  { name:'Pascale Braasch',     racenet:'lafillederue',    team:'Visa Cash App RB',       human:'Pascale', photo:'pascale-braasch-racingbulls.png'        },
+  { name:'Niklas Schweisfurth', racenet:'niklasschwei',    team:'Aston Martin',           human:'Niklas',  photo:'niklas-schweisfurth-astonmartin.png'    },
+  { name:'Tim Löffler',         racenet:'loeffel00',       team:'Kick Sauber',            human:'Tim',     photo:'tim-loeffler-kicksauber.png'            },
+  { name:'Marcel Walle',        racenet:'Bidox2',          team:'Red Bull',               human:'Marcel',  photo:'marcel-walle-redbull-removebg-preview.png'},
+  { name:'Yannis Herling',      racenet:'HenkelPog',       team:'Alpine',                 human:'Yannis',  photo:'yannis-herling-alpine.png'              },
+  { name:'Eric Walter',         racenet:'PotatokingDE',    team:'Ferrari',                human:'Eric',    photo:'eric-walter-ferrari.png'                },
+  { name:'Philipp Juny',        racenet:'beiunszuhause',   team:'McLaren',                human:'Philipp', photo:'philipp-juny-mclaren.png'               },
+  { name:'Charles Leclerc',     racenet:null,              team:'Ferrari',                human:null,      photo:'charles-leclerc-ferrari.png'            },
+  { name:'Lando Norris',        racenet:null,              team:'McLaren',                human:null,      photo:'lando-norris-mclaren.png'               },
+  { name:'Andrea Kimi Antonelli',racenet:null,             team:'Mercedes-AMG Petronas',  human:null,      photo:'andrea-kimi-antonelli-mercedes.png'     },
+  { name:'Max Verstappen',      racenet:null,              team:'Red Bull',               human:null,      photo:'max-verstappen-red-bull-racing.png'     },
+  { name:'George Russell',      racenet:null,              team:'Mercedes-AMG Petronas',  human:null,      photo:'george-russell-mercedes.png'            },
+  { name:'Alex Albon',          racenet:null,              team:'Williams',               human:null,      photo:'alex-albon-williams.png'                },
+  { name:'Carlos Sainz',        racenet:null,              team:'Williams',               human:null,      photo:'carlos-sainz-williams.png'              },
+  { name:'Pierre Gasly',        racenet:null,              team:'Alpine',                 human:null,      photo:'pierre-gasly-alpine.png'                },
+  { name:'Oliver Bearman',      racenet:null,              team:'Haas',                   human:null,      photo:'oliver-bearman-haas.png'                },
+  { name:'Nico Hulkenberg',     racenet:null,              team:'Kick Sauber',            human:null,      photo:'nico-hulkenberg-kicksauber.png'         },
+  { name:'Esteban Ocon',        racenet:null,              team:'Haas',                   human:null,      photo:'esteban-ocon-haas-f1-team.png'          },
+  { name:'Lance Stroll',        racenet:null,              team:'Aston Martin',           human:null,      photo:'lance-stroll-aston-martin.png'          },
 ];
 
 const TEAM_COLORS = {
@@ -750,6 +784,61 @@ async function saveState(){
   else localStorage.setItem('rennplaner_local',JSON.stringify(S));
 }
 
+// ── RACE CALENDAR ─────────────────────────────────────────────────────────────
+const RACES = [
+  { num:1,  flag:'🇦🇺', country:'Australien',          city:'Melbourne',       done:true  },
+  { num:2,  flag:'🇨🇳', country:'China',                city:'Shanghai',        done:true  },
+  { num:3,  flag:'🇯🇵', country:'Japan',                city:'Suzuka',          done:false },
+  { num:4,  flag:'🇧🇭', country:'Bahrain',              city:'Sachir',          done:false },
+  { num:5,  flag:'🇸🇦', country:'Saudi-Arabien',        city:'Dschidda',        done:false },
+  { num:6,  flag:'🇺🇸', country:'USA',                  city:'Miami',           done:false },
+  { num:7,  flag:'🇮🇹', country:'Italien Emilia-Romagna',city:'Imola',          done:false },
+  { num:8,  flag:'🇲🇨', country:'Monaco',               city:'Monte Carlo',     done:false },
+  { num:9,  flag:'🇪🇸', country:'Spanien',              city:'Barcelona',       done:false },
+  { num:10, flag:'🇨🇦', country:'Kanada',               city:'Montreal',        done:false },
+  { num:11, flag:'🇦🇹', country:'Österreich',           city:'Spielberg',       done:false },
+  { num:12, flag:'🇬🇧', country:'Großbritannien',       city:'Silverstone',     done:false },
+  { num:13, flag:'🇧🇪', country:'Belgien',              city:'Spa-Francorchamps',done:false},
+  { num:14, flag:'🇭🇺', country:'Ungarn',               city:'Hungaroring',     done:false },
+  { num:15, flag:'🇳🇱', country:'Niederlande',          city:'Zandvoort',       done:false },
+  { num:16, flag:'🇮🇹', country:'Italien',              city:'Monza',           done:false },
+  { num:17, flag:'🇦🇿', country:'Aserbaidschan',        city:'Baku',            done:false },
+  { num:18, flag:'🇸🇬', country:'Singapur',             city:'Singapur',        done:false },
+  { num:19, flag:'🇺🇸', country:'USA',                  city:'Austin',          done:false },
+  { num:20, flag:'🇲🇽', country:'Mexiko',               city:'Mexiko-Stadt',    done:false },
+  { num:21, flag:'🇧🇷', country:'Brasilien',            city:'São Paulo',       done:false },
+  { num:22, flag:'🇺🇸', country:'USA',                  city:'Las Vegas',       done:false },
+  { num:23, flag:'🇶🇦', country:'Katar',                city:'Lusail',          done:false },
+  { num:24, flag:'🇦🇪', country:'Ver. Arab. Emirate',   city:'Abu Dhabi',       done:false },
+];
+
+function renderRaceCalendar(){
+  const el=document.getElementById('calendarContent');
+  if(!el)return;
+  const nextIdx=RACES.findIndex(r=>!r.done);
+  el.innerHTML=`<div class="race-list">${RACES.map((r,i)=>{
+    const isNext=i===nextIdx;
+    const cls=r.done?'done':isNext?'next':'upcoming';
+    const badge=r.done
+      ?`<span class="race-done-badge">✓ Gefahren</span>`
+      :isNext
+        ?`<span class="race-next-badge">⚡ Nächstes Rennen</span>`
+        :`<span class="race-upcoming-badge">Ausstehend</span>`;
+    return`<div class="race-row ${cls}">
+      <div class="race-num">${r.num}</div>
+      <div class="race-flag">${r.flag}</div>
+      <div class="race-info">
+        <div class="race-country" style="${r.done?'color:var(--m2);':isNext?'color:var(--y);':''}">${r.country}</div>
+        <div class="race-city">${r.city}</div>
+      </div>
+      <div class="race-status">${badge}</div>
+    </div>`;
+  }).join('')}</div>
+  <div style="font-size:0.7rem;color:var(--m2);text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+    ✓ ${RACES.filter(r=>r.done).length} gefahren &nbsp;·&nbsp; ${RACES.filter(r=>!r.done).length} ausstehend
+  </div>`;
+}
+
 // ── CLEANUP ───────────────────────────────────────────────────────────────────
 async function cleanupPastDates(){
   const today=new Date();today.setHours(0,0,0,0);let changed=false;
@@ -798,16 +887,19 @@ function renderStandings(){
     const teamColor=TEAM_COLORS[info.team]||'#555';
     const posClass=i===0?'p1':i===1?'p2':i===2?'p3':'';
     const pct=Math.round(d.points/maxPts*100);
-    const racenetSub=info.racenet?`<div style="font-size:0.6rem;color:var(--m2);margin-left:17px;margin-top:1px;">${info.racenet}</div>`:'';
+    const racenetSub=info.racenet?`<div style="font-size:0.6rem;color:var(--m2);margin-top:1px;">${info.racenet}</div>`:'';
+    const photoEl = info.photo
+      ? `<img src="${info.photo}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;object-position:top;border:2px solid ${teamColor};flex-shrink:0;">`
+      : `<div style="width:38px;height:38px;border-radius:50%;background:${dotColor}22;border:2px solid ${dotColor};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:${dotColor};font-weight:700;">${d.name.split(' ').map(w=>w[0]).join('').slice(0,2)}</div>`;
     return`<div class="standings-row ${isHuman?'human-row':'ai-row'}">
       <div class="st-pos ${posClass}">${i+1}</div>
-      <div class="st-driver">
-        <div class="st-name-row">
-          <div class="st-dot" style="background:${dotColor};${isHuman?'box-shadow:0 0 6px '+dotColor:''}"></div>
-          <span class="st-name" style="color:${isHuman?'var(--text)':'var(--m3)'}">${d.name}</span>
+      <div class="st-driver" style="flex-direction:row;align-items:center;gap:10px;">
+        ${photoEl}
+        <div>
+          <div style="font-weight:700;font-size:0.86rem;color:${isHuman?'var(--text)':'var(--m3)'};">${d.name}</div>
+          ${racenetSub}
+          <div class="st-team" style="color:${teamColor};margin-left:0;">${info.team}</div>
         </div>
-        ${racenetSub}
-        <div class="st-team" style="color:${teamColor}">${info.team}</div>
       </div>
       <div class="st-pts-wrap">
         <div class="st-pts" style="color:${isHuman?'var(--y)':'var(--m3)'}">${d.points}</div>
@@ -1019,7 +1111,7 @@ function getDateMap(){const map={};S.persons.forEach(p=>p.slots.forEach(s=>{if(!
 function sortedDates(){return Object.entries(getDateMap()).sort((a,b)=>b[1].length-a[1].length||a[0].localeCompare(b[0]));}
 
 // ── RENDER ────────────────────────────────────────────────────────────────────
-function render(){renderReminderBanner();renderPersons();renderOverview();renderConfirmed();renderAdminPicker();}
+function render(){renderReminderBanner();renderPersons();renderOverview();renderConfirmed();renderAdminPicker();renderRaceCalendar();}
 
 function renderReminderBanner(){
   const el=document.getElementById('reminderBanner');
@@ -1178,6 +1270,7 @@ window.checkPin=function(){
 };
 window.prevMonth=prevMonth;window.nextMonth=nextMonth;window.toggleDate=toggleDate;
 initCal();
+renderRaceCalendar();
 </script>
 </body>
 </html>
