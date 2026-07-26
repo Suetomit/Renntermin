@@ -134,11 +134,14 @@ header::after{content:'';position:absolute;left:0;right:0;bottom:0;height:2px;
 /* ── LAYOUT ── */
 .wrap{
   position:relative;z-index:1;
-  max-width:1240px;margin:0 auto;
+  max-width:1400px;margin:0 auto;
   padding:28px 20px 80px;
-  display:grid;grid-template-columns:420px 1fr;gap:22px;
+  display:grid;
+  grid-template-columns:260px 400px 1fr;
+  gap:22px;
 }
-@media(max-width:900px){.wrap{grid-template-columns:1fr;}}
+@media(max-width:1100px){.wrap{grid-template-columns:260px 1fr;}}
+@media(max-width:750px){.wrap{grid-template-columns:1fr;}}
 .rcol{display:flex;flex-direction:column;gap:18px;}
 
 /* ── PANEL ── */
@@ -471,32 +474,31 @@ input[type=number]:focus{border-color:var(--y);box-shadow:0 0 0 2px var(--yglow)
 .btn-del-self:hover{background:rgba(255,40,0,0.15);}
 
 /* ── RACE CALENDAR ── */
-.race-list{display:flex;flex-direction:column;gap:5px;}
+.race-list{display:flex;flex-direction:column;gap:3px;}
 .race-row{
-  display:grid;grid-template-columns:32px 28px 1fr auto;
-  align-items:center;gap:10px;
-  padding:9px 12px;border-radius:9px;
+  display:grid;grid-template-columns:24px 22px 1fr auto;
+  align-items:center;gap:7px;
+  padding:7px 10px;border-radius:8px;
   border:1px solid transparent;transition:all 0.18s;
   position:relative;overflow:hidden;
 }
 .race-row::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;}
-.race-row.done{background:rgba(255,255,255,0.03);border-color:var(--border);}
+.race-row.done{background:rgba(255,255,255,0.025);border-color:var(--border);}
 .race-row.done::before{background:var(--g);}
-.race-row.next{background:rgba(240,192,0,0.06);border-color:rgba(240,192,0,0.3);box-shadow:0 0 16px rgba(240,192,0,0.06);}
+.race-row.next{background:rgba(240,192,0,0.06);border-color:rgba(240,192,0,0.3);box-shadow:0 0 14px rgba(240,192,0,0.05);}
 .race-row.next::before{background:var(--y);}
 .race-row.upcoming{background:transparent;border-color:transparent;}
 .race-row.upcoming::before{background:var(--border);}
 .race-row:hover{border-color:var(--border2);background:rgba(255,255,255,0.03);}
-.race-num{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--m);text-align:center;line-height:1;}
-.race-flag{font-size:1.1rem;text-align:center;}
+.race-num{font-family:'Bebas Neue',sans-serif;font-size:0.9rem;color:var(--m);text-align:center;line-height:1;}
+.race-flag{font-size:0.95rem;text-align:center;}
 .race-info{}
-.race-country{font-weight:700;font-size:0.84rem;color:var(--text);}
-.race-city{font-size:0.68rem;color:var(--m2);margin-top:1px;}
-.race-status{}
-.race-done-badge{background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.3);color:var(--g);font-size:0.62rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;}
-.race-next-badge{background:rgba(240,192,0,0.12);border:1px solid rgba(240,192,0,0.35);color:var(--y);font-size:0.62rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;animation:nextpulse 2s ease-in-out infinite;}
-@keyframes nextpulse{0%,100%{box-shadow:0 0 0 rgba(240,192,0,0)}50%{box-shadow:0 0 8px rgba(240,192,0,0.3)}}
-.race-upcoming-badge{color:var(--m);font-size:0.68rem;}
+.race-country{font-weight:700;font-size:0.76rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.race-city{font-size:0.62rem;color:var(--m2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.race-done-badge{background:rgba(0,230,118,0.1);color:var(--g);font-size:0.58rem;font-weight:700;padding:2px 6px;border-radius:20px;border:1px solid rgba(0,230,118,0.25);white-space:nowrap;}
+.race-next-badge{background:rgba(240,192,0,0.1);color:var(--y);font-size:0.58rem;font-weight:700;padding:2px 6px;border-radius:20px;border:1px solid rgba(240,192,0,0.3);white-space:nowrap;animation:nextpulse 2s ease-in-out infinite;}
+@keyframes nextpulse{0%,100%{box-shadow:0 0 0 rgba(240,192,0,0)}50%{box-shadow:0 0 6px rgba(240,192,0,0.3)}}
+.race-upcoming-badge{color:var(--m);font-size:0.6rem;}
 
 /* ── TABS ── */
 .tab-switcher{display:flex;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:3px;gap:3px;}
@@ -529,7 +531,7 @@ input[type=number]:focus{border-color:var(--y);box-shadow:0 0 0 2px var(--yglow)
       <img src="logo.png" alt="Gurkensöhne Cup" class="logo-img">
       <div class="logo-text">
         <div class="logo-title">Gurkensöhne Cup</div>
-        <div class="logo-sub">Renntermin-Planer · Saison 2026</div>
+        <div class="logo-sub">Renntermin-Planer · Saison 2025</div>
       </div>
     </div>
     <div class="header-right">
@@ -545,7 +547,15 @@ input[type=number]:focus{border-color:var(--y);box-shadow:0 0 0 2px var(--yglow)
 <div id="reminderBanner" style="display:none;position:relative;z-index:1;"></div>
 
 <div class="wrap">
-  <!-- LEFT: FORM -->
+  <!-- COL 1: RACE CALENDAR -->
+  <div>
+    <div class="panel" id="calendarPanel">
+      <div class="ptitle">🗓 Rennkalender 2025</div>
+      <div id="calendarContent"></div>
+    </div>
+  </div>
+
+  <!-- COL 2: FORM -->
   <div>
     <div class="panel">
       <div class="ptitle">🏎 Verfügbarkeit eintragen</div>
@@ -612,12 +622,6 @@ input[type=number]:focus{border-color:var(--y);box-shadow:0 0 0 2px var(--yglow)
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- RACE CALENDAR -->
-    <div class="panel" id="calendarPanel">
-      <div class="ptitle">🗓 Rennkalender 2026</div>
-      <div id="calendarContent"></div>
     </div>
 
     <!-- ADMIN -->
