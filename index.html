@@ -36,13 +36,17 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;min-
 
 /* ── BG ATMOSPHERE ── */
 body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
-  background:
-    radial-gradient(ellipse 70% 40% at 15% 5%, rgba(232,0,45,0.06),transparent 60%),
-    radial-gradient(ellipse 50% 30% at 85% 85%, rgba(240,192,0,0.05),transparent 55%),
-    radial-gradient(ellipse 40% 60% at 50% 50%, rgba(14,17,23,0.4),transparent 80%);}
+  background-image:url('header_banner.png');
+  background-size:cover;background-position:center top;
+  opacity:0.08;
+  filter:saturate(1.3) brightness(0.8);
+}
 body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
-  background-image:linear-gradient(rgba(255,255,255,0.012) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.012) 1px,transparent 1px);
-  background-size:48px 48px;}
+  background:
+    radial-gradient(ellipse 100% 40% at 50% 0%, rgba(7,9,13,0.3), transparent 60%),
+    radial-gradient(ellipse 100% 60% at 50% 100%, rgba(7,9,13,0.95), transparent 80%),
+    linear-gradient(180deg, rgba(7,9,13,0.2) 0%, rgba(7,9,13,0.7) 40%, rgba(7,9,13,0.97) 100%);
+}
 
 /* ── LOADING ── */
 .loading-overlay{position:fixed;inset:0;z-index:999;background:rgba(7,9,13,0.96);
@@ -60,14 +64,6 @@ header{
   overflow:hidden;
   border-bottom:1px solid var(--border);
   box-shadow:0 2px 40px rgba(0,0,0,0.7), 0 1px 0 rgba(240,192,0,0.08);
-}
-/* Banner background */
-.header-bg{
-  position:absolute;inset:0;
-  background-image:url('header_banner.png');
-  background-size:cover;background-position:center 30%;
-  opacity:0.12;
-  filter:saturate(1.4);
 }
 /* Animated racing stripe */
 header::after{content:'';position:absolute;left:0;right:0;bottom:0;height:2px;
@@ -500,7 +496,6 @@ input[type=number]:focus{border-color:var(--y);box-shadow:0 0 0 2px var(--yglow)
 </div>
 
 <header>
-  <div class="header-bg"></div>
   <div class="header-inner">
     <div class="logo-wrap">
       <img src="logo.png" alt="Gurkensöhne Cup" class="logo-img">
@@ -643,24 +638,34 @@ const COLORS = ['#e8002d','#6692ff','#52e252','#6692ff','#3671c6','#ff8000','#ff
 const ac = i => COLORS[i % COLORS.length];
 const ini = n => n.trim().split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
 
-// Helmet sprite: 4 cols × 3 rows
-// Row 0: McLaren(0), Mercedes(1), Ferrari(2), RedBull(3)
-// Row 1: AstonMartin(4), Williams(5), Alpine(6), Haas(7)
-// Row 2: RacingBulls(8), KickSauber(9), empty, empty
-const HELMET_MAP = {
-  'Eric':    2, // Ferrari
-  'Pascale': 8, // Visa Cash App RB (Racing Bulls)
-  'Tim':     9, // Kick Sauber
-  'Timo':    8, // Visa Cash App RB (Racing Bulls)
-  'Marcel':  3, // Red Bull
-  'Philipp': 0, // McLaren
-  'Yannis':  6, // Alpine
-  'Niklas':  4, // Aston Martin
+// Individual helmet images per team
+const TEAM_HELMET_IMG = {
+  'McLaren':               'helmet_mclaren.png',
+  'Mercedes-AMG Petronas': 'helmet_mercedes.png',
+  'Ferrari':               'helmet_ferrari.png',
+  'Red Bull':              'helmet_redbull.png',
+  'Aston Martin':          'helmet_astonmartin.png',
+  'Williams':              'helmet_williams.png',
+  'Alpine':                'helmet_alpine.png',
+  'Haas':                  'helmet_haas.png',
+  'Visa Cash App RB':      'helmet_racingbulls.png',
+  'Kick Sauber':           'helmet_kicksauber.png',
 };
-function helmetStyle(idx) {
-  const col = idx % 4;
-  const row = Math.floor(idx / 4);
-  return `background-image:url('helmets.png');background-size:400% 300%;background-position:${col*33.333}% ${row*50}%;width:34px;height:34px;border-radius:8px;flex-shrink:0;overflow:hidden;display:inline-block;`;
+const DRIVER_TEAM = {
+  'Eric':'Ferrari','Pascale':'Visa Cash App RB','Tim':'Kick Sauber','Timo':'Visa Cash App RB',
+  'Marcel':'Red Bull','Philipp':'McLaren','Yannis':'Alpine','Niklas':'Aston Martin',
+};
+function helmetImg(driverName){
+  const team = DRIVER_TEAM[driverName];
+  const src = team ? (TEAM_HELMET_IMG[team]||'') : '';
+  return src ? `<img src="${src}" style="width:36px;height:36px;object-fit:contain;flex-shrink:0;" alt="${team}">` 
+             : `<div style="width:36px;height:36px;border-radius:50%;background:var(--s3);flex-shrink:0;"></div>`;
+}
+function helmetImgByTeam(team){
+  const src = TEAM_HELMET_IMG[team]||'';
+  return src ? `<img src="${src}" style="width:36px;height:36px;object-fit:contain;flex-shrink:0;" alt="${team}">`
+             : `<div style="width:36px;height:36px;background:var(--s3);border-radius:50%;flex-shrink:0;"></div>`;
+}
 }
 
 const ALL_DRIVERS = [
@@ -815,7 +820,6 @@ function renderStandings(){
 
 function renderConstructorStandings(){
   const el=document.getElementById('standingsContent');
-  // Sum points per team
   const teamPts={};
   standings.drivers.forEach(d=>{
     const info=getDriverInfo(d.name);
@@ -824,18 +828,11 @@ function renderConstructorStandings(){
   });
   const sorted=Object.entries(teamPts).sort((a,b)=>b[1]-a[1]);
   const maxPts=Math.max(sorted[0]?.[1]||1,1);
-  // Helmet index per team
-  const TEAM_HELMET={
-    'McLaren':0,'Mercedes-AMG Petronas':1,'Ferrari':2,'Red Bull':3,
-    'Aston Martin':4,'Williams':5,'Alpine':6,'Haas':7,
-    'Visa Cash App RB':8,'Kick Sauber':9,
-  };
+  // Helmet per team
   el.innerHTML=sorted.map(([team,pts],i)=>{
     const color=TEAM_COLORS[team]||'#555';
     const posClass=i===0?'p1':i===1?'p2':i===2?'p3':'';
     const pct=Math.round(pts/maxPts*100);
-    const hIdx=TEAM_HELMET[team]??0;
-    // Find drivers for this team
     const teamDrivers=standings.drivers
       .filter(d=>getDriverInfo(d.name).team===team)
       .sort((a,b)=>b.points-a.points);
@@ -844,7 +841,7 @@ function renderConstructorStandings(){
       <div class="st-pos ${posClass}">${i+1}</div>
       <div class="st-driver">
         <div class="st-name-row" style="gap:10px;">
-          <div style="${helmetStyle(hIdx)}"></div>
+          ${helmetImgByTeam(team)}
           <span class="st-name" style="color:${color};font-size:0.92rem;">${team}</span>
         </div>
         <div style="font-size:0.65rem;color:var(--m2);margin-top:4px;margin-left:2px;">${driversSub}</div>
@@ -1052,12 +1049,11 @@ function renderPersons(){
     const color=ac(di);
     const isOwn=currentUser===name;
     const showCopyBtns=currentUser&&DRIVERS.includes(currentUser)&&!isOwn;
-    const hIdx=HELMET_MAP[name]??di;
 
     if(!person){
       return`<div class="driver-tile" style="--dc:${color}">
         <div class="dt-head">
-          <div style="${helmetStyle(hIdx)};opacity:0.28;"></div>
+          <div style="opacity:0.25;">${helmetImg(name)}</div>
           <span class="dt-name" style="opacity:0.3;color:var(--m3)">${name}</span>
         </div>
         <div class="dt-empty">Noch nicht eingetragen</div>
@@ -1087,7 +1083,7 @@ function renderPersons(){
     return`<div class="driver-tile has-entries" style="--dc:${color}">
       ${delBtn}
       <div class="dt-head">
-        <div style="${helmetStyle(hIdx)}"></div>
+        ${helmetImg(name)}
         <span class="dt-name">${name}</span>
       </div>
       ${slots}
