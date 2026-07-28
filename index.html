@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gurkensöhne Cup 2026</title>
   <style>
     :root {
@@ -20,24 +20,17 @@
       --bronze: #cd7f32;
     }
 
-    * { 
-      box-sizing: border-box; 
-      margin: 0; 
-      padding: 0; 
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-      -webkit-tap-highlight-color: transparent;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
     
     body { 
       background: linear-gradient(rgba(11, 14, 20, 0.75), rgba(11, 14, 20, 0.85)), url('header_banner.png') no-repeat center center fixed;
       background-size: cover;
       color: var(--text); 
-      padding: 12px; 
+      padding: 20px; 
       font-size: 14px; 
-      overflow-x: hidden;
     }
     
-    .app-container { max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+    .app-container { max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
 
     /* Top Status Bar & Header Logo */
     .header-bar {
@@ -46,15 +39,14 @@
       align-items: center;
       background: var(--card-bg);
       border: 1px solid var(--border);
-      padding: 12px 18px;
+      padding: 16px 28px;
       border-radius: 12px;
       backdrop-filter: blur(8px);
-      flex-wrap: wrap;
-      gap: 12px;
     }
-    .logo-area { display: flex; align-items: center; gap: 14px; }
-    .logo-area img { height: 75px; max-height: 90px; width: auto; object-fit: contain; }
-    .logo-area h1 { font-size: 1.4rem; font-weight: 800; letter-spacing: 0.5px; }
+    .logo-area { display: flex; align-items: center; gap: 20px; }
+    /* Logo deutlich vergrößert */
+    .logo-area img { height: 110px; max-height: 120px; width: auto; object-fit: contain; }
+    .logo-area h1 { font-size: 1.8rem; font-weight: 800; letter-spacing: 0.5px; }
 
     .status-bar { display: flex; align-items: center; font-size: 0.85rem; color: var(--m); }
     .dot { width: 10px; height: 10px; background: #ff9100; border-radius: 50%; display: inline-block; margin-right: 8px; }
@@ -65,21 +57,18 @@
       background: rgba(255, 145, 0, 0.12);
       border: 1px solid #ff9100;
       border-radius: 12px;
-      padding: 12px 16px;
+      padding: 12px 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 12px;
+      gap: 15px;
       backdrop-filter: blur(8px);
       flex-wrap: wrap;
     }
-    .reminder-info { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 200px; }
+    .reminder-info { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 280px; }
     .reminder-title { font-weight: 700; color: #ff9100; font-size: 0.9rem; }
-    .reminder-drivers { color: #fff; font-weight: 600; word-break: break-word; }
-    .reminder-actions { display: flex; align-items: center; gap: 12px; width: 100%; justify-content: space-between; }
-    @media (min-width: 576px) {
-      .reminder-actions { width: auto; justify-content: flex-end; }
-    }
+    .reminder-drivers { color: #fff; font-weight: 600; }
+    .reminder-actions { display: flex; align-items: center; gap: 12px; }
     .btn-wa {
       background: #25D366;
       color: #fff;
@@ -111,64 +100,61 @@
       border: 1px solid var(--border);
       border-left: 4px solid var(--y);
       border-radius: 12px;
-      padding: 14px 18px;
+      padding: 16px 24px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 15px;
       backdrop-filter: blur(8px);
     }
     .hero-title { font-size: 0.75rem; color: var(--m); text-transform: uppercase; letter-spacing: 1px; }
-    .hero-race-name { font-size: 1.15rem; font-weight: 800; color: #fff; }
-    .hero-countdown { font-size: 1.1rem; font-weight: 800; color: var(--y); font-family: monospace; }
+    .hero-race-name { font-size: 1.3rem; font-weight: 800; color: #fff; }
+    .hero-countdown { font-size: 1.2rem; font-weight: 800; color: var(--y); font-family: monospace; }
 
     /* Layout Grids */
-    .grid-2col { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    .grid-2col { display: grid; grid-template-columns: 1fr; gap: 20px; }
     @media (min-width: 992px) {
-      .grid-2col { grid-template-columns: 360px 1fr; gap: 20px; }
+      .grid-2col { grid-template-columns: 360px 1fr; }
     }
 
-    .grid-3col { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    .grid-3col { display: grid; grid-template-columns: 1fr; gap: 20px; }
     @media (min-width: 1100px) {
-      .grid-3col { grid-template-columns: 380px 1fr 360px; gap: 20px; }
+      .grid-3col { grid-template-columns: 340px 1fr 360px; }
     }
 
     .card { 
       background: var(--card-bg); 
       border: 1px solid var(--border); 
       border-radius: 12px; 
-      padding: 14px; 
+      padding: 18px; 
       backdrop-filter: blur(10px);
     }
-    @media (min-width: 768px) {
-      .card { padding: 18px; }
-    }
-    .card-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
 
     /* Name Selection & Form with Helmets */
-    .name-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin-bottom: 15px; }
+    .name-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 15px; }
     .name-btn { 
       background: var(--s3); 
       border: 1px solid var(--border); 
       border-radius: 8px; 
       color: var(--text); 
-      padding: 8px 10px; 
+      padding: 6px 10px; 
       cursor: pointer; 
       display: flex; 
       align-items: center; 
-      gap: 6px; 
+      gap: 8px; 
       font-size: 0.85rem; 
       transition: all 0.2s;
     }
     .name-btn.selected { border-color: var(--y); background: rgba(255, 215, 0, 0.1); }
-    .name-btn-helmet { width: 24px; height: 24px; object-fit: contain; flex-shrink: 0; }
+    .name-btn-helmet { width: 28px; height: 28px; object-fit: contain; flex-shrink: 0; }
 
     /* Calendar & Slots */
     .cal-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
     .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
     .cal-header { font-size: 0.75rem; color: var(--m); padding: 4px; }
-    .cal-day { background: var(--s3); padding: 12px 2px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; border: 1px solid transparent; min-height: 38px; display: flex; align-items: center; justify-content: center; }
+    .cal-day { background: var(--s3); padding: 10px 4px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; border: 1px solid transparent; }
     .cal-day:hover { border-color: var(--y); }
     .cal-day.cal-selected { background: var(--y); color: #000; font-weight: 700; }
     .cal-day.cal-today { border-color: #27f4d2; }
@@ -177,17 +163,17 @@
 
     .slot-card { background: var(--s3); border-radius: 8px; padding: 10px; margin-top: 10px; font-size: 0.85rem; }
     .slot-date-label { display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-bottom: 8px; }
-    .time-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .time-row input { background: var(--bg); border: 1px solid var(--border); color: #fff; padding: 6px 8px; border-radius: 4px; font-size: 16px; }
+    .time-row { display: flex; align-items: center; gap: 8px; }
+    .time-row input { background: var(--bg); border: 1px solid var(--border); color: #fff; padding: 4px 8px; border-radius: 4px; }
 
     /* Standings Table & Search */
-    .search-bar { width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: #fff; margin-bottom: 12px; font-size: 16px; }
-    .tabs { display: flex; gap: 6px; }
+    .search-bar { width: 100%; padding: 8px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: #fff; margin-bottom: 12px; }
+    .tabs { display: flex; gap: 8px; }
     .tab-btn { padding: 6px 12px; background: var(--s3); border: none; border-radius: 6px; color: var(--m); cursor: pointer; font-weight: 600; font-size: 0.8rem; }
     .tab-btn.active { background: var(--y); color: #000; }
 
-    .standings-row { display: flex; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--border); gap: 8px; border-radius: 8px; margin-bottom: 4px; }
-    .st-pos { font-weight: 800; width: 20px; text-align: center; font-size: 0.85rem; }
+    .standings-row { display: flex; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--border); gap: 10px; border-radius: 8px; margin-bottom: 4px; }
+    .st-pos { font-weight: 800; width: 24px; text-align: center; font-size: 0.9rem; }
     
     .standings-row.p1 { border: 1px solid var(--gold); background: rgba(255, 215, 0, 0.08); }
     .standings-row.p1 .st-pos { color: var(--gold); }
@@ -196,105 +182,50 @@
     .standings-row.p3 { border: 1px solid var(--bronze); background: rgba(205, 127, 50, 0.08); }
     .standings-row.p3 .st-pos { color: var(--bronze); }
 
-    .st-img { width: 30px; height: 30px; object-fit: contain; flex-shrink: 0; }
-    .st-driver { flex: 1; display: flex; align-items: center; overflow: hidden; }
-    .st-pts-wrap { text-align: right; min-width: 35px; }
-    .st-pts { font-weight: 700; font-size: 1rem; }
+    .st-img { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
+    .st-driver { flex: 1; display: flex; align-items: center; }
+    .st-pts-wrap { text-align: right; }
+    .st-pts { font-weight: 700; font-size: 1.05rem; }
     .st-pts-lbl { font-size: 0.65rem; color: var(--m2); }
-    .st-bar-wrap { width: 40px; height: 6px; background: var(--s3); border-radius: 3px; overflow: hidden; margin-left: 6px; flex-shrink: 0; }
-    @media (max-width: 400px) {
-      .st-bar-wrap { display: none; }
-    }
+    .st-bar-wrap { width: 50px; height: 6px; background: var(--s3); border-radius: 3px; overflow: hidden; margin-left: 8px; }
     .st-bar-fill { height: 100%; border-radius: 3px; }
 
-    /* =========================================================
-       RENNKALENDER: RESPONSIVE OPTIMIERUNG (DESKTOP VS MOBIL)
-       ========================================================= */
-    .race-list { 
-      display: flex; 
-      flex-direction: column; 
-      gap: 10px; 
-      max-height: 580px; 
-      overflow-y: auto; 
-      padding-right: 4px; 
-    }
-    
-    .race-item { 
-      background: var(--s3); 
-      border-radius: 8px; 
-      overflow: hidden; 
-      border: 1px solid var(--border); 
-      transition: all 0.2s; 
-    }
-    .race-item.next { 
-      border-color: var(--y); 
-      box-shadow: 0 0 10px rgba(255, 215, 0, 0.15); 
-    }
-
-    .race-header { 
-      display: flex; 
-      align-items: center; 
-      gap: 10px; 
-      padding: 10px 12px; 
-      background: rgba(0,0,0,0.2);
-    }
-    .race-num { font-weight: 700; width: 22px; font-size: 0.85rem; color: var(--m); }
+    /* Race Calendar List mit Aufklappbaren Streckenbildern */
+    .race-list { display: flex; flex-direction: column; gap: 6px; }
+    .race-item { background: var(--s3); border-radius: 8px; overflow: hidden; border: 1px solid transparent; transition: all 0.2s; }
+    .race-item.next { border-color: var(--y); background: rgba(255, 215, 0, 0.05); }
+    .race-header { display: flex; align-items: center; gap: 10px; padding: 10px; cursor: pointer; user-select: none; }
+    .race-header:hover { background: rgba(255,255,255,0.03); }
+    .race-num { font-weight: 700; width: 20px; font-size: 0.8rem; color: var(--m); }
     .race-info { flex: 1; }
-    .race-country { font-weight: 700; font-size: 0.9rem; }
-    .race-city { font-size: 0.72rem; color: var(--m2); }
+    .race-country { font-weight: 700; font-size: 0.85rem; }
+    .race-city { font-size: 0.7rem; color: var(--m2); }
+    .toggle-arrow { font-size: 0.75rem; color: var(--m); transition: transform 0.2s; }
+    .race-item.open .toggle-arrow { transform: rotate(180deg); }
 
-    /* Standart-Verhalten Desktop (Kacheln mit Dauerbildern) */
-    @media (min-width: 769px) {
-      .toggle-arrow { display: none; } /* Pfeil am PC verstecken */
-      .race-header { cursor: default; }
-      
-      .track-wrapper { 
-        display: block !important;
-        max-height: none !important; 
-        padding: 12px; 
-        background: rgba(11, 14, 20, 0.6); 
-        text-align: center;
-        border-top: 1px solid var(--border);
-      }
-      .track-img { 
-        max-width: 100%; 
-        height: 120px; 
-        object-fit: contain; 
-        border-radius: 6px; 
-        cursor: zoom-in; 
-        transition: transform 0.2s; 
-      }
-      .track-img:hover { transform: scale(1.04); }
+    /* Aufklappbarer Inhalt (Streckenbild) */
+    .track-wrapper { 
+      max-height: 0; 
+      overflow: hidden; 
+      transition: max-height 0.3s cubic-bezier(0, 1, 0, 1); 
+      background: rgba(11, 14, 20, 0.4); 
+      text-align: center;
     }
-
-    /* Verhalten Handy / Kleine Bildschirme (Akkordeon-Ansicht) */
-    @media (max-width: 768px) {
-      .race-header { cursor: pointer; user-select: none; }
-      .race-header:hover { background: rgba(255,255,255,0.05); }
-      .toggle-arrow { font-size: 0.75rem; color: var(--m); transition: transform 0.25s ease; }
-      .race-item.open .toggle-arrow { transform: rotate(180deg); }
-
-      .track-wrapper { 
-        max-height: 0; 
-        overflow: hidden; 
-        transition: max-height 0.3s cubic-bezier(0, 1, 0, 1), padding 0.3s ease; 
-        background: rgba(11, 14, 20, 0.4); 
-        text-align: center;
-        padding: 0 10px;
-      }
-      .race-item.open .track-wrapper { 
-        max-height: 250px; 
-        padding: 10px; 
-        border-top: 1px solid var(--border); 
-      }
-      .track-img { 
-        max-width: 100%; 
-        max-height: 160px; 
-        object-fit: contain; 
-        border-radius: 6px; 
-        cursor: zoom-in; 
-      }
+    .race-item.open .track-wrapper { 
+      max-height: 300px; 
+      padding: 10px; 
+      border-top: 1px solid var(--border); 
+      transition: max-height 0.3s ease-in-out; 
     }
+    .track-img { 
+      max-width: 100%; 
+      max-height: 180px; 
+      object-fit: contain; 
+      border-radius: 6px; 
+      cursor: zoom-in; 
+      transition: transform 0.2s; 
+    }
+    .track-img:hover { transform: scale(1.03); }
 
     /* Lightbox Modal (Großansicht bei Klick) */
     .lightbox {
@@ -306,45 +237,41 @@
       justify-content: center;
       align-items: center;
       backdrop-filter: blur(10px);
-      padding: 20px;
     }
     .lightbox.active { display: flex; }
-    .lightbox img { max-width: 100%; max-height: 85vh; object-fit: contain; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+    .lightbox img { max-width: 90%; max-height: 85%; object-fit: contain; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
     .lightbox-close {
-      position: absolute; top: 15px; right: 20px;
+      position: absolute; top: 20px; right: 30px;
       font-size: 2rem; color: #fff; cursor: pointer; font-weight: 800;
     }
 
     /* Drivers Grid Cards */
-    .driver-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
-    @media (min-width: 576px) {
-      .driver-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
-    }
-    .driver-tile { background: var(--s3); border-radius: 8px; padding: 10px; border-left: 4px solid var(--dc, var(--border)); }
-    .dt-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-    .dt-name { font-weight: 700; font-size: 0.85rem; word-break: break-word; }
+    .driver-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+    .driver-tile { background: var(--s3); border-radius: 8px; padding: 12px; border-left: 4px solid var(--dc, var(--border)); }
+    .dt-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .dt-name { font-weight: 700; }
     .dt-slot { background: var(--bg); padding: 6px 8px; border-radius: 4px; margin-top: 6px; font-size: 0.75rem; }
 
     /* Overview Cards */
-    .date-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+    .date-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
     .dcard { background: var(--s3); border-radius: 8px; padding: 12px; border: 1px solid var(--border); position: relative; }
     .dcard.best { border-color: var(--y); background: rgba(255, 215, 0, 0.03); }
     .dcard.full { border-color: #27f4d2; background: rgba(39, 244, 210, 0.05); }
     .dc-wd { font-size: 0.75rem; color: var(--m); }
-    .dc-d { font-size: 1.05rem; font-weight: 800; margin-bottom: 4px; }
+    .dc-d { font-size: 1.1rem; font-weight: 800; margin-bottom: 4px; }
     .dc-cnt { font-size: 0.85rem; font-weight: 700; color: var(--y); margin-bottom: 8px; }
     .dc-chip { display: block; background: var(--bg); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; margin: 4px 0; border-left: 3px solid transparent; }
 
     /* Buttons & Controls */
-    .btn { background: var(--y); color: #000; border: none; padding: 12px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 10px; font-size: 0.9rem; }
-    .btn-rm { background: none; border: none; color: #ff5555; cursor: pointer; font-size: 0.75rem; padding: 2px 4px; }
-    .btn-copy { background: var(--s3); border: 1px solid var(--border); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; width: 100%; }
+    .btn { background: var(--y); color: #000; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 10px; }
+    .btn-rm { background: none; border: none; color: #ff5555; cursor: pointer; font-size: 0.75rem; }
+    .btn-copy { background: var(--s3); border: 1px solid var(--border); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; width: 100%; }
     .btn-copy.green { border-color: #52e252; color: #52e252; }
 
     /* Admin Section */
     .admin-sec { display: none; margin-top: 20px; }
     .admin-sec.on { display: block; }
-    .pin-input { width: 100%; padding: 10px; background: var(--bg); border: 1px solid var(--border); color: #fff; border-radius: 6px; margin-bottom: 8px; font-size: 16px; }
+    .pin-input { width: 100%; padding: 8px; background: var(--bg); border: 1px solid var(--border); color: #fff; border-radius: 6px; margin-bottom: 8px; }
 
     #loadingOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background:var(--bg); display:flex; justify-content:center; align-items:center; z-index:999; }
   </style>
@@ -393,7 +320,7 @@
       <div class="hero-race-name" id="heroRaceName">GP von Japan (Suzuka)</div>
     </div>
     <div>
-      <div class="hero-title">Status / Countdown</div>
+      <div class="hero-title" style="text-align:right;">Status / Countdown</div>
       <div class="hero-countdown" id="heroCountdown">Ausstehend</div>
     </div>
   </div>
@@ -458,8 +385,8 @@
   <div id="confirmedArea"></div>
 
   <!-- Admin Controls Toggle -->
-  <div style="text-align:center; margin-top:10px;">
-    <button class="btn-copy" id="adminBtn" style="width:auto; padding:8px 18px;" onclick="toggleAdmin()">⚙️ Admin-Bereich</button>
+  <div style="text-align:center; margin-top:20px;">
+    <button class="btn-copy" id="adminBtn" style="width:auto; padding:6px 16px;" onclick="toggleAdmin()">⚙️ Admin-Bereich</button>
   </div>
 
   <div class="card admin-sec" id="adminSec">
@@ -473,18 +400,18 @@
     <div id="adminCtrl" style="display:none;">
       <p style="margin-bottom:10px;">Renntermin manuell festlegen:</p>
       <div id="pickGrid" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;"></div>
-      <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+      <div style="display:flex; gap:10px; margin-bottom:15px;">
         <input type="time" id="raceStart" value="14:00" class="pin-input" style="width:auto;">
         <input type="time" id="raceEnd" value="18:00" class="pin-input" style="width:auto;">
-        <button class="btn" id="confBtn" style="margin-top:0; width:auto;" onclick="confirmRace()">Bestätigen</button>
+        <button class="btn" id="confBtn" style="margin-top:0;" onclick="confirmRace()">Bestätigen</button>
       </div>
       <hr style="border-color:var(--border); margin:15px 0;">
-      <button class="btn-rm" style="font-size:0.85rem;" onclick="resetAll()">⚠️ Alle Termin-Einträge zurücksetzen</button>
+      <button class="btn-rm" onclick="resetAll()">⚠️ Alle Termin-Einträge zurücksetzen</button>
     </div>
 
     <div id="standingsAdminArea" style="display:none; margin-top:20px;">
       <p style="margin-bottom:10px;">WM-Punkte bearbeiten:</p>
-      <div style="margin-bottom:10px;">Rennen absolviert: <input type="number" id="racesCompleted" style="width:70px;" class="pin-input"></div>
+      <div style="margin-bottom:10px;">Rennen absolviert: <input type="number" id="racesCompleted" style="width:60px;" class="pin-input"></div>
       <div id="standingsInputs"></div>
       <button class="btn" onclick="saveStandings()">Punkte Speichern</button>
     </div>
@@ -538,14 +465,14 @@ const TEAM_COLORS = {
 function helmetImg(driverName){
   const team = DRIVER_TEAM[driverName];
   const src = team ? (TEAM_HELMET_IMG[team]||'') : '';
-  return src ? `<img src="${src}" style="width:28px;height:28px;object-fit:contain;flex-shrink:0;" alt="${team}">` 
-             : `<div style="width:28px;height:28px;border-radius:50%;background:var(--s3);flex-shrink:0;"></div>`;
+  return src ? `<img src="${src}" style="width:32px;height:32px;object-fit:contain;flex-shrink:0;" alt="${team}">` 
+             : `<div style="width:32px;height:32px;border-radius:50%;background:var(--s3);flex-shrink:0;"></div>`;
 }
 
 function helmetImgByTeam(team){
   const src = TEAM_HELMET_IMG[team]||'';
-  return src ? `<img src="${src}" style="width:30px;height:30px;object-fit:contain;flex-shrink:0;" alt="${team}">`
-             : `<div style="width:30px;height:30px;background:var(--s3);border-radius:50%;flex-shrink:0;"></div>`;
+  return src ? `<img src="${src}" style="width:36px;height:36px;object-fit:contain;flex-shrink:0;" alt="${team}">`
+             : `<div style="width:36px;height:36px;background:var(--s3);border-radius:50%;flex-shrink:0;"></div>`;
 }
 
 const ALL_DRIVERS = [
@@ -625,6 +552,7 @@ async function saveState(){
   render();
 }
 
+/* Rennkalender inkl. Dateipfaden für die Streckenbilder (trackImg) */
 const RACES = [
   { num:1,  cc:'au', country:'Australien',           city:'Melbourne',        done:true,  trackImg:'australia-gp.png' },
   { num:2,  cc:'cn', country:'China',                 city:'Shanghai',         done:true,  trackImg:'chinese-gp.png' },
@@ -652,6 +580,7 @@ const RACES = [
   { num:24, cc:'ae', country:'Ver. Arab. Emirate',    city:'Abu Dhabi',        done:false, trackImg:'yas-marina-circuit-abu-dhabi-2.png' },
 ];
 
+/* Aufklappbarer Rennkalender */
 function renderRaceCalendar(){
   const el=document.getElementById('calendarContent');
   if(!el)return;
@@ -661,6 +590,7 @@ function renderRaceCalendar(){
     document.getElementById('heroRaceName').textContent = `GP von ${RACES[nextIdx].country} (${RACES[nextIdx].city})`;
   }
 
+  /* Karierte Flagge Icon als SVG */
   const checkeredFlagIcon = `<span title="Rennen absolviert" style="font-size: 1rem; line-height: 1;">🏁</span>`;
 
   el.innerHTML=`<div class="race-list">${RACES.map((r,i)=>{
@@ -689,13 +619,11 @@ function renderRaceCalendar(){
 }
 
 window.toggleTrack = function(index) {
-  /* Klappt das Accordion nur auf mobilen Geräten um */
-  if (window.innerWidth <= 768) {
-    const item = document.getElementById(`race-item-${index}`);
-    if(item) item.classList.toggle('open');
-  }
+  const item = document.getElementById(`race-item-${index}`);
+  if(item) item.classList.toggle('open');
 };
 
+/* Lightbox Funktionen */
 window.openLightbox = function(imgSrc) {
   const lb = document.getElementById('lightbox');
   const img = document.getElementById('lightboxImg');
@@ -767,7 +695,7 @@ function renderStandings(){
       ${photoImg}
       <div class="st-driver">
         <div>
-          <div style="font-weight:700;font-size:0.82rem;">${d.name}</div>
+          <div style="font-weight:700;font-size:0.85rem;">${d.name}</div>
           <div style="font-size:0.68rem;color:${TEAM_COLORS[info.team]||'#888'};">${info.team}</div>
         </div>
       </div>
@@ -799,9 +727,9 @@ function renderConstructorStandings(){
     return`<div class="standings-row ${posClass}">
       <div class="st-pos">${badge}</div>
       <div class="st-driver">
-        <div style="display:flex; align-items:center; gap:6px;">
+        <div style="display:flex; align-items:center; gap:8px;">
           ${helmetImgByTeam(team)}
-          <span style="font-weight:700; font-size:0.82rem; color:${color}">${team}</span>
+          <span style="font-weight:700; color:${color}">${team}</span>
         </div>
       </div>
       <div class="st-pts-wrap">
@@ -1151,7 +1079,7 @@ function renderConfirmedArea(){
   el.innerHTML=`
     <div class="card" style="border-color:#27f4d2; background:rgba(39,244,210,0.05); text-align:center;">
       <div style="color:#27f4d2; font-weight:800; letter-spacing:1px; font-size:0.8rem;">🏁 RENNTERMIN FESTGELEGT</div>
-      <div style="font-size:1.3rem; font-weight:800; margin:4px 0;">${fmtDateLong(S.confirmedDate)}</div>
+      <div style="font-size:1.4rem; font-weight:800; margin:4px 0;">${fmtDateLong(S.confirmedDate)}</div>
       <div style="color:var(--m);">Uhrzeit: ${S.confirmedStart||'14:00'} - ${S.confirmedEnd||'18:00'} Uhr</div>
     </div>
   `;
