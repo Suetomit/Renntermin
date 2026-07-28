@@ -39,13 +39,14 @@
       align-items: center;
       background: var(--card-bg);
       border: 1px solid var(--border);
-      padding: 12px 24px;
+      padding: 16px 28px;
       border-radius: 12px;
       backdrop-filter: blur(8px);
     }
-    .logo-area { display: flex; align-items: center; gap: 16px; }
-    .logo-area img { height: 65px; object-fit: contain; }
-    .logo-area h1 { font-size: 1.4rem; font-weight: 800; letter-spacing: 0.5px; }
+    .logo-area { display: flex; align-items: center; gap: 20px; }
+    /* Logo deutlich vergrößert */
+    .logo-area img { height: 110px; max-height: 120px; width: auto; object-fit: contain; }
+    .logo-area h1 { font-size: 1.8rem; font-weight: 800; letter-spacing: 0.5px; }
 
     .status-bar { display: flex; align-items: center; font-size: 0.85rem; color: var(--m); }
     .dot { width: 10px; height: 10px; background: #ff9100; border-radius: 50%; display: inline-block; margin-right: 8px; }
@@ -589,6 +590,9 @@ function renderRaceCalendar(){
     document.getElementById('heroRaceName').textContent = `GP von ${RACES[nextIdx].country} (${RACES[nextIdx].city})`;
   }
 
+  /* Karierte Flagge Icon als SVG */
+  const checkeredFlagIcon = `<span title="Rennen absolviert" style="font-size: 1rem; line-height: 1;">🏁</span>`;
+
   el.innerHTML=`<div class="race-list">${RACES.map((r,i)=>{
     const isNext=i===nextIdx;
     const cls=r.done?'done':isNext?'next':'upcoming';
@@ -603,7 +607,7 @@ function renderRaceCalendar(){
           <div class="race-city">${r.city}</div>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
-          <span>${r.done?'✓':isNext?'⚡':''}</span>
+          <span>${r.done ? checkeredFlagIcon : isNext ? '⚡' : ''}</span>
           <span class="toggle-arrow">▼</span>
         </div>
       </div>
@@ -995,7 +999,7 @@ function renderOverview(){
     }
     
     html+=`<div class="dcard ${isFull?'full':isBest?'best':''}">
-      ${isChosen?'<span style="color:#27f4d2; font-weight:800; font-size:0.7rem; letter-spacing:0.5px;">✓ BESTÄTIGTER TERMIN</span>':''}
+      ${isChosen?'<span style="color:#27f4d2; font-weight:800; font-size:0.7rem; letter-spacing:0.5px;">🏁 BESTÄTIGTER TERMIN</span>':''}
       <div class="dc-wd">${fmtWD(d)}</div>
       <div class="dc-d">${fmtDateShort(d)}</div>
       <div class="dc-cnt" style="${isFull?'color:#27f4d2;':''}">${list.length} / ${DRIVERS.length} Fahrer</div>
