@@ -44,7 +44,7 @@
       backdrop-filter: blur(8px);
     }
     .logo-area { display: flex; align-items: center; gap: 16px; }
-    .logo-area img { height: 65px; object-fit: contain; } /* Logo vergrößert */
+    .logo-area img { height: 65px; object-fit: contain; }
     .logo-area h1 { font-size: 1.4rem; font-weight: 800; letter-spacing: 0.5px; }
 
     .status-bar { display: flex; align-items: center; font-size: 0.85rem; color: var(--m); }
@@ -119,7 +119,7 @@
 
     .grid-3col { display: grid; grid-template-columns: 1fr; gap: 20px; }
     @media (min-width: 1100px) {
-      .grid-3col { grid-template-columns: 320px 1fr 360px; }
+      .grid-3col { grid-template-columns: 340px 1fr 360px; }
     }
 
     .card { 
@@ -189,15 +189,60 @@
     .st-bar-wrap { width: 50px; height: 6px; background: var(--s3); border-radius: 3px; overflow: hidden; margin-left: 8px; }
     .st-bar-fill { height: 100%; border-radius: 3px; }
 
-    /* Race Calendar List */
-    .race-list { display: flex; flex-direction: column; gap: 4px; }
-    .race-row { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 6px; background: var(--s3); }
-    .race-row.done { opacity: 0.6; }
-    .race-row.next { border: 1px solid var(--y); background: rgba(255, 215, 0, 0.05); }
+    /* Race Calendar List mit Aufklappbaren Streckenbildern */
+    .race-list { display: flex; flex-direction: column; gap: 6px; }
+    .race-item { background: var(--s3); border-radius: 8px; overflow: hidden; border: 1px solid transparent; transition: all 0.2s; }
+    .race-item.next { border-color: var(--y); background: rgba(255, 215, 0, 0.05); }
+    .race-header { display: flex; align-items: center; gap: 10px; padding: 10px; cursor: pointer; user-select: none; }
+    .race-header:hover { background: rgba(255,255,255,0.03); }
     .race-num { font-weight: 700; width: 20px; font-size: 0.8rem; color: var(--m); }
     .race-info { flex: 1; }
     .race-country { font-weight: 700; font-size: 0.85rem; }
     .race-city { font-size: 0.7rem; color: var(--m2); }
+    .toggle-arrow { font-size: 0.75rem; color: var(--m); transition: transform 0.2s; }
+    .race-item.open .toggle-arrow { transform: rotate(180deg); }
+
+    /* Aufklappbarer Inhalt (Streckenbild) */
+    .track-wrapper { 
+      max-height: 0; 
+      overflow: hidden; 
+      transition: max-height 0.3s cubic-bezier(0, 1, 0, 1); 
+      background: rgba(11, 14, 20, 0.4); 
+      text-align: center;
+    }
+    .race-item.open .track-wrapper { 
+      max-height: 300px; 
+      padding: 10px; 
+      border-top: 1px solid var(--border); 
+      transition: max-height 0.3s ease-in-out; 
+    }
+    .track-img { 
+      max-width: 100%; 
+      max-height: 180px; 
+      object-fit: contain; 
+      border-radius: 6px; 
+      cursor: zoom-in; 
+      transition: transform 0.2s; 
+    }
+    .track-img:hover { transform: scale(1.03); }
+
+    /* Lightbox Modal (Großansicht bei Klick) */
+    .lightbox {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(10px);
+    }
+    .lightbox.active { display: flex; }
+    .lightbox img { max-width: 90%; max-height: 85%; object-fit: contain; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+    .lightbox-close {
+      position: absolute; top: 20px; right: 30px;
+      font-size: 2rem; color: #fff; cursor: pointer; font-weight: 800;
+    }
 
     /* Drivers Grid Cards */
     .driver-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
@@ -233,6 +278,12 @@
 <body>
 
 <div id="loadingOverlay">Lade Gurkensöhne-Daten...</div>
+
+<!-- Lightbox Modal für vergrößerte Streckenkarte -->
+<div id="lightbox" class="lightbox" onclick="closeLightbox()">
+  <span class="lightbox-close">&times;</span>
+  <img id="lightboxImg" src="" alt="Großansicht Streckenplan">
+</div>
 
 <div class="app-container">
   
@@ -385,7 +436,6 @@ const firebaseConfig = {
 const PIN = 'ArianaGrande';
 const DRIVERS = ['Eric','Pascale','Tim','Timo','Marcel','Philipp','Yannis','Niklas'];
 const COLORS = ['#e8002d','#6692ff','#52e252','#6692ff','#3671c6','#ff8000','#ff87bc','#358c75'];
-const ac = i => COLORS[i % COLORS.length];
 
 const TEAM_HELMET_IMG = {
   'McLaren':               'helmet_mclaren.png',
@@ -501,33 +551,35 @@ async function saveState(){
   render();
 }
 
+/* Rennkalender inkl. Dateipfaden für die Streckenbilder (trackImg) */
 const RACES = [
-  { num:1,  cc:'au', country:'Australien',           city:'Melbourne',        done:true  },
-  { num:2,  cc:'cn', country:'China',                 city:'Shanghai',         done:true  },
-  { num:3,  cc:'jp', country:'Japan',                 city:'Suzuka',           done:false },
-  { num:4,  cc:'bh', country:'Bahrain',               city:'Sachir',           done:false },
-  { num:5,  cc:'sa', country:'Saudi-Arabien',         city:'Dschidda',         done:false },
-  { num:6,  cc:'us', country:'USA',                   city:'Miami',            done:false },
-  { num:7,  cc:'it', country:'Emilia-Romagna',        city:'Imola',            done:false },
-  { num:8,  cc:'mc', country:'Monaco',                city:'Monte Carlo',      done:false },
-  { num:9,  cc:'es', country:'Spanien',               city:'Barcelona',        done:false },
-  { num:10, cc:'ca', country:'Kanada',                city:'Montreal',         done:false },
-  { num:11, cc:'at', country:'Österreich',            city:'Spielberg',        done:false },
-  { num:12, cc:'gb', country:'Großbritannien',        city:'Silverstone',      done:false },
-  { num:13, cc:'be', country:'Belgien',               city:'Spa-Francorchamps',done:false },
-  { num:14, cc:'hu', country:'Ungarn',                city:'Hungaroring',      done:false },
-  { num:15, cc:'nl', country:'Niederlande',           city:'Zandvoort',        done:false },
-  { num:16, cc:'it', country:'Italien',               city:'Monza',            done:false },
-  { num:17, cc:'az', country:'Aserbaidschan',         city:'Baku',             done:false },
-  { num:18, cc:'sg', country:'Singapur',              city:'Singapur',         done:false },
-  { num:19, cc:'us', country:'USA',                   city:'Austin',           done:false },
-  { num:20, cc:'mx', country:'Mexiko',                city:'Mexiko-Stadt',     done:false },
-  { num:21, cc:'br', country:'Brasilien',             city:'São Paulo',        done:false },
-  { num:22, cc:'us', country:'USA',                   city:'Las Vegas',        done:false },
-  { num:23, cc:'qa', country:'Katar',                 city:'Lusail',           done:false },
-  { num:24, cc:'ae', country:'Ver. Arab. Emirate',    city:'Abu Dhabi',        done:false },
+  { num:1,  cc:'au', country:'Australien',           city:'Melbourne',        done:true,  trackImg:'track_au.png' },
+  { num:2,  cc:'cn', country:'China',                 city:'Shanghai',         done:true,  trackImg:'track_cn.png' },
+  { num:3,  cc:'jp', country:'Japan',                 city:'Suzuka',           done:false, trackImg:'track_jp.png' },
+  { num:4,  cc:'bh', country:'Bahrain',               city:'Sachir',           done:false, trackImg:'track_bh.png' },
+  { num:5,  cc:'sa', country:'Saudi-Arabien',         city:'Dschidda',         done:false, trackImg:'track_sa.png' },
+  { num:6,  cc:'us', country:'USA',                   city:'Miami',            done:false, trackImg:'track_us.png' },
+  { num:7,  cc:'it', country:'Emilia-Romagna',        city:'Imola',            done:false, trackImg:'track_it.png' },
+  { num:8,  cc:'mc', country:'Monaco',                city:'Monte Carlo',      done:false, trackImg:'track_mc.png' },
+  { num:9,  cc:'es', country:'Spanien',               city:'Barcelona',        done:false, trackImg:'track_es.png' },
+  { num:10, cc:'ca', country:'Kanada',                city:'Montreal',         done:false, trackImg:'track_ca.png' },
+  { num:11, cc:'at', country:'Österreich',            city:'Spielberg',        done:false, trackImg:'track_at.png' },
+  { num:12, cc:'gb', country:'Großbritannien',        city:'Silverstone',      done:false, trackImg:'track_gb.png' },
+  { num:13, cc:'be', country:'Belgien',               city:'Spa-Francorchamps',done:false, trackImg:'track_be.png' },
+  { num:14, cc:'hu', country:'Ungarn',                city:'Hungaroring',      done:false, trackImg:'track_hu.png' },
+  { num:15, cc:'nl', country:'Niederlande',           city:'Zandvoort',        done:false, trackImg:'track_nl.png' },
+  { num:16, cc:'it', country:'Italien',               city:'Monza',            done:false, trackImg:'track_it.png' },
+  { num:17, cc:'az', country:'Aserbaidschan',         city:'Baku',             done:false, trackImg:'track_az.png' },
+  { num:18, cc:'sg', country:'Singapur',              city:'Singapur',         done:false, trackImg:'track_sg.png' },
+  { num:19, cc:'us', country:'USA',                   city:'Austin',           done:false, trackImg:'track_us.png' },
+  { num:20, cc:'mx', country:'Mexiko',                city:'Mexiko-Stadt',     done:false, trackImg:'track_mx.png' },
+  { num:21, cc:'br', country:'Brasilien',             city:'São Paulo',        done:false, trackImg:'track_br.png' },
+  { num:22, cc:'us', country:'USA',                   city:'Las Vegas',        done:false, trackImg:'track_us.png' },
+  { num:23, cc:'qa', country:'Katar',                 city:'Lusail',           done:false, trackImg:'track_qa.png' },
+  { num:24, cc:'ae', country:'Ver. Arab. Emirate',    city:'Abu Dhabi',        done:false, trackImg:'track_ae.png' },
 ];
 
+/* Aufklappbarer Rennkalender */
 function renderRaceCalendar(){
   const el=document.getElementById('calendarContent');
   if(!el)return;
@@ -541,17 +593,46 @@ function renderRaceCalendar(){
     const isNext=i===nextIdx;
     const cls=r.done?'done':isNext?'next':'upcoming';
     const flagImg=`<img src="https://flagcdn.com/w40/${r.cc}.png" width="20" height="14" style="border-radius:2px;object-fit:cover;display:block;" alt="${r.country}" onerror="this.style.display='none'">`;
-    return`<div class="race-row ${cls}">
-      <div class="race-num">${r.num}</div>
-      <div>${flagImg}</div>
-      <div class="race-info">
-        <div class="race-country" style="${r.done?'color:var(--m2);':isNext?'color:var(--y);':''}">${r.country}</div>
-        <div class="race-city">${r.city}</div>
+    
+    return`<div class="race-item ${cls}" id="race-item-${i}">
+      <div class="race-header" onclick="toggleTrack(${i})">
+        <div class="race-num">${r.num}</div>
+        <div>${flagImg}</div>
+        <div class="race-info">
+          <div class="race-country" style="${r.done?'color:var(--m2);':isNext?'color:var(--y);':''}">${r.country}</div>
+          <div class="race-city">${r.city}</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span>${r.done?'✓':isNext?'⚡':''}</span>
+          <span class="toggle-arrow">▼</span>
+        </div>
       </div>
-      <div>${r.done?'✓':isNext?'⚡':''}</div>
+      <div class="track-wrapper">
+        <img src="${r.trackImg}" class="track-img" alt="Strecke ${r.country}" onclick="openLightbox('${r.trackImg}')" onerror="this.src='header_banner.png'; this.alt='Streckenbild nicht vorhanden';">
+      </div>
     </div>`;
   }).join('')}</div>`;
 }
+
+window.toggleTrack = function(index) {
+  const item = document.getElementById(`race-item-${index}`);
+  if(item) item.classList.toggle('open');
+};
+
+/* Lightbox Funktionen */
+window.openLightbox = function(imgSrc) {
+  const lb = document.getElementById('lightbox');
+  const img = document.getElementById('lightboxImg');
+  if(lb && img) {
+    img.src = imgSrc;
+    lb.classList.add('active');
+  }
+};
+
+window.closeLightbox = function() {
+  const lb = document.getElementById('lightbox');
+  if(lb) lb.classList.remove('active');
+};
 
 async function cleanupPastDates(){
   const today=new Date();today.setHours(0,0,0,0);let changed=false;
@@ -742,7 +823,6 @@ function renderSelDates(){
 
 window.updateSlotTime=function(i,field,value){if(selectedDates[i])selectedDates[i][field]=value;};
 
-/* Anpassung: Fahrer-Helme statt bunten Punkten */
 function renderNameButtons(){
   const wrap=document.getElementById('nameButtons');if(!wrap)return;
   const taken=S.persons.map(p=>p.name);
@@ -834,7 +914,7 @@ function renderPersons(){
     DRIVERS.map((name,i)=>{
       const p=S.persons.find(px=>px.name===name);
       const isMe=currentUser===name;
-      const color=TEAM_COLORS[DRIVER_TEAM[name]]||ac(i);
+      const color=TEAM_COLORS[DRIVER_TEAM[name]]||'#555';
       if(!p||!p.slots.length){
         return`<div class="driver-tile" style="--dc:${color};opacity:0.5;">
           <div class="dt-head">${helmetImg(name)}<div class="dt-name">${name}</div></div>
@@ -855,7 +935,6 @@ function renderPersons(){
   }</div>`;
 }
 
-/* Hilfsfunktion für Zeit-Schnittmengen (Perfekte Uhrzeit ermitteln) */
 function timeToMin(t){ const [h,m]=t.split(':').map(Number); return h*60+m; }
 function minToTime(m){ const h=Math.floor(m/60), r=m%60; return `${String(h).padStart(2,'0')}:${String(r).padStart(2,'0')}`; }
 
@@ -874,7 +953,6 @@ function findIntersection(slots){
   return null;
 }
 
-/* 📊 Termin-Auswertung mit automatischem 8/8 Match & Teamfarben */
 function renderOverview(){
   const el=document.getElementById('overview');
   if(!el) return;
@@ -886,7 +964,6 @@ function renderOverview(){
     });
   });
 
-  /* Sortieren nach Tagen, wann die MEISTEN Fahrern können */
   const dateKeys=Object.keys(datesMap).sort((a,b)=> {
     const diff = datesMap[b].length - datesMap[a].length;
     return diff !== 0 ? diff : a.localeCompare(b);
@@ -902,11 +979,10 @@ function renderOverview(){
 
   dateKeys.forEach(d=>{
     const list=datesMap[d];
-    const isFull = list.length === DRIVERS.length; // 8/8 Fahrern können
+    const isFull = list.length === DRIVERS.length;
     const isBest = list.length === bestCount && bestCount > 1 && !isFull;
     const isChosen = S.confirmedDate === d;
 
-    // Automatisches Festlegen bei 8/8 Fahrern
     if(isFull && !autoMatchFound && !S.confirmedDate) {
       const timeMatch = findIntersection(list);
       if(timeMatch) {
@@ -914,7 +990,7 @@ function renderOverview(){
         S.confirmedDate = d;
         S.confirmedStart = timeMatch.from;
         S.confirmedEnd = timeMatch.to;
-        saveState(); // Speichern und Live-Update auslösen
+        saveState();
       }
     }
     
@@ -953,7 +1029,6 @@ window.selectAdminDate=function(btn,date){
   btn.classList.add('sel');
 };
 
-/* Live-Countdown Logik für Hero Banner */
 function updateHeroCountdown() {
   const cdEl = document.getElementById('heroCountdown');
   if(!cdEl) return;
@@ -1006,7 +1081,6 @@ function renderConfirmedArea(){
   `;
 }
 
-/* WhatsApp Reminder Banner & ausstehende Fahrer */
 function renderReminderBanner() {
   const banner = document.getElementById('reminderBanner');
   if(!banner || bannerDismissed) return;
