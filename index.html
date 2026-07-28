@@ -172,7 +172,7 @@
     .tab-btn { padding: 6px 12px; background: var(--s3); border: none; border-radius: 6px; color: var(--m); cursor: pointer; font-weight: 600; font-size: 0.8rem; }
     .tab-btn.active { background: var(--y); color: #000; }
 
-    .standings-row { display: flex; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--border); gap: 10px; border-radius: 8px; margin-bottom: 4px; }
+    .standings-row { display: flex; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--border); gap: 10px; border-radius: 8px; margin-bottom: 4px; transition: all 0.2s; }
     .st-pos { font-weight: 800; width: 24px; text-align: center; font-size: 0.9rem; }
     
     .standings-row.p1 { border: 1px solid var(--gold); background: rgba(255, 215, 0, 0.08); }
@@ -672,59 +672,80 @@ function initStandings(database){
 function getDriverInfo(name){return ALL_DRIVERS.find(d=>d.name===name)||{name,team:'',human:null,photo:''};}
 
 function renderStandings(){
-  const el=document.getElementById('standingsContent');
+  const el = document.getElementById('standingsContent');
   if(!el) return;
-  const query = document.getElementById('driverSearch')?.value.toLowerCase() || '';
+  const query = document.getElementById('driverSearch')?.value.toLowerCase().trim() || '';
 
-  let sorted=[...standings.drivers].sort((a,b)=>b.points-a.points||a.name.localeCompare(b.name));
-  
-  if(query) {
-    sorted = sorted.filter(d => d.name.toLowerCase().includes(query) || getDriverInfo(d.name).team.toLowerCase().includes(query));
-  }
+  // Sortierung bleibt nach Punkten/Namen
+  let sorted = [...standings.drivers].sort((a,b) => b.points - a.points || a.name.localeCompare(b.name));
+  const maxPts = Math.max(sorted[0]?.points || 1, 1);
 
-  const maxPts=Math.max(sorted[0]?.points||1,1);
-  el.innerHTML=sorted.map((d,i)=>{
-    const info=getDriverInfo(d.name);
-    const posClass=i===0?'p1':i===1?'p2':i===2?'p3':'';
-    const badge=i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`;
-    const pct=Math.round(d.points/maxPts*100);
-    const photoImg=info.photo ? `<img src="${info.photo}" class="st-img" alt="${d.name}" onerror="this.style.display='none'">` : '';
+  el.innerHTML = sorted.map((d, i) => {
+    const info = getDriverInfo(d.name);
+    const posClass = i === 0 ? 'p1' : i === 1 ? 'p2' : i === 2 ? 'p3' : '';
+    const badge = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}`;
+    const pct = Math.round(d.points / maxPts * 100);
+    const photoImg = info.photo ? `<img src="${info.photo}" class="st-img" alt="${d.name}" onerror="this.style.display='none'">` : '';
 
-    return`<div class="standings-row ${posClass}">
+    // Prüfe, ob Fahrername oder Teamname zur Suche passt
+    const matchesSearch = query && (
+      d.name.toLowerCase().includes(query) || 
+      info.team.toLowerCase().includes(query)
+    );
+
+    // Dynamic Highlighting Style
+    const highlightStyle = matchesSearch 
+      ? 'border: 2px solid var(--y); background: rgba(255, 215, 0, 0.2); box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);' 
+      : '';
+
+    return `<div class="standings-row ${posClass}" style="${highlightStyle}">
       <div class="st-pos">${badge}</div>
       ${photoImg}
       <div class="st-driver">
         <div>
           <div style="font-weight:700;font-size:0.85rem;">${d.name}</div>
-          <div style="font-size:0.68rem;color:${TEAM_COLORS[info.team]||'#888'};">${info.team}</div>
+          <div style="font-size:0.68rem;color:${TEAM_COLORS[info.team] || '#888'};">${info.team}</div>
         </div>
       </div>
       <div class="st-pts-wrap">
         <div class="st-pts">${d.points}</div>
         <div class="st-pts-lbl">Pts</div>
       </div>
-      <div class="st-bar-wrap"><div class="st-bar-fill" style="width:${pct}%;background:${TEAM_COLORS[info.team]||'var(--y)'}"></div></div>
+      <div class="st-bar-wrap"><div class="st-bar-fill" style="width:${pct}%;background:${TEAM_COLORS[info.team] || 'var(--y)'}"></div></div>
     </div>`;
   }).join('');
 }
 
 function renderConstructorStandings(){
-  const el=document.getElementById('standingsContent');
+  const el = document.getElementById('standingsContent');
   if(!el) return;
-  const teamPts={};
-  standings.drivers.forEach(d=>{
-    const info=getDriverInfo(d.name);
-    if(!info.team)return;
-    teamPts[info.team]=(teamPts[info.team]||0)+d.points;
+  const query = document.getElementById('driverSearch')?.value.toLowerCase().trim() || '';
+
+  const teamPts = {};
+  standings.drivers.forEach(d => {
+    const info = getDriverInfo(d.name);
+    if(!info.team) return;
+    teamPts[info.team] = (teamPts[info.team] || 0) + d.points;
   });
-  const sorted=Object.entries(teamPts).sort((a,b)=>b[1]-a[1]);
-  const maxPts=Math.max(sorted[0]?.[1]||1,1);
-  el.innerHTML=sorted.map(([team,pts],i)=>{
-    const color=TEAM_COLORS[team]||'#555';
-    const posClass=i===0?'p1':i===1?'p2':i===2?'p3':'';
-    const badge=i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`;
-    const pct=Math.round(pts/maxPts*100);
-    return`<div class="standings-row ${posClass}">
+
+  const sorted = Object.entries(teamPts).sort((a,b) => b[1] - a[1]);
+  const maxPts = Math.max(sorted[0]?.[1] || 1, 1);
+
+  el.innerHTML = sorted.map(([team, pts], i) => {
+    const color = TEAM_COLORS[team] || '#555';
+    const posClass = i === 0 ? 'p1' : i === 1 ? 'p2' : i === 2 ? 'p3' : '';
+    const badge = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}`;
+    const pct = Math.round(pts / maxPts * 100);
+
+    // Prüfe, ob Team zur Suche passt
+    const matchesSearch = query && team.toLowerCase().includes(query);
+
+    // Dynamic Highlighting Style
+    const highlightStyle = matchesSearch 
+      ? 'border: 2px solid var(--y); background: rgba(255, 215, 0, 0.2); box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);' 
+      : '';
+
+    return `<div class="standings-row ${posClass}" style="${highlightStyle}">
       <div class="st-pos">${badge}</div>
       <div class="st-driver">
         <div style="display:flex; align-items:center; gap:8px;">
