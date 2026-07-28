@@ -7,7 +7,7 @@
   <style>
     :root {
       --bg: #0b0e14;
-      --card-bg: rgba(21, 25, 34, 0.85);
+      --card-bg: rgba(21, 25, 34, 0.88);
       --s3: #1f2430;
       --border: #2a3142;
       --text: #f0f4fc;
@@ -23,7 +23,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
     
     body { 
-      background: var(--bg) url('background.jpg') no-repeat center center fixed;
+      background: linear-gradient(rgba(11, 14, 20, 0.75), rgba(11, 14, 20, 0.85)), url('header_banner.png') no-repeat center center fixed;
       background-size: cover;
       color: var(--text); 
       padding: 20px; 
@@ -39,17 +39,59 @@
       align-items: center;
       background: var(--card-bg);
       border: 1px solid var(--border);
-      padding: 10px 20px;
+      padding: 12px 24px;
       border-radius: 12px;
       backdrop-filter: blur(8px);
     }
-    .logo-area { display: flex; align-items: center; gap: 12px; }
-    .logo-area img { height: 40px; object-fit: contain; }
-    .logo-area h1 { font-size: 1.2rem; font-weight: 800; letter-spacing: 0.5px; }
+    .logo-area { display: flex; align-items: center; gap: 16px; }
+    .logo-area img { height: 65px; object-fit: contain; } /* Logo vergrößert */
+    .logo-area h1 { font-size: 1.4rem; font-weight: 800; letter-spacing: 0.5px; }
 
     .status-bar { display: flex; align-items: center; font-size: 0.85rem; color: var(--m); }
     .dot { width: 10px; height: 10px; background: #ff9100; border-radius: 50%; display: inline-block; margin-right: 8px; }
     .dot.live { background: #27f4d2; box-shadow: 0 0 8px #27f4d2; }
+
+    /* Reminder Banner */
+    .reminder-banner {
+      background: rgba(255, 145, 0, 0.12);
+      border: 1px solid #ff9100;
+      border-radius: 12px;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      backdrop-filter: blur(8px);
+      flex-wrap: wrap;
+    }
+    .reminder-info { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 280px; }
+    .reminder-title { font-weight: 700; color: #ff9100; font-size: 0.9rem; }
+    .reminder-drivers { color: #fff; font-weight: 600; }
+    .reminder-actions { display: flex; align-items: center; gap: 12px; }
+    .btn-wa {
+      background: #25D366;
+      color: #fff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+      text-decoration: none;
+    }
+    .btn-wa:hover { background: #20ba5a; }
+    .btn-close-banner {
+      background: none;
+      border: none;
+      color: var(--m);
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 4px;
+    }
+    .btn-close-banner:hover { color: #fff; }
 
     /* Hero Banner */
     .hero-banner {
@@ -67,7 +109,7 @@
     }
     .hero-title { font-size: 0.75rem; color: var(--m); text-transform: uppercase; letter-spacing: 1px; }
     .hero-race-name { font-size: 1.3rem; font-weight: 800; color: #fff; }
-    .hero-countdown { font-size: 1.1rem; font-weight: 700; color: var(--y); font-family: monospace; }
+    .hero-countdown { font-size: 1.2rem; font-weight: 800; color: var(--y); font-family: monospace; }
 
     /* Layout Grids */
     .grid-2col { display: grid; grid-template-columns: 1fr; gap: 20px; }
@@ -89,11 +131,23 @@
     }
     .card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
 
-    /* Name Selection & Form */
-    .name-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-bottom: 15px; }
-    .name-btn { background: var(--s3); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 8px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; }
+    /* Name Selection & Form with Helmets */
+    .name-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 15px; }
+    .name-btn { 
+      background: var(--s3); 
+      border: 1px solid var(--border); 
+      border-radius: 8px; 
+      color: var(--text); 
+      padding: 6px 10px; 
+      cursor: pointer; 
+      display: flex; 
+      align-items: center; 
+      gap: 8px; 
+      font-size: 0.85rem; 
+      transition: all 0.2s;
+    }
     .name-btn.selected { border-color: var(--y); background: rgba(255, 215, 0, 0.1); }
-    .nb-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .name-btn-helmet { width: 28px; height: 28px; object-fit: contain; flex-shrink: 0; }
 
     /* Calendar & Slots */
     .cal-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
@@ -135,7 +189,7 @@
     .st-bar-wrap { width: 50px; height: 6px; background: var(--s3); border-radius: 3px; overflow: hidden; margin-left: 8px; }
     .st-bar-fill { height: 100%; border-radius: 3px; }
 
-    /* Race Calendar List - KEIN Scrollbalken mehr! */
+    /* Race Calendar List */
     .race-list { display: flex; flex-direction: column; gap: 4px; }
     .race-row { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 6px; background: var(--s3); }
     .race-row.done { opacity: 0.6; }
@@ -153,13 +207,14 @@
     .dt-slot { background: var(--bg); padding: 6px 8px; border-radius: 4px; margin-top: 6px; font-size: 0.75rem; }
 
     /* Overview Cards */
-    .date-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+    .date-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
     .dcard { background: var(--s3); border-radius: 8px; padding: 12px; border: 1px solid var(--border); position: relative; }
-    .dcard.best { border-color: var(--y); }
+    .dcard.best { border-color: var(--y); background: rgba(255, 215, 0, 0.03); }
+    .dcard.full { border-color: #27f4d2; background: rgba(39, 244, 210, 0.05); }
     .dc-wd { font-size: 0.75rem; color: var(--m); }
     .dc-d { font-size: 1.1rem; font-weight: 800; margin-bottom: 4px; }
-    .dc-cnt { font-size: 0.85rem; font-weight: 700; color: var(--y); }
-    .dc-chip { display: inline-block; background: var(--bg); padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin: 2px; }
+    .dc-cnt { font-size: 0.85rem; font-weight: 700; color: var(--y); margin-bottom: 8px; }
+    .dc-chip { display: block; background: var(--bg); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; margin: 4px 0; border-left: 3px solid transparent; }
 
     /* Buttons & Controls */
     .btn { background: var(--y); color: #000; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 10px; }
@@ -192,6 +247,20 @@
     </div>
   </div>
 
+  <!-- Reminder Banner -->
+  <div id="reminderBanner" class="reminder-banner" style="display:none;">
+    <div class="reminder-info">
+      <span class="reminder-title">⚠️ Ausstehend:</span>
+      <span id="missingDriversList" class="reminder-drivers"></span>
+    </div>
+    <div class="reminder-actions">
+      <a id="waReminderBtn" class="btn-wa" target="_blank">
+        📲 Auf WhatsApp erinnern
+      </a>
+      <button class="btn-close-banner" onclick="dismissBanner()" title="Banner ausblenden">✕</button>
+    </div>
+  </div>
+
   <!-- Hero Banner -->
   <div class="hero-banner">
     <div>
@@ -199,7 +268,7 @@
       <div class="hero-race-name" id="heroRaceName">GP von Japan (Suzuka)</div>
     </div>
     <div>
-      <div class="hero-title" style="text-align:right;">Status</div>
+      <div class="hero-title" style="text-align:right;">Status / Countdown</div>
       <div class="hero-countdown" id="heroCountdown">Ausstehend</div>
     </div>
   </div>
@@ -277,7 +346,7 @@
     </div>
 
     <div id="adminCtrl" style="display:none;">
-      <p style="margin-bottom:10px;">Renntermin festlegen:</p>
+      <p style="margin-bottom:10px;">Renntermin manuell festlegen:</p>
       <div id="pickGrid" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;"></div>
       <div style="display:flex; gap:10px; margin-bottom:15px;">
         <input type="time" id="raceStart" value="14:00" class="pin-input" style="width:auto;">
@@ -336,11 +405,17 @@ const DRIVER_TEAM = {
   'Marcel':'Red Bull','Philipp':'McLaren','Yannis':'Alpine','Niklas':'Aston Martin',
 };
 
+const TEAM_COLORS = {
+  'Ferrari':'#e8002d','McLaren':'#ff8000','Red Bull':'#3671c6',
+  'Mercedes-AMG Petronas':'#27f4d2','Aston Martin':'#358c75','Alpine':'#ff87bc',
+  'Williams':'#64c4ff','Visa Cash App RB':'#6692ff','Kick Sauber':'#52e252','Haas':'#b6babd',
+};
+
 function helmetImg(driverName){
   const team = DRIVER_TEAM[driverName];
   const src = team ? (TEAM_HELMET_IMG[team]||'') : '';
-  return src ? `<img src="${src}" style="width:36px;height:36px;object-fit:contain;flex-shrink:0;" alt="${team}">` 
-             : `<div style="width:36px;height:36px;border-radius:50%;background:var(--s3);flex-shrink:0;"></div>`;
+  return src ? `<img src="${src}" style="width:32px;height:32px;object-fit:contain;flex-shrink:0;" alt="${team}">` 
+             : `<div style="width:32px;height:32px;border-radius:50%;background:var(--s3);flex-shrink:0;"></div>`;
 }
 
 function helmetImgByTeam(team){
@@ -372,12 +447,6 @@ const ALL_DRIVERS = [
   { name:'Lance Stroll',        racenet:null,              team:'Aston Martin',           human:null,      photo:'lance-stroll-aston-martin.png'          },
 ];
 
-const TEAM_COLORS = {
-  'Ferrari':'#e8002d','McLaren':'#ff8000','Red Bull':'#3671c6',
-  'Mercedes-AMG Petronas':'#27f4d2','Aston Martin':'#358c75','Alpine':'#ff87bc',
-  'Williams':'#64c4ff','Visa Cash App RB':'#6692ff','Kick Sauber':'#52e252','Haas':'#b6babd',
-};
-
 const INITIAL_STANDINGS = [
   {name:'Timotheus Müller',    points:50},{name:'Charles Leclerc',           points:28},
   {name:'Pascale Braasch',     points:23},{name:'Lando Norris',              points:19},
@@ -398,6 +467,8 @@ let selectedDates = [];
 let calYear, calMonth;
 let standings = {drivers:ALL_DRIVERS.map(d=>({name:d.name,points:0})),racesCompleted:0};
 let standingsRef;
+let countdownInterval = null;
+let bannerDismissed = false;
 
 let db, dbRef;
 try {
@@ -515,7 +586,6 @@ function initStandings(database){
 
 function getDriverInfo(name){return ALL_DRIVERS.find(d=>d.name===name)||{name,team:'',human:null,photo:''};}
 
-/* Hier wieder inklusive Bild in der Fahrer-WM */
 function renderStandings(){
   const el=document.getElementById('standingsContent');
   if(!el) return;
@@ -672,13 +742,17 @@ function renderSelDates(){
 
 window.updateSlotTime=function(i,field,value){if(selectedDates[i])selectedDates[i][field]=value;};
 
+/* Anpassung: Fahrer-Helme statt bunten Punkten */
 function renderNameButtons(){
   const wrap=document.getElementById('nameButtons');if(!wrap)return;
   const taken=S.persons.map(p=>p.name);
-  wrap.innerHTML=DRIVERS.map((name,i)=>{
+  wrap.innerHTML=DRIVERS.map((name)=>{
     const hasEntry=taken.includes(name),isSel=currentUser===name;
+    const team = DRIVER_TEAM[name];
+    const helmetSrc = team ? TEAM_HELMET_IMG[team] : '';
+    
     return`<button type="button" class="name-btn ${isSel?'selected':''}" onclick="selectName('${name}')">
-      <span class="nb-dot" style="background:${ac(i)}"></span>
+      ${helmetSrc ? `<img src="${helmetSrc}" class="name-btn-helmet" alt="${team}">` : ''}
       <span>${name}${hasEntry&&!isSel?' ✏️':''}</span>
     </button>`;
   }).join('');
@@ -760,7 +834,7 @@ function renderPersons(){
     DRIVERS.map((name,i)=>{
       const p=S.persons.find(px=>px.name===name);
       const isMe=currentUser===name;
-      const color=ac(i);
+      const color=TEAM_COLORS[DRIVER_TEAM[name]]||ac(i);
       if(!p||!p.slots.length){
         return`<div class="driver-tile" style="--dc:${color};opacity:0.5;">
           <div class="dt-head">${helmetImg(name)}<div class="dt-name">${name}</div></div>
@@ -781,6 +855,26 @@ function renderPersons(){
   }</div>`;
 }
 
+/* Hilfsfunktion für Zeit-Schnittmengen (Perfekte Uhrzeit ermitteln) */
+function timeToMin(t){ const [h,m]=t.split(':').map(Number); return h*60+m; }
+function minToTime(m){ const h=Math.floor(m/60), r=m%60; return `${String(h).padStart(2,'0')}:${String(r).padStart(2,'0')}`; }
+
+function findIntersection(slots){
+  let maxStart = 0;
+  let minEnd = 24 * 60;
+  for(const s of slots){
+    const st = timeToMin(s.from);
+    const et = timeToMin(s.to);
+    if(st > maxStart) maxStart = st;
+    if(et < minEnd) minEnd = et;
+  }
+  if(maxStart < minEnd){
+    return { from: minToTime(maxStart), to: minToTime(minEnd) };
+  }
+  return null;
+}
+
+/* 📊 Termin-Auswertung mit automatischem 8/8 Match & Teamfarben */
 function renderOverview(){
   const el=document.getElementById('overview');
   if(!el) return;
@@ -791,25 +885,51 @@ function renderOverview(){
       datesMap[s.date].push({name:p.name,from:s.from,to:s.to});
     });
   });
-  const dateKeys=Object.keys(datesMap).sort();
+
+  /* Sortieren nach Tagen, wann die MEISTEN Fahrern können */
+  const dateKeys=Object.keys(datesMap).sort((a,b)=> {
+    const diff = datesMap[b].length - datesMap[a].length;
+    return diff !== 0 ? diff : a.localeCompare(b);
+  });
+
   if(!dateKeys.length){el.innerHTML='<div style="color:var(--m); font-size:0.85rem;">Keine Auswertung verfügbar.</div>';return;}
   
   let html=`<div class="date-grid">`;
   let bestCount=0;
   dateKeys.forEach(d=>{ if(datesMap[d].length>bestCount)bestCount=datesMap[d].length; });
 
+  let autoMatchFound = false;
+
   dateKeys.forEach(d=>{
     const list=datesMap[d];
-    const isBest=list.length===bestCount&&bestCount>1;
-    const isChosen=S.confirmedDate===d;
+    const isFull = list.length === DRIVERS.length; // 8/8 Fahrern können
+    const isBest = list.length === bestCount && bestCount > 1 && !isFull;
+    const isChosen = S.confirmedDate === d;
+
+    // Automatisches Festlegen bei 8/8 Fahrern
+    if(isFull && !autoMatchFound && !S.confirmedDate) {
+      const timeMatch = findIntersection(list);
+      if(timeMatch) {
+        autoMatchFound = true;
+        S.confirmedDate = d;
+        S.confirmedStart = timeMatch.from;
+        S.confirmedEnd = timeMatch.to;
+        saveState(); // Speichern und Live-Update auslösen
+      }
+    }
     
-    html+=`<div class="dcard ${isBest?'best':''}">
-      ${isChosen?'<span style="color:#52e252; font-weight:700; font-size:0.7rem;">BESTÄTIGT</span>':''}
+    html+=`<div class="dcard ${isFull?'full':isBest?'best':''}">
+      ${isChosen?'<span style="color:#27f4d2; font-weight:800; font-size:0.7rem; letter-spacing:0.5px;">✓ BESTÄTIGTER TERMIN</span>':''}
       <div class="dc-wd">${fmtWD(d)}</div>
       <div class="dc-d">${fmtDateShort(d)}</div>
-      <div class="dc-cnt">${list.length} / ${DRIVERS.length} Fahrer</div>
+      <div class="dc-cnt" style="${isFull?'color:#27f4d2;':''}">${list.length} / ${DRIVERS.length} Fahrer</div>
       <div style="margin-top:6px;">
-        ${list.map(l=>`<span class="dc-chip">${l.name} (${l.from}-${l.to})</span>`).join('')}
+        ${list.map(l=>{
+          const teamColor = TEAM_COLORS[DRIVER_TEAM[l.name]] || 'var(--y)';
+          return `<span class="dc-chip" style="border-left-color:${teamColor};">
+            <strong style="color:${teamColor};">${l.name}</strong> (${l.from}-${l.to})
+          </span>`;
+        }).join('')}
       </div>
       ${currentUser&&!list.map(l=>l.name).includes(currentUser)?`
         <button class="btn-copy green" style="margin-top:8px;" onclick="copySlot('${d}','14:00','18:00','${currentUser}')">+ Auch eintragen</button>`:''}
@@ -833,6 +953,46 @@ window.selectAdminDate=function(btn,date){
   btn.classList.add('sel');
 };
 
+/* Live-Countdown Logik für Hero Banner */
+function updateHeroCountdown() {
+  const cdEl = document.getElementById('heroCountdown');
+  if(!cdEl) return;
+
+  if(!S.confirmedDate) {
+    cdEl.textContent = 'Ausstehend';
+    cdEl.style.color = 'var(--y)';
+    if(countdownInterval) clearInterval(countdownInterval);
+    return;
+  }
+
+  const startTimeStr = S.confirmedStart || '14:00';
+  const targetTime = new Date(`${S.confirmedDate}T${startTimeStr}:00`).getTime();
+
+  function tick() {
+    const now = new Date().getTime();
+    const diff = targetTime - now;
+
+    if(diff <= 0) {
+      cdEl.textContent = '🏎️ RACE DAY! GO GO GO!';
+      cdEl.style.color = '#27f4d2';
+      if(countdownInterval) clearInterval(countdownInterval);
+      return;
+    }
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+    cdEl.textContent = `${days}d ${String(hours).padStart(2,'0')}h ${String(mins).padStart(2,'0')}m ${String(secs).padStart(2,'0')}s`;
+    cdEl.style.color = '#27f4d2';
+  }
+
+  tick();
+  if(countdownInterval) clearInterval(countdownInterval);
+  countdownInterval = setInterval(tick, 1000);
+}
+
 function renderConfirmedArea(){
   const el=document.getElementById('confirmedArea');
   if(!el) return;
@@ -846,11 +1006,38 @@ function renderConfirmedArea(){
   `;
 }
 
+/* WhatsApp Reminder Banner & ausstehende Fahrer */
+function renderReminderBanner() {
+  const banner = document.getElementById('reminderBanner');
+  if(!banner || bannerDismissed) return;
+
+  const entered = S.persons.map(p => p.name);
+  const missing = DRIVERS.filter(d => !entered.includes(d));
+
+  if(missing.length === 0) {
+    banner.style.display = 'none';
+    return;
+  }
+
+  banner.style.display = 'flex';
+  document.getElementById('missingDriversList').textContent = missing.join(', ');
+
+  const text = encodeURIComponent(`Hallo Jungs! 🏎️ Bitte tragt noch eure Verfügbarkeit für den Gurkensöhne Cup ein:\nEs fehlen noch: ${missing.join(', ')}`);
+  document.getElementById('waReminderBtn').href = `https://wa.me/?text=${text}`;
+}
+
+window.dismissBanner = function() {
+  bannerDismissed = true;
+  document.getElementById('reminderBanner').style.display = 'none';
+};
+
 function render(){
   renderRaceCalendar();
   renderPersons();
   renderOverview();
   renderConfirmedArea();
+  renderReminderBanner();
+  updateHeroCountdown();
   if(standingsTab==='fahrer') renderStandings();
   else renderConstructorStandings();
 }
