@@ -131,7 +131,7 @@
 
     .grid-3col { display: grid; grid-template-columns: 1fr; gap: 16px; }
     @media (min-width: 1100px) {
-      .grid-3col { grid-template-columns: 340px 1fr 360px; gap: 20px; }
+      .grid-3col { grid-template-columns: 380px 1fr 360px; gap: 20px; }
     }
 
     .card { 
@@ -207,42 +207,94 @@
     }
     .st-bar-fill { height: 100%; border-radius: 3px; }
 
-    /* Race Calendar List mit Aufklappbaren Streckenbildern */
-    .race-list { display: flex; flex-direction: column; gap: 6px; max-height: 480px; overflow-y: auto; padding-right: 4px; }
-    .race-item { background: var(--s3); border-radius: 8px; overflow: hidden; border: 1px solid transparent; transition: all 0.2s; }
-    .race-item.next { border-color: var(--y); background: rgba(255, 215, 0, 0.05); }
-    .race-header { display: flex; align-items: center; gap: 10px; padding: 10px; cursor: pointer; user-select: none; }
-    .race-header:hover { background: rgba(255,255,255,0.03); }
-    .race-num { font-weight: 700; width: 20px; font-size: 0.8rem; color: var(--m); }
-    .race-info { flex: 1; }
-    .race-country { font-weight: 700; font-size: 0.85rem; }
-    .race-city { font-size: 0.7rem; color: var(--m2); }
-    .toggle-arrow { font-size: 0.75rem; color: var(--m); transition: transform 0.2s; }
-    .race-item.open .toggle-arrow { transform: rotate(180deg); }
-
-    /* Aufklappbarer Inhalt (Streckenbild) */
-    .track-wrapper { 
-      max-height: 0; 
+    /* =========================================================
+       RENNKALENDER: RESPONSIVE OPTIMIERUNG (DESKTOP VS MOBIL)
+       ========================================================= */
+    .race-list { 
+      display: flex; 
+      flex-direction: column; 
+      gap: 10px; 
+      max-height: 580px; 
+      overflow-y: auto; 
+      padding-right: 4px; 
+    }
+    
+    .race-item { 
+      background: var(--s3); 
+      border-radius: 8px; 
       overflow: hidden; 
-      transition: max-height 0.3s cubic-bezier(0, 1, 0, 1); 
-      background: rgba(11, 14, 20, 0.4); 
-      text-align: center;
+      border: 1px solid var(--border); 
+      transition: all 0.2s; 
     }
-    .race-item.open .track-wrapper { 
-      max-height: 300px; 
-      padding: 10px; 
-      border-top: 1px solid var(--border); 
-      transition: max-height 0.3s ease-in-out; 
+    .race-item.next { 
+      border-color: var(--y); 
+      box-shadow: 0 0 10px rgba(255, 215, 0, 0.15); 
     }
-    .track-img { 
-      max-width: 100%; 
-      max-height: 180px; 
-      object-fit: contain; 
-      border-radius: 6px; 
-      cursor: zoom-in; 
-      transition: transform 0.2s; 
+
+    .race-header { 
+      display: flex; 
+      align-items: center; 
+      gap: 10px; 
+      padding: 10px 12px; 
+      background: rgba(0,0,0,0.2);
     }
-    .track-img:hover { transform: scale(1.03); }
+    .race-num { font-weight: 700; width: 22px; font-size: 0.85rem; color: var(--m); }
+    .race-info { flex: 1; }
+    .race-country { font-weight: 700; font-size: 0.9rem; }
+    .race-city { font-size: 0.72rem; color: var(--m2); }
+
+    /* Standart-Verhalten Desktop (Kacheln mit Dauerbildern) */
+    @media (min-width: 769px) {
+      .toggle-arrow { display: none; } /* Pfeil am PC verstecken */
+      .race-header { cursor: default; }
+      
+      .track-wrapper { 
+        display: block !important;
+        max-height: none !important; 
+        padding: 12px; 
+        background: rgba(11, 14, 20, 0.6); 
+        text-align: center;
+        border-top: 1px solid var(--border);
+      }
+      .track-img { 
+        max-width: 100%; 
+        height: 120px; 
+        object-fit: contain; 
+        border-radius: 6px; 
+        cursor: zoom-in; 
+        transition: transform 0.2s; 
+      }
+      .track-img:hover { transform: scale(1.04); }
+    }
+
+    /* Verhalten Handy / Kleine Bildschirme (Akkordeon-Ansicht) */
+    @media (max-width: 768px) {
+      .race-header { cursor: pointer; user-select: none; }
+      .race-header:hover { background: rgba(255,255,255,0.05); }
+      .toggle-arrow { font-size: 0.75rem; color: var(--m); transition: transform 0.25s ease; }
+      .race-item.open .toggle-arrow { transform: rotate(180deg); }
+
+      .track-wrapper { 
+        max-height: 0; 
+        overflow: hidden; 
+        transition: max-height 0.3s cubic-bezier(0, 1, 0, 1), padding 0.3s ease; 
+        background: rgba(11, 14, 20, 0.4); 
+        text-align: center;
+        padding: 0 10px;
+      }
+      .race-item.open .track-wrapper { 
+        max-height: 250px; 
+        padding: 10px; 
+        border-top: 1px solid var(--border); 
+      }
+      .track-img { 
+        max-width: 100%; 
+        max-height: 160px; 
+        object-fit: contain; 
+        border-radius: 6px; 
+        cursor: zoom-in; 
+      }
+    }
 
     /* Lightbox Modal (Großansicht bei Klick) */
     .lightbox {
@@ -637,8 +689,11 @@ function renderRaceCalendar(){
 }
 
 window.toggleTrack = function(index) {
-  const item = document.getElementById(`race-item-${index}`);
-  if(item) item.classList.toggle('open');
+  /* Klappt das Accordion nur auf mobilen Geräten um */
+  if (window.innerWidth <= 768) {
+    const item = document.getElementById(`race-item-${index}`);
+    if(item) item.classList.toggle('open');
+  }
 };
 
 window.openLightbox = function(imgSrc) {
