@@ -44,7 +44,6 @@
       backdrop-filter: blur(8px);
     }
     .logo-area { display: flex; align-items: center; gap: 20px; }
-    /* Logo deutlich vergrößert */
     .logo-area img { height: 110px; max-height: 120px; width: auto; object-fit: contain; }
     .logo-area h1 { font-size: 1.8rem; font-weight: 800; letter-spacing: 0.5px; }
 
@@ -166,8 +165,7 @@
     .time-row { display: flex; align-items: center; gap: 8px; }
     .time-row input { background: var(--bg); border: 1px solid var(--border); color: #fff; padding: 4px 8px; border-radius: 4px; }
 
-    /* Standings Table & Search */
-    .search-bar { width: 100%; padding: 8px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: #fff; margin-bottom: 12px; }
+    /* Standings Table */
     .tabs { display: flex; gap: 8px; }
     .tab-btn { padding: 6px 12px; background: var(--s3); border: none; border-radius: 6px; color: var(--m); cursor: pointer; font-weight: 600; font-size: 0.8rem; }
     .tab-btn.active { background: var(--y); color: #000; }
@@ -190,7 +188,7 @@
     .st-bar-wrap { width: 50px; height: 6px; background: var(--s3); border-radius: 3px; overflow: hidden; margin-left: 8px; }
     .st-bar-fill { height: 100%; border-radius: 3px; }
 
-    /* Race Calendar List mit Aufklappbaren Streckenbildern */
+    /* Race Calendar List */
     .race-list { display: flex; flex-direction: column; gap: 6px; }
     .race-item { background: var(--s3); border-radius: 8px; overflow: hidden; border: 1px solid transparent; transition: all 0.2s; }
     .race-item.next { border-color: var(--y); background: rgba(255, 215, 0, 0.05); }
@@ -203,7 +201,6 @@
     .toggle-arrow { font-size: 0.75rem; color: var(--m); transition: transform 0.2s; }
     .race-item.open .toggle-arrow { transform: rotate(180deg); }
 
-    /* Aufklappbarer Inhalt (Streckenbild) */
     .track-wrapper { 
       max-height: 0; 
       overflow: hidden; 
@@ -227,7 +224,7 @@
     }
     .track-img:hover { transform: scale(1.03); }
 
-    /* Lightbox Modal (Großansicht bei Klick) */
+    /* Lightbox Modal */
     .lightbox {
       display: none;
       position: fixed;
@@ -360,7 +357,6 @@
           <button class="tab-btn" id="tabKonstrukteur" onclick="switchTab('konstrukteur')">Teams</button>
         </div>
       </div>
-      <input type="text" id="driverSearch" class="search-bar" placeholder="🔍 Suchen..." oninput="render()">
       <div id="standingsContent"></div>
     </div>
   </div>
@@ -552,7 +548,6 @@ async function saveState(){
   render();
 }
 
-/* Rennkalender inkl. Dateipfaden für die Streckenbilder (trackImg) */
 const RACES = [
   { num:1,  cc:'au', country:'Australien',           city:'Melbourne',        done:true,  trackImg:'australia-gp.png' },
   { num:2,  cc:'cn', country:'China',                 city:'Shanghai',         done:true,  trackImg:'chinese-gp.png' },
@@ -580,7 +575,6 @@ const RACES = [
   { num:24, cc:'ae', country:'Ver. Arab. Emirate',    city:'Abu Dhabi',        done:false, trackImg:'yas-marina-circuit-abu-dhabi-2.png' },
 ];
 
-/* Aufklappbarer Rennkalender */
 function renderRaceCalendar(){
   const el=document.getElementById('calendarContent');
   if(!el)return;
@@ -590,7 +584,6 @@ function renderRaceCalendar(){
     document.getElementById('heroRaceName').textContent = `GP von ${RACES[nextIdx].country} (${RACES[nextIdx].city})`;
   }
 
-  /* Karierte Flagge Icon als SVG */
   const checkeredFlagIcon = `<span title="Rennen absolviert" style="font-size: 1rem; line-height: 1;">🏁</span>`;
 
   el.innerHTML=`<div class="race-list">${RACES.map((r,i)=>{
@@ -623,7 +616,6 @@ window.toggleTrack = function(index) {
   if(item) item.classList.toggle('open');
 };
 
-/* Lightbox Funktionen */
 window.openLightbox = function(imgSrc) {
   const lb = document.getElementById('lightbox');
   const img = document.getElementById('lightboxImg');
@@ -674,9 +666,7 @@ function getDriverInfo(name){return ALL_DRIVERS.find(d=>d.name===name)||{name,te
 function renderStandings(){
   const el = document.getElementById('standingsContent');
   if(!el) return;
-  const query = document.getElementById('driverSearch')?.value.toLowerCase().trim() || '';
 
-  // Sortierung bleibt nach Punkten/Namen
   let sorted = [...standings.drivers].sort((a,b) => b.points - a.points || a.name.localeCompare(b.name));
   const maxPts = Math.max(sorted[0]?.points || 1, 1);
 
@@ -687,21 +677,7 @@ function renderStandings(){
     const pct = Math.round(d.points / maxPts * 100);
     const photoImg = info.photo ? `<img src="${info.photo}" class="st-img" alt="${d.name}" onerror="this.style.display='none'">` : '';
 
-    // Prüfe, ob Fahrername, Rufname ODER Teamname zur Suche passt
-    const isNameMatch = query && (
-      d.name.toLowerCase().includes(query) || 
-      (info.human && info.human.toLowerCase().includes(query))
-    );
-    const isTeamMatch = query && info.team && info.team.toLowerCase().includes(query);
-
-    const matchesSearch = isNameMatch || isTeamMatch;
-
-    // Dynamic Highlighting Style
-    const highlightStyle = matchesSearch 
-      ? 'border: 2px solid var(--y); background: rgba(255, 215, 0, 0.2); box-shadow: 0 0 12px rgba(255, 215, 0, 0.3); transform: scale(1.02);' 
-      : '';
-
-    return `<div class="standings-row ${posClass}" style="${highlightStyle}">
+    return `<div class="standings-row ${posClass}">
       <div class="st-pos">${badge}</div>
       ${photoImg}
       <div class="st-driver">
@@ -722,7 +698,6 @@ function renderStandings(){
 function renderConstructorStandings(){
   const el = document.getElementById('standingsContent');
   if(!el) return;
-  const query = document.getElementById('driverSearch')?.value.toLowerCase().trim() || '';
 
   const teamPts = {};
   standings.drivers.forEach(d => {
@@ -740,15 +715,7 @@ function renderConstructorStandings(){
     const badge = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}`;
     const pct = Math.round(pts / maxPts * 100);
 
-    // Prüfe, ob Team zur Suche passt
-    const matchesSearch = query && team.toLowerCase().includes(query);
-
-    // Dynamic Highlighting Style
-    const highlightStyle = matchesSearch 
-      ? 'border: 2px solid var(--y); background: rgba(255, 215, 0, 0.2); box-shadow: 0 0 12px rgba(255, 215, 0, 0.3); transform: scale(1.02);' 
-      : '';
-
-    return `<div class="standings-row ${posClass}" style="${highlightStyle}">
+    return `<div class="standings-row ${posClass}">
       <div class="st-pos">${badge}</div>
       <div class="st-driver">
         <div style="display:flex; align-items:center; gap:8px;">
