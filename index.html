@@ -18,7 +18,6 @@
       --gold: #ffd700;
       --silver: #c0c0c0;
       --bronze: #cd7f32;
-      --purple-fl: #b026ff;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
@@ -338,11 +337,6 @@
       font-weight: 700;
       font-size: 0.8rem;
     }
-    .pos-cell.fl {
-      background: var(--purple-fl) !important;
-      color: #fff !important;
-      box-shadow: 0 0 8px rgba(176, 38, 255, 0.6);
-    }
 
     /* Drivers Grid Cards */
     .driver-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
@@ -540,7 +534,7 @@
     </div>
 
     <div id="standingsAdminArea" style="display:none; margin-top:20px;">
-      <p style="margin-bottom:10px; font-weight:700;">🏁 Rennergebnisse &amp; Schnellste Runden eintragen:</p>
+      <p style="margin-bottom:10px; font-weight:700;">🏁 Rennergebnisse eintragen:</p>
       <div style="margin-bottom:12px; display:flex; align-items:center; gap:10px;">
         <span>Rennen auswählen:</span>
         <select id="adminRaceSelect" class="pin-input" style="width:auto; margin-bottom:0;" onchange="renderRaceResultsEditor()">
@@ -553,8 +547,7 @@
           <thead>
             <tr style="background:var(--s3); text-align:left;">
               <th style="padding:6px;">Fahrer</th>
-              <th style="padding:6px; width:90px;">Platz (1-20 / DNF)</th>
-              <th style="padding:6px; text-align:center; width:90px;">FL 🟣</th>
+              <th style="padding:6px;">Platz (1-20 / DNF)</th>
             </tr>
           </thead>
           <tbody id="raceResultsEditorBody">
@@ -754,10 +747,6 @@ function recalculateStandingsFromResults() {
       const pos = parseInt(entry.pos);
       let p = F1_POINTS[pos] || 0;
       
-      if(entry.fl && pos >= 1 && pos <= 10) {
-        p += 1;
-      }
-      
       if(ptsMap[driverName] !== undefined) {
         ptsMap[driverName] += p;
       } else {
@@ -881,15 +870,12 @@ function renderF1CrossTable() {
     RACES.forEach(r => {
       const res = raceResults[r.num]?.[d.name];
       let posText = '-';
-      let isFL = false;
 
       if(res && res.pos) {
         posText = res.pos;
-        if(res.fl) isFL = true;
       }
 
-      const flClass = isFL ? 'fl' : '';
-      html += `<td><span class="pos-cell ${flClass}">${posText}</span></td>`;
+      html += `<td><span class="pos-cell">${posText}</span></td>`;
     });
 
     html += `<td style="font-weight:800; color:var(--y); font-size:0.95rem; background:rgba(255,215,0,0.05);">${d.points}</td>`;
@@ -1019,14 +1005,11 @@ function renderRaceResultsEditor() {
   const currentRaceData = raceResults[raceNum] || {};
 
   tbody.innerHTML = ALL_DRIVERS.map((d, i) => {
-    const driverRes = currentRaceData[d.name] || { pos: '', fl: false };
+    const driverRes = currentRaceData[d.name] || { pos: '' };
     return `<tr>
       <td style="padding:6px; font-weight:600;">${d.name}</td>
       <td style="padding:6px;">
         <input type="text" id="res_pos_${i}" class="pin-input" style="margin-bottom:0; padding:4px;" value="${driverRes.pos || ''}" placeholder="z.B. 1">
-      </td>
-      <td style="padding:6px; text-align:center;">
-        <input type="radio" name="fl_radio" value="${i}" ${driverRes.fl ? 'checked' : ''}>
       </td>
     </tr>`;
   }).join('');
@@ -1036,18 +1019,15 @@ window.renderRaceResultsEditor = renderRaceResultsEditor;
 
 window.saveRaceResults = async function() {
   const raceNum = document.getElementById('adminRaceSelect')?.value || 1;
-  const selectedFlIdx = document.querySelector('input[name="fl_radio"]:checked')?.value;
 
   if(!raceResults[raceNum]) raceResults[raceNum] = {};
 
   ALL_DRIVERS.forEach((d, i) => {
     const posVal = document.getElementById(`res_pos_${i}`)?.value.trim() || '';
-    const isFl = selectedFlIdx !== undefined && parseInt(selectedFlIdx) === i;
 
     if(posVal) {
       raceResults[raceNum][d.name] = {
-        pos: posVal,
-        fl: isFl
+        pos: posVal
       };
     } else {
       delete raceResults[raceNum][d.name];
