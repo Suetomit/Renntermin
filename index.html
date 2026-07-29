@@ -943,7 +943,12 @@ function findIntersection(slots){
     if(et < minEnd) minEnd = et;
   }
   if(maxStart < minEnd){
-    return { from: minToTime(maxStart), to: minToTime(minEnd) };
+    const durationMin = minEnd - maxStart;
+    return { 
+      from: minToTime(maxStart), 
+      to: minToTime(minEnd),
+      durationMin: durationMin 
+    };
   }
   return null;
 }
@@ -981,11 +986,25 @@ function renderOverview(){
     if(isFull && !autoMatchFound && !S.confirmedDate) {
       const timeMatch = findIntersection(list);
       if(timeMatch) {
-        autoMatchFound = true;
-        S.confirmedDate = d;
-        S.confirmedStart = timeMatch.from;
-        S.confirmedEnd = timeMatch.to;
-        saveState();
+        // Mindestens 1h 30min (90 Minuten): Countdown startet automatisch
+        if(timeMatch.durationMin >= 90) {
+          autoMatchFound = true;
+          S.confirmedDate = d;
+          S.confirmedStart = timeMatch.from;
+          S.confirmedEnd = timeMatch.to;
+          saveState();
+        } 
+        // Bei 1h 20min bis unter 1h 30min (80-89 Minuten): Nachfragen
+        else if(timeMatch.durationMin >= 80) {
+          const userConfirmed = confirm(`Für den ${fmtDateShort(d)} gibt es eine Zeitspanne von ${Math.floor(timeMatch.durationMin / 60)}h ${timeMatch.durationMin % 60}min (${timeMatch.from} - ${timeMatch.to} Uhr).\nSoll der Countdown gestartet und der Termin bestätigt werden?`);
+          if(userConfirmed) {
+            autoMatchFound = true;
+            S.confirmedDate = d;
+            S.confirmedStart = timeMatch.from;
+            S.confirmedEnd = timeMatch.to;
+            saveState();
+          }
+        }
       }
     }
     
