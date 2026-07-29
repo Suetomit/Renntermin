@@ -264,6 +264,7 @@
     .btn-rm { background: none; border: none; color: #ff5555; cursor: pointer; font-size: 0.75rem; }
     .btn-copy { background: var(--s3); border: 1px solid var(--border); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; width: 100%; }
     .btn-copy.green { border-color: #52e252; color: #52e252; }
+    .btn-copy.pbtn.sel { border-color: var(--y); background: rgba(255, 215, 0, 0.15); font-weight: 700; }
 
     /* Admin Section */
     .admin-sec { display: none; margin-top: 20px; }
@@ -605,7 +606,7 @@ function renderRaceCalendar(){
         </div>
       </div>
       <div class="track-wrapper">
-        <img src="${r.trackImg}" class="track-img" alt="Strecke ${r.country}" onclick="openLightbox('${r.trackImg}')" onerror="this.src='header_banner.png'; this.alt='Streckenbild nicht vorhanden';">
+        <img src="${r.trackImg}" class="track-img" alt="Strecke ${r.country}" onclick="openLightbox('${r.trackImg}', event)" onerror="this.src='header_banner.png'; this.alt='Streckenbild nicht vorhanden';">
       </div>
     </div>`;
   }).join('')}</div>`;
@@ -616,7 +617,8 @@ window.toggleTrack = function(index) {
   if(item) item.classList.toggle('open');
 };
 
-window.openLightbox = function(imgSrc) {
+window.openLightbox = function(imgSrc, event) {
+  if(event) event.stopPropagation(); // Verhindert das Zuklappen des Akkordeons
   const lb = document.getElementById('lightbox');
   const img = document.getElementById('lightboxImg');
   if(lb && img) {
@@ -661,13 +663,20 @@ function initStandings(database){
   });
 }
 
-function getDriverInfo(name){return ALL_DRIVERS.find(d=>d.name===name)||{name,team:'',human:null,photo:''};}
+function getDriverInfo(name){return ALL_DRIVERS.find(d=>d.name===name)| philosophicalFallback(name);}
+function philosophicalFallback(name){ return {name,team:'',human:null,photo:''}; }
 
 function renderStandings(){
   const el = document.getElementById('standingsContent');
   if(!el) return;
 
-  let sorted = [...standings.drivers].sort((a,b) => b.points - a.points || a.name.localeCompare(b.name));
+  // Stellt sicher, dass alle bekannten Fahrer gerendert werden, auch wenn in DB unvollständig
+  const driverList = ALL_DRIVERS.map(def => {
+    const found = standings.drivers.find(d => d.name === def.name);
+    return { name: def.name, points: found ? found.points : 0 };
+  });
+
+  let sorted = driverList.sort((a,b) => b.points - a.points || a.name.localeCompare(b.name));
   const maxPts = Math.max(sorted[0]?.points || 1, 1);
 
   el.innerHTML = sorted.map((d, i) => {
@@ -700,10 +709,11 @@ function renderConstructorStandings(){
   if(!el) return;
 
   const teamPts = {};
-  standings.drivers.forEach(d => {
-    const info = getDriverInfo(d.name);
-    if(!info.team) return;
-    teamPts[info.team] = (teamPts[info.team] || 0) + d.points;
+  ALL_DRIVERS.forEach(d => {
+    const found = standings.drivers.find(x => x.name === d.name);
+    const pts = found ? found.points : 0;
+    if(!d.team) return;
+    teamPts[d.team] = (teamPts[d.team] || 0) + pts;
   });
 
   const sorted = Object.entries(teamPts).sort((a,b) => b[1] - a[1]);
