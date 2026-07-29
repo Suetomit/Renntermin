@@ -18,6 +18,7 @@
       --gold: #ffd700;
       --silver: #c0c0c0;
       --bronze: #cd7f32;
+      --purple-fl: #b026ff;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
@@ -242,6 +243,103 @@
       font-size: 2rem; color: #fff; cursor: pointer; font-weight: 800;
     }
 
+    /* Fullscreen Standings Table (F1 Style) */
+    .fs-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: radial-gradient(circle at center, #1a0818 0%, #080308 100%);
+      z-index: 3000;
+      flex-direction: column;
+      padding: 20px;
+      color: #fff;
+      overflow: hidden;
+    }
+    .fs-modal.active { display: flex; }
+    .fs-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #e10600;
+      padding-bottom: 10px;
+      margin-bottom: 15px;
+    }
+    .fs-title { font-size: 1.5rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
+    .btn-fs-close {
+      background: #e10600;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-weight: 800;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+    .fs-table-container {
+      flex: 1;
+      overflow-x: auto;
+      overflow-y: auto;
+      background: rgba(15, 18, 25, 0.92);
+      border: 1px solid #2d3548;
+      border-radius: 8px;
+    }
+    .f1-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+    .f1-table th, .f1-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      text-align: center;
+    }
+    .f1-table th {
+      background: #121620;
+      color: var(--m);
+      font-weight: 700;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .f1-table th.th-driver { text-align: left; position: sticky; left: 0; background: #121620; z-index: 11; min-width: 200px; }
+    .f1-table td.td-driver { text-align: left; position: sticky; left: 0; background: #151922; z-index: 9; font-weight: 700; }
+    .f1-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+    .f1-table tr:nth-child(even) td.td-driver { background: #181d28; }
+    
+    .race-flag-hdr { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .race-flag-hdr img { width: 18px; height: 12px; object-fit: cover; border-radius: 1px; }
+    .race-flag-code { font-size: 0.65rem; color: var(--m); font-family: monospace; }
+    
+    .pos-cell {
+      display: inline-block;
+      min-width: 26px;
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 0.8rem;
+    }
+    .pos-cell.fl {
+      background: var(--purple-fl) !important;
+      color: #fff !important;
+      box-shadow: 0 0 8px rgba(176, 38, 255, 0.6);
+    }
+
+    .fs-btn {
+      background: linear-gradient(135deg, #e10600, #b00000);
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .fs-btn:hover { background: #ff1a14; }
+
     /* Drivers Grid Cards */
     .driver-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
     .driver-tile { background: var(--s3); border-radius: 8px; padding: 12px; border-left: 4px solid var(--dc, var(--border)); }
@@ -264,12 +362,20 @@
     .btn-rm { background: none; border: none; color: #ff5555; cursor: pointer; font-size: 0.75rem; }
     .btn-copy { background: var(--s3); border: 1px solid var(--border); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; width: 100%; }
     .btn-copy.green { border-color: #52e252; color: #52e252; }
-    .btn-copy.pbtn.sel { border-color: var(--y); background: rgba(255, 215, 0, 0.15); font-weight: 700; }
 
     /* Admin Section */
     .admin-sec { display: none; margin-top: 20px; }
     .admin-sec.on { display: block; }
     .pin-input { width: 100%; padding: 8px; background: var(--bg); border: 1px solid var(--border); color: #fff; border-radius: 6px; margin-bottom: 8px; }
+
+    .race-matrix-editor {
+      max-height: 400px;
+      overflow-y: auto;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 10px;
+    }
 
     #loadingOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background:var(--bg); display:flex; justify-content:center; align-items:center; z-index:999; }
   </style>
@@ -282,6 +388,19 @@
 <div id="lightbox" class="lightbox" onclick="closeLightbox()">
   <span class="lightbox-close">&times;</span>
   <img id="lightboxImg" src="" alt="Großansicht Streckenplan">
+</div>
+
+<!-- Fullscreen Standings Modal (F1 24 Cross-Table Style) -->
+<div id="fullscreenStandingsModal" class="fs-modal">
+  <div class="fs-header">
+    <div class="fs-title">🏁 SAISONERGEBNISSE &amp; F1 RANGLISTE</div>
+    <button class="btn-fs-close" onclick="closeFullscreenStandings()">Schließen (ESC)</button>
+  </div>
+  <div class="fs-table-container">
+    <table class="f1-table" id="f1CrossTable">
+      <!-- Wird dynamisch befüllt -->
+    </table>
+  </div>
 </div>
 
 <div class="app-container">
@@ -353,9 +472,12 @@
     <div class="card">
       <div class="card-title">
         <span>🏆 Standings</span>
-        <div class="tabs">
-          <button class="tab-btn active" id="tabFahrer" onclick="switchTab('fahrer')">Fahrer</button>
-          <button class="tab-btn" id="tabKonstrukteur" onclick="switchTab('konstrukteur')">Teams</button>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <button class="fs-btn" onclick="openFullscreenStandings()" title="Saisonergebnisse im F1-Design anzeigen">🖥️ Vollbild</button>
+          <div class="tabs">
+            <button class="tab-btn active" id="tabFahrer" onclick="switchTab('fahrer')">Fahrer</button>
+            <button class="tab-btn" id="tabKonstrukteur" onclick="switchTab('konstrukteur')">Teams</button>
+          </div>
         </div>
       </div>
       <div id="standingsContent"></div>
@@ -407,10 +529,36 @@
     </div>
 
     <div id="standingsAdminArea" style="display:none; margin-top:20px;">
-      <p style="margin-bottom:10px;">WM-Punkte bearbeiten:</p>
+      <p style="margin-bottom:10px; font-weight:700;">🏁 Rennergebnisse &amp; Schnellste Runden eintragen:</p>
+      <div style="margin-bottom:12px; display:flex; align-items:center; gap:10px;">
+        <span>Rennen auswählen:</span>
+        <select id="adminRaceSelect" class="pin-input" style="width:auto; margin-bottom:0;" onchange="renderRaceResultsEditor()">
+          <!-- Wird befüllt -->
+        </select>
+      </div>
+      
+      <div class="race-matrix-editor">
+        <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+          <thead>
+            <tr style="background:var(--s3); text-align:left;">
+              <th style="padding:6px;">Fahrer</th>
+              <th style="padding:6px; width:90px;">Platz (1-20 / DNF)</th>
+              <th style="padding:6px; text-align:center; width:90px;">FL 🟣</th>
+            </tr>
+          </thead>
+          <tbody id="raceResultsEditorBody">
+            <!-- Wird dynamisch erzeugt -->
+          </tbody>
+        </table>
+      </div>
+
+      <button class="btn" onclick="saveRaceResults()">Rennergebnis Speichern</button>
+
+      <hr style="border-color:var(--border); margin:20px 0;">
+      <p style="margin-bottom:10px;">Manuelle Punkte-Korrektur:</p>
       <div style="margin-bottom:10px;">Rennen absolviert: <input type="number" id="racesCompleted" style="width:60px;" class="pin-input"></div>
       <div id="standingsInputs"></div>
-      <button class="btn" onclick="saveStandings()">Punkte Speichern</button>
+      <button class="btn" onclick="saveStandings()">Manuelle Punkte Speichern</button>
     </div>
   </div>
 
@@ -433,7 +581,6 @@ const firebaseConfig = {
 
 const PIN = 'ArianaGrande';
 const DRIVERS = ['Eric','Pascale','Tim','Timo','Marcel','Philipp','Yannis','Niklas'];
-const COLORS = ['#e8002d','#6692ff','#52e252','#6692ff','#3671c6','#ff8000','#ff87bc','#358c75'];
 
 const TEAM_HELMET_IMG = {
   'McLaren':               'helmet_mclaren.png',
@@ -458,6 +605,8 @@ const TEAM_COLORS = {
   'Mercedes-AMG Petronas':'#27f4d2','Aston Martin':'#358c75','Alpine':'#ff87bc',
   'Williams':'#64c4ff','Visa Cash App RB':'#6692ff','Kick Sauber':'#52e252','Haas':'#b6babd',
 };
+
+const F1_POINTS = {1:25, 2:18, 3:15, 4:12, 5:10, 6:8, 7:6, 8:4, 9:2, 10:1};
 
 function helmetImg(driverName){
   const team = DRIVER_TEAM[driverName];
@@ -495,26 +644,41 @@ const ALL_DRIVERS = [
   { name:'Lance Stroll',        racenet:null,              team:'Aston Martin',           human:null,      photo:'lance-stroll-aston-martin.png'          },
 ];
 
-const INITIAL_STANDINGS = [
-  {name:'Timotheus Müller',    points:50},{name:'Charles Leclerc',           points:28},
-  {name:'Pascale Braasch',     points:23},{name:'Lando Norris',              points:19},
-  {name:'Niklas Schweisfurth', points:18},{name:'Andrea Kimi Antonelli',     points:16},
-  {name:'Max Verstappen',      points:14},{name:'George Russell',            points:12},
-  {name:'Tim Löffler',         points:8 },{name:'Marcel Walle',              points:6 },
-  {name:'Alex Albon',          points:4 },{name:'Carlos Sainz',              points:2 },
-  {name:'Yannis Herling',      points:1 },{name:'Pierre Gasly',              points:1 },
-  {name:'Eric Walter',         points:0 },{name:'Philipp Juny',              points:0 },
-  {name:'Oliver Bearman',      points:0 },{name:'Nico Hulkenberg',           points:0 },
-  {name:'Esteban Ocon',        points:0 },{name:'Lance Stroll',              points:0 },
+const RACES = [
+  { num:1,  code:'AUS', cc:'au', country:'Australien',           city:'Melbourne',        done:true,  trackImg:'australia-gp.png' },
+  { num:2,  code:'CHN', cc:'cn', country:'China',                 city:'Shanghai',         done:true,  trackImg:'chinese-gp.png' },
+  { num:3,  code:'JPN', cc:'jp', country:'Japan',                 city:'Suzuka',           done:false, trackImg:'japanese-gp.png' },
+  { num:4,  code:'BHR', cc:'bh', country:'Bahrain',               city:'Sachir',           done:false, trackImg:'bahrain-gp.png' },
+  { num:5,  code:'SAU', cc:'sa', country:'Saudi-Arabien',         city:'Dschidda',         done:false, trackImg:'saudi-arabian-gp.png' },
+  { num:6,  code:'MIA', cc:'us', country:'USA',                   city:'Miami',            done:false, trackImg:'miami-gp.png' },
+  { num:7,  code:'IMO', cc:'it', country:'Emilia-Romagna',        city:'Imola',            done:false, trackImg:'emilia-romagna-gp.png' },
+  { num:8,  code:'MCO', cc:'mc', country:'Monaco',                city:'Monte Carlo',      done:false, trackImg:'monaco-gp.png' },
+  { num:9,  code:'ESP', cc:'es', country:'Spanien',               city:'Barcelona',        done:false, trackImg:'spanish-gp.png' },
+  { num:10, code:'CAN', cc:'ca', country:'Kanada',                city:'Montreal',         done:false, trackImg:'canadian-gp.png' },
+  { num:11, code:'AUT', cc:'at', country:'Österreich',            city:'Spielberg',        done:false, trackImg:'austrian-gp.png' },
+  { num:12, code:'GBR', cc:'gb', country:'Großbritannien',        city:'Silverstone',      done:false, trackImg:'british-gp.png' },
+  { num:13, code:'BEL', cc:'be', country:'Belgien',               city:'Spa-Francorchamps',done:false, trackImg:'belgian-gp.png' },
+  { num:14, code:'HUN', cc:'hu', country:'Ungarn',                city:'Hungaroring',      done:false, trackImg:'hungarian-gp.png' },
+  { num:15, code:'NLD', cc:'nl', country:'Niederlande',           city:'Zandvoort',        done:false, trackImg:'dutch-gp.png' },
+  { num:16, code:'ITA', cc:'it', country:'Italien',               city:'Monza',            done:false, trackImg:'italian-gp.png' },
+  { num:17, code:'AZE', cc:'az', country:'Aserbaidschan',         city:'Baku',             done:false, trackImg:'azerbaijan-gp.png' },
+  { num:18, code:'SGP', cc:'sg', country:'Singapur',              city:'Singapur',         done:false, trackImg:'singapore-gp.png' },
+  { num:19, code:'USA', cc:'us', country:'USA',                   city:'Austin',           done:false, trackImg:'united-states-gp.png' },
+  { num:20, code:'MEX', cc:'mx', country:'Mexiko',                city:'Mexiko-Stadt',     done:false, trackImg:'mexican-gp.png' },
+  { num:21, code:'BRA', cc:'br', country:'Brasilien',             city:'São Paulo',        done:false, trackImg:'sao-paulo-gp.png' },
+  { num:22, code:'VGS', cc:'us', country:'USA',                   city:'Las Vegas',        done:false, trackImg:'las-vegas-gp.png' },
+  { num:23, code:'QAT', cc:'qa', country:'Katar',                 city:'Lusail',           done:false, trackImg:'qatar-gp.png' },
+  { num:24, code:'UAE', cc:'ae', country:'Ver. Arab. Emirate',    city:'Abu Dhabi',        done:false, trackImg:'yas-marina-circuit-abu-dhabi-2.png' },
 ];
 
 let S = {persons:[],confirmedDate:null,confirmedStart:null,confirmedEnd:null};
+let raceResults = {}; // { raceNum: { driverName: { pos: 1, fl: true } } }
 let adminUnlocked = false;
 let currentUser = '';
 let selectedDates = [];
 let calYear, calMonth;
 let standings = {drivers:ALL_DRIVERS.map(d=>({name:d.name,points:0})),racesCompleted:0};
-let standingsRef;
+let standingsRef, raceResultsRef;
 let countdownInterval = null;
 let bannerDismissed = false;
 
@@ -532,6 +696,7 @@ try {
     document.getElementById('statusText').textContent='Live';
     cleanupPastDates();
     initStandings(db);
+    initRaceResults(db);
     render();renderNameButtons();
   }, err=>{ console.error(err);fallbackToLocal(); });
 } catch(e){ console.error(e);fallbackToLocal(); }
@@ -540,6 +705,7 @@ function fallbackToLocal(){
   document.getElementById('loadingOverlay').style.display='none';
   document.getElementById('statusText').textContent='Lokal';
   try{const r=localStorage.getItem('rennplaner_local');if(r)S=JSON.parse(r);}catch(e){}
+  try{const res=localStorage.getItem('f1_race_results');if(res)raceResults=JSON.parse(res);}catch(e){}
   cleanupPastDates();render();renderNameButtons();
 }
 
@@ -549,32 +715,53 @@ async function saveState(){
   render();
 }
 
-const RACES = [
-  { num:1,  cc:'au', country:'Australien',           city:'Melbourne',        done:true,  trackImg:'australia-gp.png' },
-  { num:2,  cc:'cn', country:'China',                 city:'Shanghai',         done:true,  trackImg:'chinese-gp.png' },
-  { num:3,  cc:'jp', country:'Japan',                 city:'Suzuka',           done:false, trackImg:'japanese-gp.png' },
-  { num:4,  cc:'bh', country:'Bahrain',               city:'Sachir',           done:false, trackImg:'bahrain-gp.png' },
-  { num:5,  cc:'sa', country:'Saudi-Arabien',         city:'Dschidda',         done:false, trackImg:'saudi-arabian-gp.png' },
-  { num:6,  cc:'us', country:'USA',                   city:'Miami',            done:false, trackImg:'miami-gp.png' },
-  { num:7,  cc:'it', country:'Emilia-Romagna',        city:'Imola',            done:false, trackImg:'emilia-romagna-gp.png' },
-  { num:8,  cc:'mc', country:'Monaco',                city:'Monte Carlo',      done:false, trackImg:'monaco-gp.png' },
-  { num:9,  cc:'es', country:'Spanien',               city:'Barcelona',        done:false, trackImg:'spanish-gp.png' },
-  { num:10, cc:'ca', country:'Kanada',                city:'Montreal',         done:false, trackImg:'canadian-gp.png' },
-  { num:11, cc:'at', country:'Österreich',            city:'Spielberg',        done:false, trackImg:'austrian-gp.png' },
-  { num:12, cc:'gb', country:'Großbritannien',        city:'Silverstone',      done:false, trackImg:'british-gp.png' },
-  { num:13, cc:'be', country:'Belgien',               city:'Spa-Francorchamps',done:false, trackImg:'belgian-gp.png' },
-  { num:14, cc:'hu', country:'Ungarn',                city:'Hungaroring',      done:false, trackImg:'hungarian-gp.png' },
-  { num:15, cc:'nl', country:'Niederlande',           city:'Zandvoort',        done:false, trackImg:'dutch-gp.png' },
-  { num:16, cc:'it', country:'Italien',               city:'Monza',            done:false, trackImg:'italian-gp.png' },
-  { num:17, cc:'az', country:'Aserbaidschan',         city:'Baku',             done:false, trackImg:'azerbaijan-gp.png' },
-  { num:18, cc:'sg', country:'Singapur',              city:'Singapur',         done:false, trackImg:'singapore-gp.png' },
-  { num:19, cc:'us', country:'USA',                   city:'Austin',           done:false, trackImg:'united-states-gp.png' },
-  { num:20, cc:'mx', country:'Mexiko',                city:'Mexiko-Stadt',     done:false, trackImg:'mexican-gp.png' },
-  { num:21, cc:'br', country:'Brasilien',             city:'São Paulo',        done:false, trackImg:'sao-paulo-gp.png' },
-  { num:22, cc:'us', country:'USA',                   city:'Las Vegas',        done:false, trackImg:'las-vegas-gp.png' },
-  { num:23, cc:'qa', country:'Katar',                 city:'Lusail',           done:false, trackImg:'qatar-gp.png' },
-  { num:24, cc:'ae', country:'Ver. Arab. Emirate',    city:'Abu Dhabi',        done:false, trackImg:'yas-marina-circuit-abu-dhabi-2.png' },
-];
+function initRaceResults(database){
+  raceResultsRef = ref(database, 'raceResults');
+  onValue(raceResultsRef, snap => {
+    const data = snap.val();
+    if(data) {
+      raceResults = data;
+      recalculateStandingsFromResults();
+    }
+    render();
+    if(adminUnlocked) renderRaceResultsEditor();
+  });
+}
+
+function recalculateStandingsFromResults() {
+  const ptsMap = {};
+  ALL_DRIVERS.forEach(d => ptsMap[d.name] = 0);
+  let completedCount = 0;
+
+  Object.keys(raceResults).forEach(raceNum => {
+    const res = raceResults[raceNum];
+    if(res && Object.keys(res).length > 0) completedCount++;
+    
+    Object.keys(res || {}).forEach(driverName => {
+      const entry = res[driverName];
+      if(!entry) return;
+      const pos = parseInt(entry.pos);
+      let p = F1_POINTS[pos] || 0;
+      
+      // Schnellste Runde Zusatzpunkt, wenn in Top 10
+      if(entry.fl && pos >= 1 && pos <= 10) {
+        p += 1;
+      }
+      
+      if(ptsMap[driverName] !== undefined) {
+        ptsMap[driverName] += p;
+      } else {
+        ptsMap[driverName] = p;
+      }
+    });
+  });
+
+  standings.drivers = ALL_DRIVERS.map(d => ({
+    name: d.name,
+    points: ptsMap[d.name] || 0
+  }));
+  standings.racesCompleted = completedCount;
+}
 
 function renderRaceCalendar(){
   const el=document.getElementById('calendarContent');
@@ -606,7 +793,7 @@ function renderRaceCalendar(){
         </div>
       </div>
       <div class="track-wrapper">
-        <img src="${r.trackImg}" class="track-img" alt="Strecke ${r.country}" onclick="openLightbox('${r.trackImg}', event)" onerror="this.src='header_banner.png'; this.alt='Streckenbild nicht vorhanden';">
+        <img src="${r.trackImg}" class="track-img" alt="Strecke ${r.country}" onclick="openLightbox('${r.trackImg}')" onerror="this.src='header_banner.png'; this.alt='Streckenbild nicht vorhanden';">
       </div>
     </div>`;
   }).join('')}</div>`;
@@ -617,8 +804,7 @@ window.toggleTrack = function(index) {
   if(item) item.classList.toggle('open');
 };
 
-window.openLightbox = function(imgSrc, event) {
-  if(event) event.stopPropagation(); // Verhindert das Zuklappen des Akkordeons
+window.openLightbox = function(imgSrc) {
   const lb = document.getElementById('lightbox');
   const img = document.getElementById('lightboxImg');
   if(lb && img) {
@@ -631,6 +817,80 @@ window.closeLightbox = function() {
   const lb = document.getElementById('lightbox');
   if(lb) lb.classList.remove('active');
 };
+
+/* Fullscreen Standings Table Functionality */
+window.openFullscreenStandings = function() {
+  const modal = document.getElementById('fullscreenStandingsModal');
+  if(!modal) return;
+  renderF1CrossTable();
+  modal.classList.add('active');
+};
+
+window.closeFullscreenStandings = function() {
+  const modal = document.getElementById('fullscreenStandingsModal');
+  if(modal) modal.classList.remove('active');
+};
+
+document.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape') closeFullscreenStandings();
+});
+
+function renderF1CrossTable() {
+  const table = document.getElementById('f1CrossTable');
+  if(!table) return;
+
+  // Sortiere Fahrer nach Punkten
+  const sorted = [...standings.drivers].sort((a,b) => b.points - a.points || a.name.localeCompare(b.name));
+
+  let html = `<thead><tr>`;
+  html += `<th class="th-driver">Fahrer &amp; Team</th>`;
+  
+  RACES.forEach(r => {
+    html += `<th>
+      <div class="race-flag-hdr">
+        <img src="https://flagcdn.com/w40/${r.cc}.png" alt="${r.country}">
+        <span class="race-flag-code">${r.code}</span>
+      </div>
+    </th>`;
+  });
+  html += `<th style="color:var(--y); background:#1a1e29;">GES.</th></tr></thead><tbody>`;
+
+  sorted.forEach(d => {
+    const info = getDriverInfo(d.name);
+    const teamColor = TEAM_COLORS[info.team] || '#888';
+
+    html += `<tr>`;
+    html += `<td class="td-driver">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="width:4px; height:18px; background:${teamColor}; display:inline-block; border-radius:2px;"></span>
+        <div>
+          <div style="color:#fff; font-size:0.85rem;">${d.name}</div>
+          <div style="font-size:0.65rem; color:${teamColor};">${info.team}</div>
+        </div>
+      </div>
+    </td>`;
+
+    RACES.forEach(r => {
+      const res = raceResults[r.num]?.[d.name];
+      let posText = '-';
+      let isFL = false;
+
+      if(res && res.pos) {
+        posText = res.pos;
+        if(res.fl) isFL = true;
+      }
+
+      const flClass = isFL ? 'fl' : '';
+      html += `<td><span class="pos-cell ${flClass}">${posText}</span></td>`;
+    });
+
+    html += `<td style="font-weight:800; color:var(--y); font-size:0.95rem; background:rgba(255,215,0,0.05);">${d.points}</td>`;
+    html += `</tr>`;
+  });
+
+  html += `</tbody>`;
+  table.innerHTML = html;
+}
 
 async function cleanupPastDates(){
   const today=new Date();today.setHours(0,0,0,0);let changed=false;
@@ -656,27 +916,23 @@ function initStandings(database){
   standingsRef=ref(database,'standings');
   onValue(standingsRef,snap=>{
     const data=snap.val();
-    if(data&&data.drivers&&data.drivers.length>0)standings=data;
-    else{standings={drivers:INITIAL_STANDINGS,racesCompleted:3};set(standingsRef,standings);}
+    if(data&&data.drivers&&data.drivers.length>0 && Object.keys(raceResults).length === 0) {
+      standings=data;
+    } else {
+      recalculateStandingsFromResults();
+    }
     render();
     if(adminUnlocked)renderStandingsInputs();
   });
 }
 
-function getDriverInfo(name){return ALL_DRIVERS.find(d=>d.name===name)| philosophicalFallback(name);}
-function philosophicalFallback(name){ return {name,team:'',human:null,photo:''}; }
+function getDriverInfo(name){return ALL_DRIVERS.find(d=>d.name===name)||{name,team:'',human:null,photo:''};}
 
 function renderStandings(){
   const el = document.getElementById('standingsContent');
   if(!el) return;
 
-  // Stellt sicher, dass alle bekannten Fahrer gerendert werden, auch wenn in DB unvollständig
-  const driverList = ALL_DRIVERS.map(def => {
-    const found = standings.drivers.find(d => d.name === def.name);
-    return { name: def.name, points: found ? found.points : 0 };
-  });
-
-  let sorted = driverList.sort((a,b) => b.points - a.points || a.name.localeCompare(b.name));
+  let sorted = [...standings.drivers].sort((a,b) => b.points - a.points || a.name.localeCompare(b.name));
   const maxPts = Math.max(sorted[0]?.points || 1, 1);
 
   el.innerHTML = sorted.map((d, i) => {
@@ -709,11 +965,10 @@ function renderConstructorStandings(){
   if(!el) return;
 
   const teamPts = {};
-  ALL_DRIVERS.forEach(d => {
-    const found = standings.drivers.find(x => x.name === d.name);
-    const pts = found ? found.points : 0;
-    if(!d.team) return;
-    teamPts[d.team] = (teamPts[d.team] || 0) + pts;
+  standings.drivers.forEach(d => {
+    const info = getDriverInfo(d.name);
+    if(!info.team) return;
+    teamPts[info.team] = (teamPts[info.team] || 0) + d.points;
   });
 
   const sorted = Object.entries(teamPts).sort((a,b) => b[1] - a[1]);
@@ -741,6 +996,70 @@ function renderConstructorStandings(){
     </div>`;
   }).join('');
 }
+
+function renderRaceSelectOptions() {
+  const select = document.getElementById('adminRaceSelect');
+  if(!select) return;
+  select.innerHTML = RACES.map(r => `<option value="${r.num}">Renn #${r.num} - ${r.country} (${r.code})</option>`).join('');
+}
+
+function renderRaceResultsEditor() {
+  const raceNum = document.getElementById('adminRaceSelect')?.value || 1;
+  const tbody = document.getElementById('raceResultsEditorBody');
+  if(!tbody) return;
+
+  const currentRaceData = raceResults[raceNum] || {};
+
+  tbody.innerHTML = ALL_DRIVERS.map((d, i) => {
+    const driverRes = currentRaceData[d.name] || { pos: '', fl: false };
+    return `<tr>
+      <td style="padding:6px; font-weight:600;">${d.name}</td>
+      <td style="padding:6px;">
+        <input type="text" id="res_pos_${i}" class="pin-input" style="margin-bottom:0; padding:4px;" value="${driverRes.pos || ''}" placeholder="z.B. 1">
+      </td>
+      <td style="padding:6px; text-align:center;">
+        <input type="radio" name="fl_radio" value="${i}" ${driverRes.fl ? 'checked' : ''}>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+window.renderRaceResultsEditor = renderRaceResultsEditor;
+
+window.saveRaceResults = async function() {
+  const raceNum = document.getElementById('adminRaceSelect')?.value || 1;
+  const selectedFlIdx = document.querySelector('input[name="fl_radio"]:checked')?.value;
+
+  if(!raceResults[raceNum]) raceResults[raceNum] = {};
+
+  ALL_DRIVERS.forEach((d, i) => {
+    const posVal = document.getElementById(`res_pos_${i}`)?.value.trim() || '';
+    const isFl = selectedFlIdx !== undefined && parseInt(selectedFlIdx) === i;
+
+    if(posVal) {
+      raceResults[raceNum][d.name] = {
+        pos: posVal,
+        fl: isFl
+      };
+    } else {
+      delete raceResults[raceNum][d.name];
+    }
+  });
+
+  recalculateStandingsFromResults();
+
+  if(raceResultsRef) {
+    try {
+      await set(raceResultsRef, raceResults);
+      if(standingsRef) await set(standingsRef, standings);
+      alert('Rennergebnis & Standings erfolgreich gespeichert!');
+    } catch(e) { console.error(e); }
+  } else {
+    localStorage.setItem('f1_race_results', JSON.stringify(raceResults));
+  }
+
+  render();
+};
 
 function renderStandingsInputs(){
   const el=document.getElementById('standingsInputs');
@@ -890,6 +1209,8 @@ window.checkPin=function(){
     document.getElementById('pinArea').style.display='none';
     document.getElementById('adminCtrl').style.display='block';
     document.getElementById('standingsAdminArea').style.display='block';
+    renderRaceSelectOptions();
+    renderRaceResultsEditor();
     renderStandingsInputs();renderOverview();
   }else{document.getElementById('pinErr').textContent='Falscher PIN!';}
 };
@@ -996,7 +1317,6 @@ function renderOverview(){
     if(isFull && !autoMatchFound && !S.confirmedDate) {
       const timeMatch = findIntersection(list);
       if(timeMatch) {
-        // Mindestens 1h 30min (90 Minuten): Countdown startet automatisch
         if(timeMatch.durationMin >= 90) {
           autoMatchFound = true;
           S.confirmedDate = d;
@@ -1004,7 +1324,6 @@ function renderOverview(){
           S.confirmedEnd = timeMatch.to;
           saveState();
         } 
-        // Bei 1h 20min bis unter 1h 30min (80-89 Minuten): Nachfragen
         else if(timeMatch.durationMin >= 80) {
           const userConfirmed = confirm(`Für den ${fmtDateShort(d)} gibt es eine Zeitspanne von ${Math.floor(timeMatch.durationMin / 60)}h ${timeMatch.durationMin % 60}min (${timeMatch.from} - ${timeMatch.to} Uhr).\nSoll der Countdown gestartet und der Termin bestätigt werden?`);
           if(userConfirmed) {
@@ -1138,6 +1457,10 @@ function render(){
   updateHeroCountdown();
   if(standingsTab==='fahrer') renderStandings();
   else renderConstructorStandings();
+  
+  if(document.getElementById('fullscreenStandingsModal')?.classList.contains('active')) {
+    renderF1CrossTable();
+  }
 }
 
 initCal();
