@@ -881,7 +881,8 @@ function renderF1CrossTable() {
       let isFastest = false;
 
       if(res && res.pos) {
-        posText = res.pos;
+        // HIER ANGEPASST: Fügt einen Punkt hinter die Zahl/Eingabe an (z.B. "1.")
+        posText = res.pos.endsWith('.') ? res.pos : res.pos + '.';
         if(res.fastestLap) {
           isFastest = true;
         }
@@ -945,7 +946,7 @@ function renderStandings(){
   el.innerHTML = sorted.map((d, i) => {
     const info = getDriverInfo(d.name);
     const posClass = i === 0 ? 'p1' : i === 1 ? 'p2' : i === 2 ? 'p3' : '';
-    const badge = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}`;
+    const badge = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
     const pct = Math.round(d.points / maxPts * 100);
     const photoImg = info.photo ? `<img src="${info.photo}" class="st-img" alt="${d.name}" onerror="this.style.display='none'">` : '';
 
@@ -984,7 +985,7 @@ function renderConstructorStandings(){
   el.innerHTML = sorted.map(([team, pts], i) => {
     const color = TEAM_COLORS[team] || '#555';
     const posClass = i === 0 ? 'p1' : i === 1 ? 'p2' : i === 2 ? 'p3' : '';
-    const badge = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}`;
+    const badge = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
     const pct = Math.round(pts / maxPts * 100);
 
     return `<div class="standings-row ${posClass}">
