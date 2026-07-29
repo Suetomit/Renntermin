@@ -170,7 +170,7 @@
     .tab-btn { padding: 6px 10px; background: var(--s3); border: none; border-radius: 6px; color: var(--m); cursor: pointer; font-weight: 600; font-size: 0.8rem; }
     .tab-btn.active { background: var(--y); color: #000; }
 
-    /* Kleiner Expand / Vollbild-Button oben rechts */
+    /* Expand / Vollbild-Button */
     .icon-expand-btn {
       background: var(--s3);
       border: 1px solid var(--border);
@@ -337,7 +337,7 @@
       font-weight: 700;
       font-size: 0.8rem;
     }
-    /* Lila Hintergrund für schnellste Runde (P1) */
+    /* Lila Hintergrund für manuell gesetzte schnellste Runde */
     .pos-cell.fastest-lap {
       background: #b15eff;
       color: #ffffff;
@@ -553,6 +553,7 @@
             <tr style="background:var(--s3); text-align:left;">
               <th style="padding:6px;">Fahrer</th>
               <th style="padding:6px;">Platz (1-20 / DNF)</th>
+              <th style="padding:6px; text-align:center;">⚡ Schnellste Runde (FL)</th>
             </tr>
           </thead>
           <tbody id="raceResultsEditorBody">
@@ -615,6 +616,7 @@ const TEAM_COLORS = {
   'Williams':'#64c4ff','Visa Cash App RB':'#6692ff','Kick Sauber':'#52e252','Haas':'#b6babd',
 };
 
+// Punkteverteilung nach Platzierung (OHNE Schnellste Runde Extra-Punkt!)
 const F1_POINTS = {1:25, 2:18, 3:15, 4:12, 5:10, 6:8, 7:6, 8:4, 9:2, 10:1};
 
 function helmetImg(driverName){
@@ -750,6 +752,7 @@ function recalculateStandingsFromResults() {
       const entry = res[driverName];
       if(!entry) return;
       const pos = parseInt(entry.pos);
+      // Reiner Punktezuwachs durch die Platzierung
       let p = F1_POINTS[pos] || 0;
       
       if(ptsMap[driverName] !== undefined) {
@@ -879,8 +882,7 @@ function renderF1CrossTable() {
 
       if(res && res.pos) {
         posText = res.pos;
-        // Schnellste Runde: Platzierung 1 erhält lila Hervorhebung
-        if(String(res.pos) === '1') {
+        if(res.fastestLap) {
           isFastest = true;
         }
       }
@@ -1005,7 +1007,7 @@ function renderConstructorStandings(){
 function renderRaceSelectOptions() {
   const select = document.getElementById('adminRaceSelect');
   if(!select) return;
-  select.innerHTML = RACES.map(r => `<option value="${r.num}">Renn #${r.num} - ${r.country} (${r.code})</option>`).join('');
+  select.innerHTML = RACES.map(r => `<option value="${r.num}">Rennen #${r.num} - ${r.country} (${r.code})</option>`).join('');
 }
 
 function renderRaceResultsEditor() {
@@ -1016,11 +1018,16 @@ function renderRaceResultsEditor() {
   const currentRaceData = raceResults[raceNum] || {};
 
   tbody.innerHTML = ALL_DRIVERS.map((d, i) => {
-    const driverRes = currentRaceData[d.name] || { pos: '' };
+    const driverRes = currentRaceData[d.name] || { pos: '', fastestLap: false };
+    const isFl = driverRes.fastestLap === true;
+
     return `<tr>
       <td style="padding:6px; font-weight:600;">${d.name}</td>
       <td style="padding:6px;">
         <input type="text" id="res_pos_${i}" class="pin-input" style="margin-bottom:0; padding:4px;" value="${driverRes.pos || ''}" placeholder="z.B. 1">
+      </td>
+      <td style="padding:6px; text-align:center;">
+        <input type="radio" name="fl_radio_group" id="res_fl_${i}" value="${i}" ${isFl ? 'checked' : ''} style="cursor:pointer; width:16px; height:16px;">
       </td>
     </tr>`;
   }).join('');
@@ -1033,12 +1040,17 @@ window.saveRaceResults = async function() {
 
   if(!raceResults[raceNum]) raceResults[raceNum] = {};
 
+  const selectedFlRadio = document.querySelector('input[name="fl_radio_group"]:checked');
+  const flIndex = selectedFlRadio ? parseInt(selectedFlRadio.value) : -1;
+
   ALL_DRIVERS.forEach((d, i) => {
     const posVal = document.getElementById(`res_pos_${i}`)?.value.trim() || '';
+    const isFl = (i === flIndex);
 
-    if(posVal) {
+    if(posVal || isFl) {
       raceResults[raceNum][d.name] = {
-        pos: posVal
+        pos: posVal,
+        fastestLap: isFl
       };
     } else {
       delete raceResults[raceNum][d.name];
