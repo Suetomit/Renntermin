@@ -337,6 +337,11 @@
       font-weight: 700;
       font-size: 0.8rem;
     }
+    /* Lila Hintergrund für schnellste Runde (P1) */
+    .pos-cell.fastest-lap {
+      background: #b15eff;
+      color: #ffffff;
+    }
 
     /* Drivers Grid Cards */
     .driver-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
@@ -870,12 +875,18 @@ function renderF1CrossTable() {
     RACES.forEach(r => {
       const res = raceResults[r.num]?.[d.name];
       let posText = '-';
+      let isFastest = false;
 
       if(res && res.pos) {
         posText = res.pos;
+        // Schnellste Runde: Platzierung 1 erhält lila Hervorhebung
+        if(String(res.pos) === '1') {
+          isFastest = true;
+        }
       }
 
-      html += `<td><span class="pos-cell">${posText}</span></td>`;
+      const cellClass = `pos-cell${isFastest ? ' fastest-lap' : ''}`;
+      html += `<td><span class="${cellClass}">${posText}</span></td>`;
     });
 
     html += `<td style="font-weight:800; color:var(--y); font-size:0.95rem; background:rgba(255,215,0,0.05);">${d.points}</td>`;
