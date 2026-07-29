@@ -166,10 +166,29 @@
     .time-row { display: flex; align-items: center; gap: 8px; }
     .time-row input { background: var(--bg); border: 1px solid var(--border); color: #fff; padding: 4px 8px; border-radius: 4px; }
 
-    /* Standings Table */
-    .tabs { display: flex; gap: 8px; }
-    .tab-btn { padding: 6px 12px; background: var(--s3); border: none; border-radius: 6px; color: var(--m); cursor: pointer; font-weight: 600; font-size: 0.8rem; }
+    /* Standings Table & Tabs */
+    .tabs { display: flex; gap: 6px; }
+    .tab-btn { padding: 6px 10px; background: var(--s3); border: none; border-radius: 6px; color: var(--m); cursor: pointer; font-weight: 600; font-size: 0.8rem; }
     .tab-btn.active { background: var(--y); color: #000; }
+
+    /* Kleiner Expand / Vollbild-Button oben rechts */
+    .icon-expand-btn {
+      background: var(--s3);
+      border: 1px solid var(--border);
+      color: var(--m);
+      padding: 6px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .icon-expand-btn:hover {
+      background: var(--y);
+      color: #000;
+      border-color: var(--y);
+    }
 
     .standings-row { display: flex; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--border); gap: 10px; border-radius: 8px; margin-bottom: 4px; transition: all 0.2s; }
     .st-pos { font-weight: 800; width: 24px; text-align: center; font-size: 0.9rem; }
@@ -325,21 +344,6 @@
       box-shadow: 0 0 8px rgba(176, 38, 255, 0.6);
     }
 
-    .fs-btn {
-      background: linear-gradient(135deg, #e10600, #b00000);
-      color: #fff;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-weight: 700;
-      cursor: pointer;
-      font-size: 0.75rem;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .fs-btn:hover { background: #ff1a14; }
-
     /* Drivers Grid Cards */
     .driver-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
     .driver-tile { background: var(--s3); border-radius: 8px; padding: 12px; border-left: 4px solid var(--dc, var(--border)); }
@@ -468,16 +472,23 @@
       <div id="fmsg" style="color:#ff5555; font-size:0.8rem; margin-top:8px;"></div>
     </div>
 
-    <!-- WM Standings -->
+    <!-- WM Standings Card mit neuem Icon-Button -->
     <div class="card">
       <div class="card-title">
         <span>🏆 Standings</span>
-        <div style="display:flex; gap:6px; align-items:center;">
-          <button class="fs-btn" onclick="openFullscreenStandings()" title="Saisonergebnisse im F1-Design anzeigen">🖥️ Vollbild</button>
+        <div style="display:flex; gap:8px; align-items:center;">
           <div class="tabs">
             <button class="tab-btn active" id="tabFahrer" onclick="switchTab('fahrer')">Fahrer</button>
             <button class="tab-btn" id="tabKonstrukteur" onclick="switchTab('konstrukteur')">Teams</button>
           </div>
+          <button class="icon-expand-btn" onclick="openFullscreenStandings()" title="Saisonergebnisse / Vollbildansicht">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <polyline points="9 21 3 21 3 15"></polyline>
+              <line x1="21" y1="3" x2="14" y2="10"></line>
+              <line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+          </button>
         </div>
       </div>
       <div id="standingsContent"></div>
@@ -672,7 +683,7 @@ const RACES = [
 ];
 
 let S = {persons:[],confirmedDate:null,confirmedStart:null,confirmedEnd:null};
-let raceResults = {}; // { raceNum: { driverName: { pos: 1, fl: true } } }
+let raceResults = {}; 
 let adminUnlocked = false;
 let currentUser = '';
 let selectedDates = [];
@@ -743,7 +754,6 @@ function recalculateStandingsFromResults() {
       const pos = parseInt(entry.pos);
       let p = F1_POINTS[pos] || 0;
       
-      // Schnellste Runde Zusatzpunkt, wenn in Top 10
       if(entry.fl && pos >= 1 && pos <= 10) {
         p += 1;
       }
@@ -818,7 +828,6 @@ window.closeLightbox = function() {
   if(lb) lb.classList.remove('active');
 };
 
-/* Fullscreen Standings Table Functionality */
 window.openFullscreenStandings = function() {
   const modal = document.getElementById('fullscreenStandingsModal');
   if(!modal) return;
@@ -839,7 +848,6 @@ function renderF1CrossTable() {
   const table = document.getElementById('f1CrossTable');
   if(!table) return;
 
-  // Sortiere Fahrer nach Punkten
   const sorted = [...standings.drivers].sort((a,b) => b.points - a.points || a.name.localeCompare(b.name));
 
   let html = `<thead><tr>`;
