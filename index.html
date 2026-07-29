@@ -261,7 +261,7 @@
       font-size: 2rem; color: #fff; cursor: pointer; font-weight: 800;
     }
 
-    /* Fullscreen Standings Table (F1 Style) */
+    /* Fullscreen Standings Modal (F1 Style) */
     .fs-modal {
       display: none;
       position: fixed;
@@ -881,8 +881,9 @@ function renderF1CrossTable() {
       let isFastest = false;
 
       if(res && res.pos) {
-        // HIER ANGEPASST: Fügt einen Punkt hinter die Zahl/Eingabe an (z.B. "1.")
-        posText = res.pos.endsWith('.') ? res.pos : res.pos + '.';
+        // HIER GEÄNDERT: Reine Zahlen erhalten einen Punkt (z.B. "1."), Freitext/Kürzel wie "DNF" oder "DSQ" bleiben ohne Punkt
+        const trimmedPos = res.pos.trim();
+        posText = /^\d+$/.test(trimmedPos) ? trimmedPos + '.' : trimmedPos;
         if(res.fastestLap) {
           isFastest = true;
         }
