@@ -337,7 +337,7 @@
       font-weight: 700;
       font-size: 0.8rem;
     }
-    /* Lila Hintergrund für manuell gesetzte schnellste Runde */
+    /* Lila Hintergrund für schnellste Runde */
     .pos-cell.fastest-lap {
       background: #b15eff;
       color: #ffffff;
@@ -752,7 +752,6 @@ function recalculateStandingsFromResults() {
       const entry = res[driverName];
       if(!entry) return;
       const pos = parseInt(entry.pos);
-      // Reiner Punktezuwachs durch die Platzierung
       let p = F1_POINTS[pos] || 0;
       
       if(ptsMap[driverName] !== undefined) {
@@ -881,7 +880,6 @@ function renderF1CrossTable() {
       let isFastest = false;
 
       if(res && res.pos) {
-        // HIER GEÄNDERT: Reine Zahlen erhalten einen Punkt (z.B. "1."), Freitext/Kürzel wie "DNF" oder "DSQ" bleiben ohne Punkt
         const trimmedPos = res.pos.trim();
         posText = /^\d+$/.test(trimmedPos) ? trimmedPos + '.' : trimmedPos;
         if(res.fastestLap) {
@@ -1170,220 +1168,68 @@ function renderNameButtons(){
     
     return`<button type="button" class="name-btn ${isSel?'selected':''}" onclick="selectName('${name}')">
       ${helmetSrc ? `<img src="${helmetSrc}" class="name-btn-helmet" alt="${team}">` : ''}
-      <span>${name}${hasEntry&&!isSel?' ✏️':''}</span>
+      <span>${name} ${hasEntry?'✓':''}</span>
     </button>`;
   }).join('');
 }
 
 window.selectName=function(name){
-  currentUser=name;document.getElementById('nameInput').value=name;
+  currentUser=name;
+  document.getElementById('nameInput').value=name;
   const existing=S.persons.find(p=>p.name===name);
-  if(existing&&existing.slots.length>0){selectedDates=existing.slots.map(s=>({date:s.date,from:s.from,to:s.to}));showMsg('Eintrag geladen.');}
-  else{selectedDates=[];showMsg('');}
-  renderCal();renderSelDates();renderNameButtons();renderPersons();
+  if(existing) selectedDates=JSON.parse(JSON.stringify(existing.slots));
+  else selectedDates=[];
+  renderNameButtons();
+  renderCal();
 };
 
 window.submitPerson=async function(){
-  const name=currentUser;
-  if(!name){showMsg('Bitte Namen auswählen.');return;}
-  if(!selectedDates.length){showMsg('Bitte min. einen Tag wählen.');return;}
-  S.persons=S.persons.filter(p=>p.name!==name);
-  S.persons.push({name,slots:selectedDates.map(e=>({date:e.date,from:e.from,to:e.to}))});
-  await saveState();showMsg('');currentUser='';document.getElementById('nameInput').value='';
-  selectedDates=[];renderCal();renderSelDates();renderNameButtons();
-};
-
-function showMsg(m){const el=document.getElementById('fmsg');if(el)el.textContent=m;}
-
-window.deleteSlot=async function(personName,slotIdx){
-  const p=S.persons.find(px=>px.name===personName);if(!p)return;
-  p.slots.splice(slotIdx,1);
-  if(p.slots.length===0)S.persons=S.persons.filter(px=>px.name!==personName);
-  await saveState();renderNameButtons();
-};
-
-window.copySlot=async function(date,from,to,myName){
-  if(!myName){showMsg('Name auswählen.');return;}
-  let person=S.persons.find(p=>p.name===myName);
-  if(!person){person={name:myName,slots:[]};S.persons.push(person);}
-  const existingIdx=person.slots.findIndex(s=>s.date===date);
-  if(existingIdx>=0)person.slots[existingIdx]={date,from,to};
-  else person.slots.push({date,from,to});
-  await saveState();renderNameButtons();
-};
-
-window.toggleAdmin=function(){
-  document.getElementById('adminSec').classList.toggle('on');
-};
-
-window.checkPin=function(){
-  if(document.getElementById('pinIn').value===PIN){
-    adminUnlocked=true;
-    document.getElementById('pinArea').style.display='none';
-    document.getElementById('adminCtrl').style.display='block';
-    document.getElementById('standingsAdminArea').style.display='block';
-    renderRaceSelectOptions();
-    renderRaceResultsEditor();
-    renderStandingsInputs();renderOverview();
-  }else{document.getElementById('pinErr').textContent='Falscher PIN!';}
-};
-
-window.confirmRace=async function(){
-  const selBtn=document.querySelector('.pbtn.sel');
-  if(!selBtn)return;
-  S.confirmedDate=selBtn.dataset.date;
-  S.confirmedStart=document.getElementById('raceStart').value;
-  S.confirmedEnd=document.getElementById('raceEnd').value;
+  const name=currentUser||document.getElementById('nameInput').value.trim();
+  const fmsg=document.getElementById('fmsg');
+  if(!name){fmsg.textContent='Bitte wähle deinen Namen aus!';return;}
+  if(!selectedDates.length){fmsg.textContent='Bitte wähle mindestens einen Tag aus!';return;}
+  fmsg.textContent='';
+  
+  const idx=S.persons.findIndex(p=>p.name===name);
+  if(idx>=0) S.persons[idx].slots=selectedDates;
+  else S.persons.push({name,slots:selectedDates});
+  
   await saveState();
+  selectedDates=[];
+  currentUser='';
+  renderNameButtons();
+  renderCal();
 };
 
-window.resetAll=async function(){
-  if(!confirm('ALLES ZURÜCKSETZEN?'))return;
-  S={persons:[],confirmedDate:null,confirmedStart:null,confirmedEnd:null};
-  await saveState();renderNameButtons();
+window.removePerson=async function(name){
+  if(!confirm(`Eintrag von ${name} wirklich löschen?`)) return;
+  S.persons=S.persons.filter(p=>p.name!==name);
+  await saveState();
+  if(currentUser===name){currentUser='';selectedDates=[];renderNameButtons();renderCal();}
 };
 
-function renderPersons(){
-  const el=document.getElementById('personList');
-  const pill=document.getElementById('pcountPill');
-  if(pill) pill.textContent=`${S.persons.length} / ${DRIVERS.length}`;
-  
-  if(!S.persons.length){el.innerHTML='<div style="color:var(--m); font-size:0.85rem;">Noch keine Einträge.</div>';return;}
-  el.innerHTML=`<div class="driver-grid">${
-    DRIVERS.map((name,i)=>{
-      const p=S.persons.find(px=>px.name===name);
-      const isMe=currentUser===name;
-      const color=TEAM_COLORS[DRIVER_TEAM[name]]||'#555';
-      if(!p||!p.slots.length){
-        return`<div class="driver-tile" style="--dc:${color};opacity:0.5;">
-          <div class="dt-head">${helmetImg(name)}<div class="dt-name">${name}</div></div>
-          <div style="font-size:0.75rem; color:var(--m);">Keine Termine</div>
-        </div>`;
-      }
-      return`<div class="driver-tile" style="--dc:${color}">
-        <div class="dt-head">${helmetImg(name)}<div class="dt-name">${name}</div></div>
-        ${p.slots.map((s,sidx)=>`
-          <div class="dt-slot">
-            <div style="font-weight:700;">${fmtDateShort(s.date)} (${fmtWD(s.date)})</div>
-            <div>${s.from} - ${s.to} Uhr (${duration(s.from,s.to)})</div>
-            ${isMe||adminUnlocked?`<button class="btn-rm" onclick="deleteSlot('${name}',${sidx})">Löschen</button>`:''}
-          </div>
-        `).join('')}
-      </div>`;
-    }).join('')
-  }</div>`;
-}
+window.dismissBanner = function() {
+  bannerDismissed = true;
+  document.getElementById('reminderBanner').style.display = 'none';
+};
 
-function timeToMin(t){ const [h,m]=t.split(':').map(Number); return h*60+m; }
-function minToTime(m){ const h=Math.floor(m/60), r=m%60; return `${String(h).padStart(2,'0')}:${String(r).padStart(2,'0')}`; }
+function updateReminderBanner() {
+  const banner = document.getElementById('reminderBanner');
+  if(!banner || bannerDismissed) return;
 
-function findIntersection(slots){
-  let maxStart = 0;
-  let minEnd = 24 * 60;
-  for(const s of slots){
-    const st = timeToMin(s.from);
-    const et = timeToMin(s.to);
-    if(st > maxStart) maxStart = st;
-    if(et < minEnd) minEnd = et;
-  }
-  if(maxStart < minEnd){
-    const durationMin = minEnd - maxStart;
-    return { 
-      from: minToTime(maxStart), 
-      to: minToTime(minEnd),
-      durationMin: durationMin 
-    };
-  }
-  return null;
-}
+  const enteredNames = S.persons.map(p => p.name);
+  const missing = DRIVERS.filter(d => !enteredNames.includes(d));
 
-function renderOverview(){
-  const el=document.getElementById('overview');
-  if(!el) return;
-  const datesMap={};
-  S.persons.forEach(p=>{
-    p.slots.forEach(s=>{
-      if(!datesMap[s.date])datesMap[s.date]=[];
-      datesMap[s.date].push({name:p.name,from:s.from,to:s.to});
-    });
-  });
-
-  const dateKeys=Object.keys(datesMap).sort((a,b)=> {
-    const diff = datesMap[b].length - datesMap[a].length;
-    return diff !== 0 ? diff : a.localeCompare(b);
-  });
-
-  if(!dateKeys.length){el.innerHTML='<div style="color:var(--m); font-size:0.85rem;">Keine Auswertung verfügbar.</div>';return;}
-  
-  let html=`<div class="date-grid">`;
-  let bestCount=0;
-  dateKeys.forEach(d=>{ if(datesMap[d].length>bestCount)bestCount=datesMap[d].length; });
-
-  let autoMatchFound = false;
-
-  dateKeys.forEach(d=>{
-    const list=datesMap[d];
-    const isFull = list.length === DRIVERS.length;
-    const isBest = list.length === bestCount && bestCount > 1 && !isFull;
-    const isChosen = S.confirmedDate === d;
-
-    if(isFull && !autoMatchFound && !S.confirmedDate) {
-      const timeMatch = findIntersection(list);
-      if(timeMatch) {
-        if(timeMatch.durationMin >= 90) {
-          autoMatchFound = true;
-          S.confirmedDate = d;
-          S.confirmedStart = timeMatch.from;
-          S.confirmedEnd = timeMatch.to;
-          saveState();
-        } 
-        else if(timeMatch.durationMin >= 80) {
-          const userConfirmed = confirm(`Für den ${fmtDateShort(d)} gibt es eine Zeitspanne von ${Math.floor(timeMatch.durationMin / 60)}h ${timeMatch.durationMin % 60}min (${timeMatch.from} - ${timeMatch.to} Uhr).\nSoll der Countdown gestartet und der Termin bestätigt werden?`);
-          if(userConfirmed) {
-            autoMatchFound = true;
-            S.confirmedDate = d;
-            S.confirmedStart = timeMatch.from;
-            S.confirmedEnd = timeMatch.to;
-            saveState();
-          }
-        }
-      }
-    }
+  if(missing.length > 0 && missing.length < DRIVERS.length) {
+    banner.style.display = 'flex';
+    document.getElementById('missingDriversList').textContent = missing.join(', ');
     
-    html+=`<div class="dcard ${isFull?'full':isBest?'best':''}">
-      ${isChosen?'<span style="color:#27f4d2; font-weight:800; font-size:0.7rem; letter-spacing:0.5px;">🏁 BESTÄTIGTER TERMIN</span>':''}
-      <div class="dc-wd">${fmtWD(d)}</div>
-      <div class="dc-d">${fmtDateShort(d)}</div>
-      <div class="dc-cnt" style="${isFull?'color:#27f4d2;':''}">${list.length} / ${DRIVERS.length} Fahrer</div>
-      <div style="margin-top:6px;">
-        ${list.map(l=>{
-          const teamColor = TEAM_COLORS[DRIVER_TEAM[l.name]] || 'var(--y)';
-          return `<span class="dc-chip" style="border-left-color:${teamColor};">
-            <strong style="color:${teamColor};">${l.name}</strong> (${l.from}-${l.to})
-          </span>`;
-        }).join('')}
-      </div>
-      ${currentUser&&!list.map(l=>l.name).includes(currentUser)?`
-        <button class="btn-copy green" style="margin-top:8px;" onclick="copySlot('${d}','14:00','18:00','${currentUser}')">+ Auch eintragen</button>`:''}
-    </div>`;
-  });
-  html+=`</div>`;
-  el.innerHTML=html;
-
-  const pgrid=document.getElementById('pickGrid');
-  if(pgrid&&adminUnlocked){
-    pgrid.innerHTML=dateKeys.map(d=>`
-      <button type="button" class="btn-copy pbtn ${S.confirmedDate===d?'sel':''}" data-date="${d}" onclick="selectAdminDate(this,'${d}')">
-        ${fmtDateShort(d)} (${datesMap[d].length})
-      </button>
-    `).join('');
+    const text = encodeURIComponent(`Hallo Jungs! Folgende Fahrer müssen noch ihre Verfügbarkeit für den Gurkensöhne Cup eintragen: ${missing.join(', ')}.`);
+    document.getElementById('waReminderBtn').href = `https://api.whatsapp.com/send?text=${text}`;
+  } else {
+    banner.style.display = 'none';
   }
 }
-
-window.selectAdminDate=function(btn,date){
-  document.querySelectorAll('.pbtn').forEach(b=>b.classList.remove('sel'));
-  btn.classList.add('sel');
-};
 
 function updateHeroCountdown() {
   const cdEl = document.getElementById('heroCountdown');
@@ -1392,91 +1238,205 @@ function updateHeroCountdown() {
   if(!S.confirmedDate) {
     cdEl.textContent = 'Ausstehend';
     cdEl.style.color = 'var(--y)';
-    if(countdownInterval) clearInterval(countdownInterval);
     return;
   }
 
-  const startTimeStr = S.confirmedStart || '14:00';
-  const targetTime = new Date(`${S.confirmedDate}T${startTimeStr}:00`).getTime();
+  const target = new Date(`${S.confirmedDate}T${S.confirmedStart||'14:00'}:00`);
+  const now = new Date();
+  const diff = target - now;
 
-  function tick() {
-    const now = new Date().getTime();
-    const diff = targetTime - now;
-
-    if(diff <= 0) {
-      cdEl.textContent = '🏎️ RACE DAY! GO GO GO!';
-      cdEl.style.color = '#27f4d2';
-      if(countdownInterval) clearInterval(countdownInterval);
-      return;
-    }
-
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const secs = Math.floor((diff % (1000 * 60)) / 1000);
-
-    cdEl.textContent = `${days}d ${String(hours).padStart(2,'0')}h ${String(mins).padStart(2,'0')}m ${String(secs).padStart(2,'0')}s`;
+  if(diff <= 0) {
+    cdEl.textContent = 'RACE DAY / LIVE';
     cdEl.style.color = '#27f4d2';
+    return;
   }
 
-  tick();
-  if(countdownInterval) clearInterval(countdownInterval);
-  countdownInterval = setInterval(tick, 1000);
+  const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
+  const m = Math.floor((diff / 1000 / 60) % 60);
+  const s = Math.floor((diff / 1000) % 60);
+
+  cdEl.textContent = `${d}d ${String(h).padStart(2,'0')}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
+  cdEl.style.color = 'var(--y)';
+}
+
+function renderPersonList(){
+  const el=document.getElementById('personList');
+  const pill=document.getElementById('pcountPill');
+  if(!el) return;
+  pill.textContent=`${S.persons.length} von ${DRIVERS.length} eingetragen`;
+
+  if(!S.persons.length){
+    el.innerHTML='<div style="font-size:0.85rem;color:var(--m);font-style:italic;">Noch keine Fahrereinträge vorhanden.</div>';
+    return;
+  }
+
+  el.innerHTML=`<div class="driver-grid">${S.persons.map(p=>{
+    const team = DRIVER_TEAM[p.name] || '';
+    const color = TEAM_COLORS[team] || 'var(--border)';
+
+    return`<div class="driver-tile" style="--dc:${color}">
+      <div class="dt-head">
+        ${helmetImg(p.name)}
+        <div style="flex:1;">
+          <div class="dt-name">${p.name}</div>
+          <div style="font-size:0.7rem;color:${color}">${team}</div>
+        </div>
+        <button class="btn-rm" onclick="removePerson('${p.name}')" title="Eintrag löschen">✕</button>
+      </div>
+      ${p.slots.map(s=>`
+        <div class="dt-slot">
+          <div style="font-weight:700;">${fmtDate(s.date)}</div>
+          <div style="color:var(--m);">${s.from} - ${s.to} Uhr (${duration(s.from,s.to)})</div>
+        </div>
+      `).join('')}
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function renderOverview(){
+  const el=document.getElementById('overview');
+  if(!el) return;
+
+  const datesMap={};
+  S.persons.forEach(p=>{
+    p.slots.forEach(s=>{
+      if(!datesMap[s.date]) datesMap[s.date]=[];
+      datesMap[s.date].push({name:p.name,from:s.from,to:s.to});
+    });
+  });
+
+  const sortedDates=Object.keys(datesMap).sort();
+  if(!sortedDates.length){
+    el.innerHTML='<div style="font-size:0.85rem;color:var(--m);font-style:italic;">Sobald Termine eingetragen werden, erscheint hier die Auswertung.</div>';
+    return;
+  }
+
+  let maxCount=0;
+  sortedDates.forEach(d=>{ if(datesMap[d].length>maxCount) maxCount=datesMap[d].length; });
+
+  el.innerHTML=`<div class="date-grid">${sortedDates.map(dateISO=>{
+    const drivers=datesMap[dateISO];
+    const cnt=drivers.length;
+    const isBest=cnt===maxCount && cnt>1;
+    const isFull=cnt===DRIVERS.length;
+
+    return`<div class="dcard ${isFull?'full':isBest?'best':''}">
+      <div class="dc-wd">${fmtWD(dateISO)}</div>
+      <div class="dc-d">${fmtDateShort(dateISO)}</div>
+      <div class="dc-cnt">${cnt} von ${DRIVERS.length} Verf.</div>
+      <div>${drivers.map(dr=>`
+        <span class="dc-chip" style="border-left-color:${TEAM_COLORS[DRIVER_TEAM[dr.name]]||'var(--y)'}">
+          <strong>${dr.name}:</strong> ${dr.from}-${dr.to}
+        </span>
+      `).join('')}</div>
+    </div>`;
+  }).join('')}</div>`;
 }
 
 function renderConfirmedArea(){
   const el=document.getElementById('confirmedArea');
   if(!el) return;
-  if(!S.confirmedDate){el.innerHTML='';return;}
-  el.innerHTML=`
-    <div class="card" style="border-color:#27f4d2; background:rgba(39,244,210,0.05); text-align:center;">
-      <div style="color:#27f4d2; font-weight:800; letter-spacing:1px; font-size:0.8rem;">🏁 RENNTERMIN FESTGELEGT</div>
-      <div style="font-size:1.4rem; font-weight:800; margin:4px 0;">${fmtDateLong(S.confirmedDate)}</div>
-      <div style="color:var(--m);">Uhrzeit: ${S.confirmedStart||'14:00'} - ${S.confirmedEnd||'18:00'} Uhr</div>
-    </div>
-  `;
-}
 
-function renderReminderBanner() {
-  const banner = document.getElementById('reminderBanner');
-  if(!banner || bannerDismissed) return;
-
-  const entered = S.persons.map(p => p.name);
-  const missing = DRIVERS.filter(d => !entered.includes(d));
-
-  if(missing.length === 0) {
-    banner.style.display = 'none';
+  if(!S.confirmedDate){
+    el.innerHTML='';
     return;
   }
 
-  banner.style.display = 'flex';
-  document.getElementById('missingDriversList').textContent = missing.join(', ');
-
-  const text = encodeURIComponent(`Hallo Jungs! 🏎️ Bitte tragt noch eure Verfügbarkeit für den Gurkensöhne Cup ein:\nEs fehlen noch: ${missing.join(', ')}`);
-  document.getElementById('waReminderBtn').href = `https://wa.me/?text=${text}`;
+  el.innerHTML=`<div class="card" style="border-color:var(--y); background:rgba(255, 215, 0, 0.05); text-align:center;">
+    <div style="font-size:0.8rem; text-transform:uppercase; color:var(--y); letter-spacing:1px; font-weight:700;">🏆 Offiziell festgelegtes Rennen</div>
+    <div style="font-size:1.6rem; font-weight:800; margin:6px 0;">${fmtDateLong(S.confirmedDate)}</div>
+    <div style="font-size:1.1rem; color:#fff; font-weight:600;">Renndauer: ${S.confirmedStart||'14:00'} Uhr bis ${S.confirmedEnd||'18:00'} Uhr</div>
+  </div>`;
 }
 
-window.dismissBanner = function() {
-  bannerDismissed = true;
-  document.getElementById('reminderBanner').style.display = 'none';
+function renderPickGrid(){
+  const el=document.getElementById('pickGrid');
+  if(!el) return;
+
+  const datesSet=new Set();
+  S.persons.forEach(p=>p.slots.forEach(s=>datesSet.add(s.date)));
+  const sorted=[...datesSet].sort();
+
+  if(!sorted.length){
+    el.innerHTML='<span style="font-size:0.8rem;color:var(--m);">Keine Termine zur Auswahl.</span>';
+    return;
+  }
+
+  el.innerHTML=sorted.map(d=>`
+    <button class="btn-copy" style="width:auto; ${S.confirmedDate===d?'border-color:var(--y);color:var(--y);':''}" onclick="setPickDate('${d}')">
+      ${fmtDateShort(d)}
+    </button>
+  `).join('');
+}
+
+let pickedAdminDate = null;
+window.setPickDate = function(d) {
+  pickedAdminDate = d;
+  alert(`Datum ${fmtDate(d)} ausgewählt.`);
 };
 
-function render(){
+window.confirmRace = async function() {
+  if(!pickedAdminDate && !S.confirmedDate) {
+    alert('Bitte wähle zuerst ein Datum aus!');
+    return;
+  }
+  S.confirmedDate = pickedAdminDate || S.confirmedDate;
+  S.confirmedStart = document.getElementById('raceStart').value || '14:00';
+  S.confirmedEnd = document.getElementById('raceEnd').value || '18:00';
+  await saveState();
+  alert('Renntermin festgelegt!');
+};
+
+window.toggleAdmin = function() {
+  const sec = document.getElementById('adminSec');
+  sec.classList.toggle('on');
+};
+
+window.checkPin = function() {
+  const val = document.getElementById('pinIn').value;
+  const err = document.getElementById('pinErr');
+  if(val === PIN) {
+    adminUnlocked = true;
+    document.getElementById('pinArea').style.display = 'none';
+    document.getElementById('adminCtrl').style.display = 'block';
+    document.getElementById('standingsAdminArea').style.display = 'block';
+    renderRaceSelectOptions();
+    renderRaceResultsEditor();
+    renderStandingsInputs();
+    renderPickGrid();
+  } else {
+    err.textContent = 'Falscher PIN!';
+  }
+};
+
+window.resetAll = async function() {
+  if(!confirm('Achtung: MÖCHTEST DU WIRKLICH ALLE TERMIN-EINTRÄGE LÖSCHEN?')) return;
+  S.persons = [];
+  S.confirmedDate = null;
+  S.confirmedStart = null;
+  S.confirmedEnd = null;
+  await saveState();
+  alert('Alle Termindaten wurden zurückgesetzt.');
+};
+
+function render() {
   renderRaceCalendar();
-  renderPersons();
+  if(standingsTab === 'fahrer') renderStandings();
+  else renderConstructorStandings();
+  renderPersonList();
   renderOverview();
   renderConfirmedArea();
-  renderReminderBanner();
+  updateReminderBanner();
   updateHeroCountdown();
-  if(standingsTab==='fahrer') renderStandings();
-  else renderConstructorStandings();
-  
-  if(document.getElementById('fullscreenStandingsModal')?.classList.contains('active')) {
-    renderF1CrossTable();
-  }
+  if(adminUnlocked) renderPickGrid();
 }
 
+// Initialer Start
 initCal();
+if(countdownInterval) clearInterval(countdownInterval);
+countdownInterval = setInterval(updateHeroCountdown, 1000);
+
 </script>
 </body>
 </html>
