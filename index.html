@@ -111,29 +111,6 @@
     .hero-race-name { font-size: 1.3rem; font-weight: 800; color: #fff; }
     .hero-countdown { font-size: 1.2rem; font-weight: 800; color: var(--y); font-family: monospace; }
 
-    /* Go Live Button im Banner */
-    .btn-go-live {
-      background: linear-gradient(135deg, #ff0055 0%, #e10600 100%);
-      color: #fff;
-      border: none;
-      padding: 8px 18px;
-      border-radius: 6px;
-      font-weight: 800;
-      font-size: 1rem;
-      cursor: pointer;
-      box-shadow: 0 0 12px rgba(225, 6, 0, 0.6);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      text-transform: uppercase;
-      animation: pulseLive 1.8s infinite;
-    }
-    @keyframes pulseLive {
-      0% { box-shadow: 0 0 0 0 rgba(225, 6, 0, 0.7); }
-      70% { box-shadow: 0 0 0 10px rgba(225, 6, 0, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(225, 6, 0, 0); }
-    }
-
     /* Layout Grids */
     .grid-2col { display: grid; grid-template-columns: 1fr; gap: 20px; }
     @media (min-width: 992px) {
@@ -366,113 +343,6 @@
       color: #ffffff;
     }
 
-    /* --- LIVE DASHBOARD MODAL & GRID STYLES --- */
-    .live-dashboard-modal {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(11, 14, 20, 0.96);
-      z-index: 4000;
-      flex-direction: column;
-      padding: 20px;
-      overflow-y: auto;
-      backdrop-filter: blur(12px);
-    }
-    .live-dashboard-modal.active { display: flex; }
-    
-    .live-dash-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 15px;
-      margin-bottom: 15px;
-    }
-    @media (min-width: 992px) {
-      .live-dash-grid {
-        grid-template-columns: 1fr 1fr;
-      }
-    }
-
-    .live-map-box {
-      background: var(--s3);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      min-height: 320px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      color: var(--m);
-      position: relative;
-    }
-    .live-map-placeholder {
-      text-align: center;
-      font-weight: 700;
-      font-size: 1.1rem;
-    }
-    .live-map-sub {
-      font-size: 0.8rem;
-      color: var(--m2);
-      margin-top: 6px;
-    }
-
-    .live-timing-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.85rem;
-    }
-    .live-timing-table th, .live-timing-table td {
-      padding: 8px 12px;
-      text-align: left;
-      border-bottom: 1px solid var(--border);
-    }
-    .live-timing-table th {
-      background: rgba(0,0,0,0.3);
-      color: var(--m);
-      font-size: 0.75rem;
-      text-transform: uppercase;
-    }
-
-    .tyre-badge {
-      display: inline-block;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-weight: 800;
-      font-size: 0.7rem;
-    }
-    .tyre-soft { background: #ff4a4a; color: #fff; }
-    .tyre-med { background: #ffd700; color: #000; }
-    .tyre-hard { background: #ffffff; color: #000; }
-
-    .live-ticker-container {
-      background: var(--s3);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 15px;
-    }
-    .ticker-title {
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      text-align: center;
-      margin-bottom: 12px;
-      color: #fff;
-    }
-    .ticker-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .ticker-item {
-      background: rgba(11, 14, 20, 0.6);
-      border-left: 4px solid var(--border);
-      padding: 8px 12px;
-      border-radius: 4px;
-      font-size: 0.85rem;
-    }
-    .ticker-item.overtake { border-left-color: #27f4d2; }
-    .ticker-item.vsc { border-left-color: #ffd700; }
-    .ticker-item.pit { border-left-color: #3671c6; }
-
     /* Drivers Grid Cards */
     .driver-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
     .driver-tile { background: var(--s3); border-radius: 8px; padding: 12px; border-left: 4px solid var(--dc, var(--border)); }
@@ -533,83 +403,6 @@
     <table class="f1-table" id="f1CrossTable">
       <!-- Wird dynamisch befüllt -->
     </table>
-  </div>
-</div>
-
-<!-- Live Dashboard Modal -->
-<div id="liveDashboardModal" class="live-dashboard-modal">
-  <div class="fs-header">
-    <div class="fs-title" style="color: #27f4d2;">🔴 LIVE RACE DASHBOARD</div>
-    <button class="btn-fs-close" onclick="closeLiveDashboard()">Dashboard Verlassen</button>
-  </div>
-
-  <div class="live-dash-grid">
-    <!-- Links: 2D / 3D LIVE MAP -->
-    <div class="card live-map-box">
-      <div class="live-map-placeholder">
-        🗺️ 2D / 3D LIVE MAP
-      </div>
-      <div class="live-map-sub">
-        (Zeigt Streckenverlauf &amp; Fahrzeug-Punkte in Echtzeit)
-      </div>
-    </div>
-
-    <!-- Rechts: LIVE TIMING -->
-    <div class="card" style="padding: 0; overflow: hidden;">
-      <div class="card-title" style="padding: 14px 18px 0 18px; margin-bottom: 8px;">
-        <span>⏱️ LIVE TIMING</span>
-      </div>
-      <table class="live-timing-table">
-        <thead>
-          <tr>
-            <th>Pos</th>
-            <th>Fahrer</th>
-            <th>Gap</th>
-            <th>Tyre</th>
-            <th>Sektor</th>
-          </tr>
-        </thead>
-        <tbody id="liveTimingBody">
-          <tr>
-            <td style="font-weight: 800; color: var(--gold);">P1</td>
-            <td><strong>Timo</strong></td>
-            <td>--</td>
-            <td><span class="tyre-badge tyre-med">MED</span></td>
-            <td>1:18.4</td>
-          </tr>
-          <tr>
-            <td style="font-weight: 800; color: var(--silver);">P2</td>
-            <td><strong>Brassch</strong></td>
-            <td>+2.1</td>
-            <td><span class="tyre-badge tyre-hard">HARD</span></td>
-            <td>1:18.9</td>
-          </tr>
-          <tr>
-            <td style="font-weight: 800; color: var(--bronze);">P3</td>
-            <td><strong>Niklas</strong></td>
-            <td>+5.4</td>
-            <td><span class="tyre-badge tyre-soft">SOFT</span></td>
-            <td>1:19.2</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Unten: AUTOMATISCHER LIVE-TICKER -->
-  <div class="live-ticker-container">
-    <div class="ticker-title">AUTOMATISCHER LIVE-TICKER</div>
-    <div class="ticker-list" id="liveTickerList">
-      <div class="ticker-item overtake">
-        <strong>[Runde 14]</strong> 🟢 <strong>Overtake:</strong> Timo hat Brassch für P1 auf Start/Ziel überholt.
-      </div>
-      <div class="ticker-item vsc">
-        <strong>[Runde 12]</strong> 🟨 <strong>VSC:</strong> Virtual Safety Car in Sektor 2 ausgerufen.
-      </div>
-      <div class="ticker-item pit">
-        <strong>[Runde 10]</strong> 🔧 <strong>Pit Stop:</strong> Niklas wechselt auf frische Hards.
-      </div>
-    </div>
   </div>
 </div>
 
@@ -823,7 +616,7 @@ const TEAM_COLORS = {
   'Williams':'#64c4ff','Visa Cash App RB':'#6692ff','Kick Sauber':'#52e252','Haas':'#b6babd',
 };
 
-// Punkteverteilung nach Platzierung
+// Punkteverteilung nach Platzierung (OHNE Schnellste Runde Extra-Punkt!)
 const F1_POINTS = {1:25, 2:18, 3:15, 4:12, 5:10, 6:8, 7:6, 8:4, 9:2, 10:1};
 
 function helmetImg(driverName){
@@ -959,6 +752,7 @@ function recalculateStandingsFromResults() {
       const entry = res[driverName];
       if(!entry) return;
       const pos = parseInt(entry.pos);
+      // Reiner Punktezuwachs durch die Platzierung
       let p = F1_POINTS[pos] || 0;
       
       if(ptsMap[driverName] !== undefined) {
@@ -1043,22 +837,8 @@ window.closeFullscreenStandings = function() {
   if(modal) modal.classList.remove('active');
 };
 
-/* --- LIVE DASHBOARD HANDLER --- */
-window.openLiveDashboard = function() {
-  const modal = document.getElementById('liveDashboardModal');
-  if(modal) modal.classList.add('active');
-};
-
-window.closeLiveDashboard = function() {
-  const modal = document.getElementById('liveDashboardModal');
-  if(modal) modal.classList.remove('active');
-};
-
 document.addEventListener('keydown', (e) => {
-  if(e.key === 'Escape') {
-    closeFullscreenStandings();
-    closeLiveDashboard();
-  }
+  if(e.key === 'Escape') closeFullscreenStandings();
 });
 
 function renderF1CrossTable() {
@@ -1101,6 +881,7 @@ function renderF1CrossTable() {
       let isFastest = false;
 
       if(res && res.pos) {
+        // HIER GEÄNDERT: Reine Zahlen erhalten einen Punkt (z.B. "1."), Freitext/Kürzel wie "DNF" oder "DSQ" bleiben ohne Punkt
         const trimmedPos = res.pos.trim();
         posText = /^\d+$/.test(trimmedPos) ? trimmedPos + '.' : trimmedPos;
         if(res.fastestLap) {
@@ -1389,226 +1170,313 @@ function renderNameButtons(){
     
     return`<button type="button" class="name-btn ${isSel?'selected':''}" onclick="selectName('${name}')">
       ${helmetSrc ? `<img src="${helmetSrc}" class="name-btn-helmet" alt="${team}">` : ''}
-      <span>${name}</span>
-      ${hasEntry?'<span style="color:#27f4d2;font-size:0.7rem;margin-left:auto;">✓</span>':''}
+      <span>${name}${hasEntry&&!isSel?' ✏️':''}</span>
     </button>`;
   }).join('');
 }
 
 window.selectName=function(name){
-  currentUser=name;
-  document.getElementById('nameInput').value=name;
+  currentUser=name;document.getElementById('nameInput').value=name;
   const existing=S.persons.find(p=>p.name===name);
-  selectedDates=existing?JSON.parse(JSON.stringify(existing.slots)):[];
-  renderNameButtons();renderCal();
+  if(existing&&existing.slots.length>0){selectedDates=existing.slots.map(s=>({date:s.date,from:s.from,to:s.to}));showMsg('Eintrag geladen.');}
+  else{selectedDates=[];showMsg('');}
+  renderCal();renderSelDates();renderNameButtons();renderPersons();
 };
 
 window.submitPerson=async function(){
-  const msg=document.getElementById('fmsg');msg.textContent='';
-  if(!currentUser){msg.textContent='Bitte wähle zuerst deinen Namen aus.';return;}
-  if(!selectedDates.length){msg.textContent='Bitte wähle mindestens einen Tag aus.';return;}
-  const idx=S.persons.findIndex(p=>p.name===currentUser);
-  if(idx>=0)S.persons[idx].slots=selectedDates;
-  else S.persons.push({name:currentUser,slots:selectedDates});
-  await saveState();
-  msg.style.color='#27f4d2';
-  msg.textContent='Erfolgreich gespeichert!';
-  setTimeout(()=>{msg.textContent='';msg.style.color='#ff5555';},3000);
+  const name=currentUser;
+  if(!name){showMsg('Bitte Namen auswählen.');return;}
+  if(!selectedDates.length){showMsg('Bitte min. einen Tag wählen.');return;}
+  S.persons=S.persons.filter(p=>p.name!==name);
+  S.persons.push({name,slots:selectedDates.map(e=>({date:e.date,from:e.from,to:e.to}))});
+  await saveState();showMsg('');currentUser='';document.getElementById('nameInput').value='';
+  selectedDates=[];renderCal();renderSelDates();renderNameButtons();
 };
 
-window.deletePerson=async function(name){
-  S.persons=S.persons.filter(p=>p.name!==name);
-  if(currentUser===name){currentUser='';selectedDates=[];renderCal();}
+function showMsg(m){const el=document.getElementById('fmsg');if(el)el.textContent=m;}
+
+window.deleteSlot=async function(personName,slotIdx){
+  const p=S.persons.find(px=>px.name===personName);if(!p)return;
+  p.slots.splice(slotIdx,1);
+  if(p.slots.length===0)S.persons=S.persons.filter(px=>px.name!==personName);
+  await saveState();renderNameButtons();
+};
+
+window.copySlot=async function(date,from,to,myName){
+  if(!myName){showMsg('Name auswählen.');return;}
+  let person=S.persons.find(p=>p.name===myName);
+  if(!person){person={name:myName,slots:[]};S.persons.push(person);}
+  const existingIdx=person.slots.findIndex(s=>s.date===date);
+  if(existingIdx>=0)person.slots[existingIdx]={date,from,to};
+  else person.slots.push({date,from,to});
   await saveState();renderNameButtons();
 };
 
 window.toggleAdmin=function(){
-  const sec=document.getElementById('adminSec');
-  sec.classList.toggle('on');
+  document.getElementById('adminSec').classList.toggle('on');
 };
 
 window.checkPin=function(){
-  const pin=document.getElementById('pinIn').value;
-  if(pin===PIN){
+  if(document.getElementById('pinIn').value===PIN){
     adminUnlocked=true;
     document.getElementById('pinArea').style.display='none';
     document.getElementById('adminCtrl').style.display='block';
     document.getElementById('standingsAdminArea').style.display='block';
     renderRaceSelectOptions();
     renderRaceResultsEditor();
-    renderStandingsInputs();
-    renderAdminPicks();
-  } else {
-    document.getElementById('pinErr').textContent='Falsche PIN';
-  }
-};
-
-function renderAdminPicks(){
-  const grid=document.getElementById('pickGrid');if(!grid)return;
-  const map={};
-  S.persons.forEach(p=>p.slots.forEach(s=>{if(!map[s.date])map[s.date]=0;map[s.date]++;}));
-  const dates=Object.keys(map).sort();
-  grid.innerHTML=dates.map(d=>`<button class="btn-copy" style="width:auto;" onclick="selectRaceDate('${d}')">${fmtDateShort(d)} (${map[d]}/${DRIVERS.length})</button>`).join('');
-}
-
-window.selectRaceDate=function(date){
-  S.confirmedDate=date;
-  renderAdminPicks();
+    renderStandingsInputs();renderOverview();
+  }else{document.getElementById('pinErr').textContent='Falscher PIN!';}
 };
 
 window.confirmRace=async function(){
-  if(!S.confirmedDate){alert('Bitte erst ein Datum auswählen.');return;}
+  const selBtn=document.querySelector('.pbtn.sel');
+  if(!selBtn)return;
+  S.confirmedDate=selBtn.dataset.date;
   S.confirmedStart=document.getElementById('raceStart').value;
   S.confirmedEnd=document.getElementById('raceEnd').value;
   await saveState();
 };
 
 window.resetAll=async function(){
-  if(confirm('Möchtest du wirklich ALLE Verfügbarkeits-Einträge der Fahrer löschen?')){
-    S.persons=[];
-    S.confirmedDate=null;
-    S.confirmedStart=null;
-    S.confirmedEnd=null;
-    selectedDates=[];
-    currentUser='';
-    await saveState();
-    renderNameButtons();
-    renderCal();
-  }
+  if(!confirm('ALLES ZURÜCKSETZEN?'))return;
+  S={persons:[],confirmedDate:null,confirmedStart:null,confirmedEnd:null};
+  await saveState();renderNameButtons();
 };
 
-window.dismissBanner=function(){
-  bannerDismissed=true;
-  document.getElementById('reminderBanner').style.display='none';
-};
-
-function updateReminderBanner(){
-  const banner=document.getElementById('reminderBanner');
-  if(bannerDismissed || S.confirmedDate){
-    banner.style.display='none';
-    return;
-  }
-  const submitted=S.persons.map(p=>p.name);
-  const missing=DRIVERS.filter(d=>!submitted.includes(d));
-  if(missing.length>0){
-    document.getElementById('missingDriversList').textContent=missing.join(', ');
-    const text=encodeURIComponent(`Hallo! Folgende Fahrer müssen noch ihre Verfügbarkeit eintragen: ${missing.join(', ')}`);
-    document.getElementById('waReminderBtn').href=`https://wa.me/?text=${text}`;
-    banner.style.display='flex';
-  } else {
-    banner.style.display='none';
-  }
-}
-
-function updateCountdown(){
-  const el=document.getElementById('heroCountdown');
-  if(!el)return;
-  if(S.confirmedDate && S.confirmedStart){
-    const target=new Date(`${S.confirmedDate}T${S.confirmedStart}:00`);
-    const now=new Date();
-    const diff=target-now;
-    if(diff<=0){
-      /* Countdown abgelaufen -> Zeige den GO LIVE-Button an */
-      el.innerHTML=`<button class="btn-go-live" onclick="openLiveDashboard()">🔴 GO LIVE</button>`;
-    } else {
-      const d=Math.floor(diff/(1000*60*60*24));
-      const h=Math.floor((diff/(1000*60*60))%24);
-      const m=Math.floor((diff/(1000*60))%60);
-      const s=Math.floor((diff/1000)%60);
-      el.textContent=`${d}d ${String(h).padStart(2,'0')}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
-      el.style.color='var(--y)';
-    }
-  } else {
-    el.textContent='Ausstehend';
-    el.style.color='var(--m)';
-  }
-}
-
-function renderConfirmedArea(){
-  const el=document.getElementById('confirmedArea');
-  if(!el)return;
-  if(S.confirmedDate){
-    const dur=duration(S.confirmedStart,S.confirmedEnd);
-    el.innerHTML=`
-      <div class="card" style="border-color:#27f4d2; background:rgba(39,244,210,0.05);">
-        <div class="card-title" style="color:#27f4d2;">🟢 Festgelegter Renntermin</div>
-        <div style="font-size:1.2rem; font-weight:800; margin-bottom:4px;">${fmtDateLong(S.confirmedDate)}</div>
-        <div style="font-size:0.9rem;">Uhrzeit: <strong>${S.confirmedStart} - ${S.confirmedEnd} Uhr</strong> ${dur?`(${dur})`:''}</div>
-      </div>`;
-  } else {
-    el.innerHTML='';
-  }
-}
-
-function renderPersonList(){
+function renderPersons(){
   const el=document.getElementById('personList');
   const pill=document.getElementById('pcountPill');
-  if(!el)return;
-  pill.textContent=`${S.persons.length} / ${DRIVERS.length}`;
-  if(!S.persons.length){
-    el.innerHTML='<div style="font-size:0.85rem; color:var(--m); font-style:italic;">Noch keine Eintragsdaten vorhanden.</div>';
-    return;
+  if(pill) pill.textContent=`${S.persons.length} / ${DRIVERS.length}`;
+  
+  if(!S.persons.length){el.innerHTML='<div style="color:var(--m); font-size:0.85rem;">Noch keine Einträge.</div>';return;}
+  el.innerHTML=`<div class="driver-grid">${
+    DRIVERS.map((name,i)=>{
+      const p=S.persons.find(px=>px.name===name);
+      const isMe=currentUser===name;
+      const color=TEAM_COLORS[DRIVER_TEAM[name]]||'#555';
+      if(!p||!p.slots.length){
+        return`<div class="driver-tile" style="--dc:${color};opacity:0.5;">
+          <div class="dt-head">${helmetImg(name)}<div class="dt-name">${name}</div></div>
+          <div style="font-size:0.75rem; color:var(--m);">Keine Termine</div>
+        </div>`;
+      }
+      return`<div class="driver-tile" style="--dc:${color}">
+        <div class="dt-head">${helmetImg(name)}<div class="dt-name">${name}</div></div>
+        ${p.slots.map((s,sidx)=>`
+          <div class="dt-slot">
+            <div style="font-weight:700;">${fmtDateShort(s.date)} (${fmtWD(s.date)})</div>
+            <div>${s.from} - ${s.to} Uhr (${duration(s.from,s.to)})</div>
+            ${isMe||adminUnlocked?`<button class="btn-rm" onclick="deleteSlot('${name}',${sidx})">Löschen</button>`:''}
+          </div>
+        `).join('')}
+      </div>`;
+    }).join('')
+  }</div>`;
+}
+
+function timeToMin(t){ const [h,m]=t.split(':').map(Number); return h*60+m; }
+function minToTime(m){ const h=Math.floor(m/60), r=m%60; return `${String(h).padStart(2,'0')}:${String(r).padStart(2,'0')}`; }
+
+function findIntersection(slots){
+  let maxStart = 0;
+  let minEnd = 24 * 60;
+  for(const s of slots){
+    const st = timeToMin(s.from);
+    const et = timeToMin(s.to);
+    if(st > maxStart) maxStart = st;
+    if(et < minEnd) minEnd = et;
   }
-  el.innerHTML=`<div class="driver-grid">${S.persons.map(p=>{
-    const team=DRIVER_TEAM[p.name]||'';
-    const color=TEAM_COLORS[team]||'var(--border)';
-    return`<div class="driver-tile" style="--dc:${color}">
-      <div class="dt-head">
-        ${helmetImg(p.name)}
-        <div style="flex:1;">
-          <div class="dt-name">${p.name}</div>
-          <div style="font-size:0.68rem; color:${color}">${team}</div>
-        </div>
-        <button class="btn-rm" onclick="deletePerson('${p.name}')" title="Eintrag löschen">✕</button>
-      </div>
-      ${p.slots.map(s=>`<div class="dt-slot">📅 ${fmtDateShort(s.date)}: ${s.from} - ${s.to} Uhr</div>`).join('')}
-    </div>`;
-  }).join('')}</div>`;
+  if(maxStart < minEnd){
+    const durationMin = minEnd - maxStart;
+    return { 
+      from: minToTime(maxStart), 
+      to: minToTime(minEnd),
+      durationMin: durationMin 
+    };
+  }
+  return null;
 }
 
 function renderOverview(){
   const el=document.getElementById('overview');
-  if(!el)return;
-  const map={};
-  S.persons.forEach(p=>p.slots.forEach(s=>{
-    if(!map[s.date])map[s.date]=[];
-    map[s.date].push({name:p.name,from:s.from,to:s.to});
-  }));
-  const dates=Object.keys(map).sort();
-  if(!dates.length){
-    el.innerHTML='<div style="font-size:0.85rem; color:var(--m); font-style:italic;">Keine Termine zur Auswertung da.</div>';
-    return;
-  }
-  const maxCount=Math.max(...dates.map(d=>map[d].length));
-  el.innerHTML=`<div class="date-grid">${dates.map(d=>{
-    const list=map[d];
-    const isFull=list.length===DRIVERS.length;
-    const isBest=list.length===maxCount && !isFull;
-    const cls=isFull?'full':isBest?'best':'';
-    return`<div class="dcard ${cls}">
+  if(!el) return;
+  const datesMap={};
+  S.persons.forEach(p=>{
+    p.slots.forEach(s=>{
+      if(!datesMap[s.date])datesMap[s.date]=[];
+      datesMap[s.date].push({name:p.name,from:s.from,to:s.to});
+    });
+  });
+
+  const dateKeys=Object.keys(datesMap).sort((a,b)=> {
+    const diff = datesMap[b].length - datesMap[a].length;
+    return diff !== 0 ? diff : a.localeCompare(b);
+  });
+
+  if(!dateKeys.length){el.innerHTML='<div style="color:var(--m); font-size:0.85rem;">Keine Auswertung verfügbar.</div>';return;}
+  
+  let html=`<div class="date-grid">`;
+  let bestCount=0;
+  dateKeys.forEach(d=>{ if(datesMap[d].length>bestCount)bestCount=datesMap[d].length; });
+
+  let autoMatchFound = false;
+
+  dateKeys.forEach(d=>{
+    const list=datesMap[d];
+    const isFull = list.length === DRIVERS.length;
+    const isBest = list.length === bestCount && bestCount > 1 && !isFull;
+    const isChosen = S.confirmedDate === d;
+
+    if(isFull && !autoMatchFound && !S.confirmedDate) {
+      const timeMatch = findIntersection(list);
+      if(timeMatch) {
+        if(timeMatch.durationMin >= 90) {
+          autoMatchFound = true;
+          S.confirmedDate = d;
+          S.confirmedStart = timeMatch.from;
+          S.confirmedEnd = timeMatch.to;
+          saveState();
+        } 
+        else if(timeMatch.durationMin >= 80) {
+          const userConfirmed = confirm(`Für den ${fmtDateShort(d)} gibt es eine Zeitspanne von ${Math.floor(timeMatch.durationMin / 60)}h ${timeMatch.durationMin % 60}min (${timeMatch.from} - ${timeMatch.to} Uhr).\nSoll der Countdown gestartet und der Termin bestätigt werden?`);
+          if(userConfirmed) {
+            autoMatchFound = true;
+            S.confirmedDate = d;
+            S.confirmedStart = timeMatch.from;
+            S.confirmedEnd = timeMatch.to;
+            saveState();
+          }
+        }
+      }
+    }
+    
+    html+=`<div class="dcard ${isFull?'full':isBest?'best':''}">
+      ${isChosen?'<span style="color:#27f4d2; font-weight:800; font-size:0.7rem; letter-spacing:0.5px;">🏁 BESTÄTIGTER TERMIN</span>':''}
       <div class="dc-wd">${fmtWD(d)}</div>
       <div class="dc-d">${fmtDateShort(d)}</div>
-      <div class="dc-cnt">${list.length} von ${DRIVERS.length} Fahrern</div>
-      ${list.map(x=>`<span class="dc-chip" style="border-left-color:${TEAM_COLORS[DRIVER_TEAM[x.name]]||'var(--y)'}">${x.name}: ${x.from}-${x.to}</span>`).join('')}
+      <div class="dc-cnt" style="${isFull?'color:#27f4d2;':''}">${list.length} / ${DRIVERS.length} Fahrer</div>
+      <div style="margin-top:6px;">
+        ${list.map(l=>{
+          const teamColor = TEAM_COLORS[DRIVER_TEAM[l.name]] || 'var(--y)';
+          return `<span class="dc-chip" style="border-left-color:${teamColor};">
+            <strong style="color:${teamColor};">${l.name}</strong> (${l.from}-${l.to})
+          </span>`;
+        }).join('')}
+      </div>
+      ${currentUser&&!list.map(l=>l.name).includes(currentUser)?`
+        <button class="btn-copy green" style="margin-top:8px;" onclick="copySlot('${d}','14:00','18:00','${currentUser}')">+ Auch eintragen</button>`:''}
     </div>`;
-  }).join('')}</div>`;
+  });
+  html+=`</div>`;
+  el.innerHTML=html;
+
+  const pgrid=document.getElementById('pickGrid');
+  if(pgrid&&adminUnlocked){
+    pgrid.innerHTML=dateKeys.map(d=>`
+      <button type="button" class="btn-copy pbtn ${S.confirmedDate===d?'sel':''}" data-date="${d}" onclick="selectAdminDate(this,'${d}')">
+        ${fmtDateShort(d)} (${datesMap[d].length})
+      </button>
+    `).join('');
+  }
 }
+
+window.selectAdminDate=function(btn,date){
+  document.querySelectorAll('.pbtn').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+};
+
+function updateHeroCountdown() {
+  const cdEl = document.getElementById('heroCountdown');
+  if(!cdEl) return;
+
+  if(!S.confirmedDate) {
+    cdEl.textContent = 'Ausstehend';
+    cdEl.style.color = 'var(--y)';
+    if(countdownInterval) clearInterval(countdownInterval);
+    return;
+  }
+
+  const startTimeStr = S.confirmedStart || '14:00';
+  const targetTime = new Date(`${S.confirmedDate}T${startTimeStr}:00`).getTime();
+
+  function tick() {
+    const now = new Date().getTime();
+    const diff = targetTime - now;
+
+    if(diff <= 0) {
+      cdEl.textContent = '🏎️ RACE DAY! GO GO GO!';
+      cdEl.style.color = '#27f4d2';
+      if(countdownInterval) clearInterval(countdownInterval);
+      return;
+    }
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+    cdEl.textContent = `${days}d ${String(hours).padStart(2,'0')}h ${String(mins).padStart(2,'0')}m ${String(secs).padStart(2,'0')}s`;
+    cdEl.style.color = '#27f4d2';
+  }
+
+  tick();
+  if(countdownInterval) clearInterval(countdownInterval);
+  countdownInterval = setInterval(tick, 1000);
+}
+
+function renderConfirmedArea(){
+  const el=document.getElementById('confirmedArea');
+  if(!el) return;
+  if(!S.confirmedDate){el.innerHTML='';return;}
+  el.innerHTML=`
+    <div class="card" style="border-color:#27f4d2; background:rgba(39,244,210,0.05); text-align:center;">
+      <div style="color:#27f4d2; font-weight:800; letter-spacing:1px; font-size:0.8rem;">🏁 RENNTERMIN FESTGELEGT</div>
+      <div style="font-size:1.4rem; font-weight:800; margin:4px 0;">${fmtDateLong(S.confirmedDate)}</div>
+      <div style="color:var(--m);">Uhrzeit: ${S.confirmedStart||'14:00'} - ${S.confirmedEnd||'18:00'} Uhr</div>
+    </div>
+  `;
+}
+
+function renderReminderBanner() {
+  const banner = document.getElementById('reminderBanner');
+  if(!banner || bannerDismissed) return;
+
+  const entered = S.persons.map(p => p.name);
+  const missing = DRIVERS.filter(d => !entered.includes(d));
+
+  if(missing.length === 0) {
+    banner.style.display = 'none';
+    return;
+  }
+
+  banner.style.display = 'flex';
+  document.getElementById('missingDriversList').textContent = missing.join(', ');
+
+  const text = encodeURIComponent(`Hallo Jungs! 🏎️ Bitte tragt noch eure Verfügbarkeit für den Gurkensöhne Cup ein:\nEs fehlen noch: ${missing.join(', ')}`);
+  document.getElementById('waReminderBtn').href = `https://wa.me/?text=${text}`;
+}
+
+window.dismissBanner = function() {
+  bannerDismissed = true;
+  document.getElementById('reminderBanner').style.display = 'none';
+};
 
 function render(){
   renderRaceCalendar();
+  renderPersons();
+  renderOverview();
+  renderConfirmedArea();
+  renderReminderBanner();
+  updateHeroCountdown();
   if(standingsTab==='fahrer') renderStandings();
   else renderConstructorStandings();
-  renderConfirmedArea();
-  renderPersonList();
-  renderOverview();
-  updateReminderBanner();
-  updateCountdown();
-  if(adminUnlocked) renderAdminPicks();
+  
+  if(document.getElementById('fullscreenStandingsModal')?.classList.contains('active')) {
+    renderF1CrossTable();
+  }
 }
 
 initCal();
-if(countdownInterval) clearInterval(countdownInterval);
-countdownInterval = setInterval(updateCountdown, 1000);
 </script>
 </body>
 </html>
