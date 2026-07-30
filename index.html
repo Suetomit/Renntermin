@@ -337,6 +337,7 @@
       font-weight: 700;
       font-size: 0.8rem;
     }
+    /* Lila Hintergrund für manuell gesetzte schnellste Runde */
     .pos-cell.fastest-lap {
       background: #b15eff;
       color: #ffffff;
@@ -528,12 +529,10 @@
     <div id="adminCtrl" style="display:none;">
       <p style="margin-bottom:10px;">Renntermin manuell festlegen:</p>
       <div id="pickGrid" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;"></div>
-      <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+      <div style="display:flex; gap:10px; margin-bottom:15px;">
         <input type="time" id="raceStart" value="14:00" class="pin-input" style="width:auto;">
         <input type="time" id="raceEnd" value="18:00" class="pin-input" style="width:auto;">
         <button class="btn" id="confBtn" style="margin-top:0;" onclick="confirmRace()">Bestätigen</button>
-        <!-- Neuer Button zum Aufheben des Termins -->
-        <button class="btn-copy" style="border-color:#ff5555; color:#ff5555; width:auto; padding:0 16px;" onclick="removeConfirmedRace()">Termin aufheben</button>
       </div>
       <hr style="border-color:var(--border); margin:15px 0;">
       <button class="btn-rm" onclick="resetAll()">⚠️ Alle Termin-Einträge zurücksetzen</button>
@@ -617,6 +616,7 @@ const TEAM_COLORS = {
   'Williams':'#64c4ff','Visa Cash App RB':'#6692ff','Kick Sauber':'#52e252','Haas':'#b6babd',
 };
 
+// Punkteverteilung nach Platzierung (OHNE Schnellste Runde Extra-Punkt!)
 const F1_POINTS = {1:25, 2:18, 3:15, 4:12, 5:10, 6:8, 7:6, 8:4, 9:2, 10:1};
 
 function helmetImg(driverName){
@@ -752,6 +752,7 @@ function recalculateStandingsFromResults() {
       const entry = res[driverName];
       if(!entry) return;
       const pos = parseInt(entry.pos);
+      // Reiner Punktezuwachs durch die Platzierung
       let p = F1_POINTS[pos] || 0;
       
       if(ptsMap[driverName] !== undefined) {
@@ -881,6 +882,7 @@ function renderF1CrossTable() {
 
       if(res && res.pos) {
         const trimmedPos = res.pos.trim();
+        // Hier wird geprüft: Nur reine Zahlen erhalten einen Punkt (z.B. "1."), Kürzel wie "DNF" oder "DSQ" bleiben so wie sie eingetragen wurden.
         posText = /^\d+$/.test(trimmedPos) ? trimmedPos + '.' : trimmedPos;
         if(res.fastestLap) {
           isFastest = true;
@@ -1232,14 +1234,6 @@ window.confirmRace=async function(){
   S.confirmedDate=selBtn.dataset.date;
   S.confirmedStart=document.getElementById('raceStart').value;
   S.confirmedEnd=document.getElementById('raceEnd').value;
-  await saveState();
-};
-
-window.removeConfirmedRace = async function(){
-  if(!confirm('Möchtest du den festgelegten Renntermin wirklich wieder aufheben?')) return;
-  S.confirmedDate = null;
-  S.confirmedStart = null;
-  S.confirmedEnd = null;
   await saveState();
 };
 
