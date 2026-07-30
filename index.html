@@ -752,6 +752,7 @@ function recalculateStandingsFromResults() {
       const entry = res[driverName];
       if(!entry) return;
       const pos = parseInt(entry.pos);
+      // Reiner Punktezuwachs durch die Platzierung
       let p = F1_POINTS[pos] || 0;
       
       if(ptsMap[driverName] !== undefined) {
@@ -880,6 +881,7 @@ function renderF1CrossTable() {
       let isFastest = false;
 
       if(res && res.pos) {
+        // Reine Zahlen erhalten einen Punkt (z.B. "1."), Freitext/Kürzel wie "DNF" bleiben ohne Punkt
         const trimmedPos = res.pos.trim();
         posText = /^\d+$/.test(trimmedPos) ? trimmedPos + '.' : trimmedPos;
         if(res.fastestLap) {
@@ -1169,7 +1171,7 @@ function renderNameButtons(){
     return`<button type="button" class="name-btn ${isSel?'selected':''}" onclick="selectName('${name}')">
       ${helmetSrc ? `<img src="${helmetSrc}" class="name-btn-helmet" alt="${team}">` : ''}
       <span>${name}</span>
-      ${hasEntry?'<span style="color:#27f4d2;font-size:0.7rem;">✓</span>':''}
+      ${hasEntry?'<span style="color:#27f4d2;font-size:0.7rem;margin-left:auto;">✓</span>':''}
     </button>`;
   }).join('');
 }
@@ -1183,150 +1185,22 @@ window.selectName=function(name){
 };
 
 window.submitPerson=async function(){
-  const name=currentUser,msg=document.getElementById('fmsg');
-  if(!name){if(msg)msg.textContent='Bitte wähle deinen Namen aus!';return;}
-  if(!selectedDates.length){if(msg)msg.textContent='Bitte wähle mindestens einen Tag aus!';return;}
-  if(msg)msg.textContent='';
-  const idx=S.persons.findIndex(p=>p.name===name);
-  const newPerson={name,slots:JSON.parse(JSON.stringify(selectedDates))};
-  if(idx>=0)S.persons[idx]=newPerson;else S.persons.push(newPerson);
+  const msg=document.getElementById('fmsg');msg.textContent='';
+  if(!currentUser){msg.textContent='Bitte wähle zuerst deinen Namen aus.';return;}
+  if(!selectedDates.length){msg.textContent='Bitte wähle mindestens einen Tag aus.';return;}
+  const idx=S.persons.findIndex(p=>p.name===currentUser);
+  if(idx>=0)S.persons[idx].slots=selectedDates;
+  else S.persons.push({name:currentUser,slots:selectedDates});
   await saveState();
+  msg.style.color='#27f4d2';
+  msg.textContent='Erfolgreich gespeichert!';
+  setTimeout(()=>{msg.textContent='';msg.style.color='#ff5555';},3000);
 };
 
-window.removePerson=async function(name){
+window.deletePerson=async function(name){
   S.persons=S.persons.filter(p=>p.name!==name);
   if(currentUser===name){currentUser='';selectedDates=[];renderCal();}
   await saveState();renderNameButtons();
-};
-
-function renderPersonList(){
-  const el=document.getElementById('personList');
-  if(!el) return;
-  document.getElementById('pcountPill').textContent=`${S.persons.length} von ${DRIVERS.length} eingetragen`;
-  if(!S.persons.length){el.innerHTML='<div style="color:var(--m);font-size:0.85rem;">Noch keine Fahrer eingetragen.</div>';return;}
-  el.innerHTML=`<div class="driver-grid">${S.persons.map(p=>{
-    const team=DRIVER_TEAM[p.name]||'';
-    const color=TEAM_COLORS[team]||'var(--border)';
-    return`<div class="driver-tile" style="--dc:${color}">
-      <div class="dt-head">
-        ${helmetImg(p.name)}
-        <div style="flex:1;">
-          <div class="dt-name">${p.name}</div>
-          <div style="font-size:0.68rem;color:${color};">${team}</div>
-        </div>
-        <button class="btn-rm" onclick="removePerson('${p.name}')">✕</button>
-      </div>
-      ${p.slots.map(s=>`<div class="dt-slot"><b>${fmtDateShort(s.date)}</b> (${fmtWD(s.date)}): ${s.from} - ${s.to}</div>`).join('')}
-    </div>`;
-  }).join('')}</div>`;
-}
-
-function renderOverview(){
-  const el=document.getElementById('overview');
-  if(!el) return;
-  const dateMap={};
-  S.persons.forEach(p=>{
-    p.slots.forEach(s=>{
-      if(!dateMap[s.date])dateMap[s.date]=[];
-      dateMap[s.date].push({name:p.name,from:s.from,to:s.to});
-    });
-  });
-  const sortedDates=Object.keys(dateMap).sort();
-  if(!sortedDates.length){el.innerHTML='<div style="color:var(--m);font-size:0.85rem;">Keine Termine zur Auswertung vorhanden.</div>';return;}
-  
-  let maxCount=0;
-  sortedDates.forEach(d=>{ if(dateMap[d].length>maxCount) maxCount=dateMap[d].length; });
-
-  el.innerHTML=`<div class="date-grid">${sortedDates.map(d=>{
-    const drivers=dateMap[d];
-    const isBest=drivers.length===maxCount&&maxCount>1;
-    const isFull=drivers.length===DRIVERS.length;
-    const cls=['dcard',isFull?'full':isBest?'best':''].filter(Boolean).join(' ');
-    
-    return`<div class="${cls}">
-      <div class="dc-wd">${fmtWD(d)}</div>
-      <div class="dc-d">${fmtDate(d)}</div>
-      <div class="dc-cnt">🏎️ ${drivers.length} / ${DRIVERS.length} Fahrer verfügbar</div>
-      ${drivers.map(drv=>`<div class="dc-chip" style="border-left-color:${TEAM_COLORS[DRIVER_TEAM[drv.name]]||'var(--y)'}"><b>${drv.name}</b>: ${drv.from} - ${drv.to}</div>`).join('')}
-    </div>`;
-  }).join('')}</div>`;
-}
-
-function renderConfirmedArea(){
-  const el=document.getElementById('confirmedArea');
-  if(!el) return;
-  if(!S.confirmedDate){el.innerHTML='';return;}
-  
-  el.innerHTML=`<div class="card" style="border-color:var(--y); background:rgba(255,215,0,0.05); margin-top:20px;">
-    <div class="card-title" style="color:var(--y);">🏁 Festgelegter Renntermin</div>
-    <div style="font-size:1.2rem; font-weight:800; margin-bottom:8px;">${fmtDateLong(S.confirmedDate)}</div>
-    <div style="font-size:1rem; color:var(--text);">Uhrzeit: <b>${S.confirmedStart} - ${S.confirmedEnd} Uhr</b> (${duration(S.confirmedStart,S.confirmedEnd)})</div>
-  </div>`;
-}
-
-function updateHeroCountdown() {
-  const cdEl = document.getElementById('heroCountdown');
-  if(!cdEl) return;
-
-  if(!S.confirmedDate || !S.confirmedStart) {
-    cdEl.textContent = 'Ausstehend';
-    cdEl.style.color = 'var(--y)';
-    return;
-  }
-
-  const targetDate = new Date(`${S.confirmedDate}T${S.confirmedStart}:00`);
-  const now = new Date();
-  const diff = targetDate - now;
-
-  if(diff <= 0) {
-    cdEl.textContent = '🚀 RACE DAY / LIVE!';
-    cdEl.style.color = '#27f4d2';
-    return;
-  }
-
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-  const mins = Math.floor((diff / 1000 / 60) % 60);
-  const secs = Math.floor((diff / 1000) % 60);
-
-  let str = '';
-  if(days > 0) str += `${days}d `;
-  str += `${String(hours).padStart(2,'0')}h ${String(mins).padStart(2,'0')}m ${String(secs).padStart(2,'0')}s`;
-
-  cdEl.textContent = str;
-  cdEl.style.color = 'var(--y)';
-}
-
-function updateReminderBanner() {
-  const banner = document.getElementById('reminderBanner');
-  const listEl = document.getElementById('missingDriversList');
-  const waBtn = document.getElementById('waReminderBtn');
-
-  if(!banner || !listEl || !waBtn) return;
-
-  if(bannerDismissed) {
-    banner.style.display = 'none';
-    return;
-  }
-
-  const submittedDrivers = S.persons.map(p => p.name);
-  const missingDrivers = DRIVERS.filter(d => !submittedDrivers.includes(d));
-
-  if(missingDrivers.length === 0) {
-    banner.style.display = 'none';
-  } else {
-    banner.style.display = 'flex';
-    listEl.textContent = missingDrivers.join(', ');
-
-    const text = encodeURIComponent(`Hallo Männer! 🏎️ Folgende Fahrer müssen noch ihre Zeiten eintragen: ${missingDrivers.join(', ')}.\n\nBitte schnell eintragen! 🏁`);
-    waBtn.href = `https://wa.me/?text=${text}`;
-  }
-}
-
-window.dismissBanner = function() {
-  bannerDismissed = true;
-  const banner = document.getElementById('reminderBanner');
-  if(banner) banner.style.display = 'none';
 };
 
 window.toggleAdmin=function(){
@@ -1335,71 +1209,187 @@ window.toggleAdmin=function(){
 };
 
 window.checkPin=function(){
-  const val=document.getElementById('pinIn').value;
-  if(val===PIN){
+  const pin=document.getElementById('pinIn').value;
+  if(pin===PIN){
     adminUnlocked=true;
     document.getElementById('pinArea').style.display='none';
     document.getElementById('adminCtrl').style.display='block';
     document.getElementById('standingsAdminArea').style.display='block';
-    renderAdminPickGrid();
     renderRaceSelectOptions();
     renderRaceResultsEditor();
     renderStandingsInputs();
+    renderAdminPicks();
   } else {
-    document.getElementById('pinErr').textContent='Falscher PIN!';
+    document.getElementById('pinErr').textContent='Falsche PIN';
   }
 };
 
-function renderAdminPickGrid(){
-  const grid=document.getElementById('pickGrid');
-  if(!grid) return;
-  const dates=new Set();
-  S.persons.forEach(p=>p.slots.forEach(s=>dates.add(s.date)));
-  const sorted=[...dates].sort();
-  if(!sorted.length){grid.innerHTML='<div style="font-size:0.8rem;color:var(--m);">Keine eingetragenen Tage vorhanden.</div>';return;}
-  grid.innerHTML=sorted.map(d=>`<button class="btn-copy" style="width:auto;" onclick="selectAdminDate('${d}')">${fmtDateShort(d)}</button>`).join('');
+function renderAdminPicks(){
+  const grid=document.getElementById('pickGrid');if(!grid)return;
+  const map={};
+  S.persons.forEach(p=>p.slots.forEach(s=>{if(!map[s.date])map[s.date]=0;map[s.date]++;}));
+  const dates=Object.keys(map).sort();
+  grid.innerHTML=dates.map(d=>`<button class="btn-copy" style="width:auto;" onclick="selectRaceDate('${d}')">${fmtDateShort(d)} (${map[d]}/${DRIVERS.length})</button>`).join('');
 }
 
-window.selectAdminDate=function(iso){
-  S.confirmedDate=iso;
+window.selectRaceDate=function(date){
+  S.confirmedDate=date;
+  renderAdminPicks();
 };
 
 window.confirmRace=async function(){
-  if(!S.confirmedDate){alert('Bitte erst ein Datum auswählen!');return;}
+  if(!S.confirmedDate){alert('Bitte erst ein Datum auswählen.');return;}
   S.confirmedStart=document.getElementById('raceStart').value;
   S.confirmedEnd=document.getElementById('raceEnd').value;
   await saveState();
-  alert('Renntermin erfolgreich festgelegt!');
 };
 
 window.resetAll=async function(){
-  if(confirm('Möchtest du wirklich alle Termineinträge und den festgelegten Renntermin zurücksetzen?')){
-    S={persons:[],confirmedDate:null,confirmedStart:null,confirmedEnd:null};
+  if(confirm('Möchtest du wirklich ALLE Verfügbarkeits-Einträge der Fahrer löschen?')){
+    S.persons=[];
+    S.confirmedDate=null;
+    S.confirmedStart=null;
+    S.confirmedEnd=null;
+    selectedDates=[];
+    currentUser='';
     await saveState();
     renderNameButtons();
+    renderCal();
   }
 };
 
+window.dismissBanner=function(){
+  bannerDismissed=true;
+  document.getElementById('reminderBanner').style.display='none';
+};
+
+function updateReminderBanner(){
+  const banner=document.getElementById('reminderBanner');
+  if(bannerDismissed || S.confirmedDate){
+    banner.style.display='none';
+    return;
+  }
+  const submitted=S.persons.map(p=>p.name);
+  const missing=DRIVERS.filter(d=>!submitted.includes(d));
+  if(missing.length>0){
+    document.getElementById('missingDriversList').textContent=missing.join(', ');
+    const text=encodeURIComponent(`Hallo! Folgende Fahrer müssen noch ihre Verfügbarkeit eintragen: ${missing.join(', ')}`);
+    document.getElementById('waReminderBtn').href=`https://wa.me/?text=${text}`;
+    banner.style.display='flex';
+  } else {
+    banner.style.display='none';
+  }
+}
+
+function updateCountdown(){
+  const el=document.getElementById('heroCountdown');
+  if(!el)return;
+  if(S.confirmedDate && S.confirmedStart){
+    const target=new Date(`${S.confirmedDate}T${S.confirmedStart}:00`);
+    const now=new Date();
+    const diff=target-now;
+    if(diff<=0){
+      el.textContent='LÄUFT JETZT 🏁';
+      el.style.color='#27f4d2';
+    } else {
+      const d=Math.floor(diff/(1000*60*60*24));
+      const h=Math.floor((diff/(1000*60*60))%24);
+      const m=Math.floor((diff/(1000*60))%60);
+      const s=Math.floor((diff/1000)%60);
+      el.textContent=`${d}d ${String(h).padStart(2,'0')}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
+      el.style.color='var(--y)';
+    }
+  } else {
+    el.textContent='Ausstehend';
+    el.style.color='var(--m)';
+  }
+}
+
+function renderConfirmedArea(){
+  const el=document.getElementById('confirmedArea');
+  if(!el)return;
+  if(S.confirmedDate){
+    const dur=duration(S.confirmedStart,S.confirmedEnd);
+    el.innerHTML=`
+      <div class="card" style="border-color:#27f4d2; background:rgba(39,244,210,0.05);">
+        <div class="card-title" style="color:#27f4d2;">🟢 Festgelegter Renntermin</div>
+        <div style="font-size:1.2rem; font-weight:800; margin-bottom:4px;">${fmtDateLong(S.confirmedDate)}</div>
+        <div style="font-size:0.9rem;">Uhrzeit: <strong>${S.confirmedStart} - ${S.confirmedEnd} Uhr</strong> ${dur?`(${dur})`:''}</div>
+      </div>`;
+  } else {
+    el.innerHTML='';
+  }
+}
+
+function renderPersonList(){
+  const el=document.getElementById('personList');
+  const pill=document.getElementById('pcountPill');
+  if(!el)return;
+  pill.textContent=`${S.persons.length} / ${DRIVERS.length}`;
+  if(!S.persons.length){
+    el.innerHTML='<div style="font-size:0.85rem; color:var(--m); font-style:italic;">Noch keine Eintragsdaten vorhanden.</div>';
+    return;
+  }
+  el.innerHTML=`<div class="driver-grid">${S.persons.map(p=>{
+    const team=DRIVER_TEAM[p.name]||'';
+    const color=TEAM_COLORS[team]||'var(--border)';
+    return`<div class="driver-tile" style="--dc:${color}">
+      <div class="dt-head">
+        ${helmetImg(p.name)}
+        <div style="flex:1;">
+          <div class="dt-name">${p.name}</div>
+          <div style="font-size:0.68rem; color:${color}">${team}</div>
+        </div>
+        <button class="btn-rm" onclick="deletePerson('${p.name}')" title="Eintrag löschen">✕</button>
+      </div>
+      ${p.slots.map(s=>`<div class="dt-slot">📅 ${fmtDateShort(s.date)}: ${s.from} - ${s.to} Uhr</div>`).join('')}
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function renderOverview(){
+  const el=document.getElementById('overview');
+  if(!el)return;
+  const map={};
+  S.persons.forEach(p=>p.slots.forEach(s=>{
+    if(!map[s.date])map[s.date]=[];
+    map[s.date].push({name:p.name,from:s.from,to:s.to});
+  }));
+  const dates=Object.keys(map).sort();
+  if(!dates.length){
+    el.innerHTML='<div style="font-size:0.85rem; color:var(--m); font-style:italic;">Keine Termine zur Auswertung da.</div>';
+    return;
+  }
+  const maxCount=Math.max(...dates.map(d=>map[d].length));
+  el.innerHTML=`<div class="date-grid">${dates.map(d=>{
+    const list=map[d];
+    const isFull=list.length===DRIVERS.length;
+    const isBest=list.length===maxCount && !isFull;
+    const cls=isFull?'full':isBest?'best':'';
+    return`<div class="dcard ${cls}">
+      <div class="dc-wd">${fmtWD(d)}</div>
+      <div class="dc-d">${fmtDateShort(d)}</div>
+      <div class="dc-cnt">${list.length} von ${DRIVERS.length} Fahrern</div>
+      ${list.map(x=>`<span class="dc-chip" style="border-left-color:${TEAM_COLORS[DRIVER_TEAM[x.name]]||'var(--y)'}">${x.name}: ${x.from}-${x.to}</span>`).join('')}
+    </div>`;
+  }).join('')}</div>`;
+}
+
 function render(){
   renderRaceCalendar();
-  if(standingsTab === 'fahrer') {
-    renderStandings();
-  } else {
-    renderConstructorStandings();
-  }
+  if(standingsTab==='fahrer') renderStandings();
+  else renderConstructorStandings();
+  renderConfirmedArea();
   renderPersonList();
   renderOverview();
-  renderConfirmedArea();
   updateReminderBanner();
-  updateHeroCountdown();
-
-  if(countdownInterval) clearInterval(countdownInterval);
-  countdownInterval = setInterval(updateHeroCountdown, 1000);
-
-  if(adminUnlocked) renderAdminPickGrid();
+  updateCountdown();
+  if(adminUnlocked) renderAdminPicks();
 }
 
 initCal();
+if(countdownInterval) clearInterval(countdownInterval);
+countdownInterval = setInterval(updateCountdown, 1000);
 </script>
 </body>
 </html>
