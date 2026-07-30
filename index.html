@@ -111,6 +111,29 @@
     .hero-race-name { font-size: 1.3rem; font-weight: 800; color: #fff; }
     .hero-countdown { font-size: 1.2rem; font-weight: 800; color: var(--y); font-family: monospace; }
 
+    /* Go Live Button im Banner */
+    .btn-go-live {
+      background: linear-gradient(135deg, #ff0055 0%, #e10600 100%);
+      color: #fff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-weight: 800;
+      font-size: 1rem;
+      cursor: pointer;
+      box-shadow: 0 0 12px rgba(225, 6, 0, 0.6);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-transform: uppercase;
+      animation: pulseLive 1.8s infinite;
+    }
+    @keyframes pulseLive {
+      0% { box-shadow: 0 0 0 0 rgba(225, 6, 0, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(225, 6, 0, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(225, 6, 0, 0); }
+    }
+
     /* Layout Grids */
     .grid-2col { display: grid; grid-template-columns: 1fr; gap: 20px; }
     @media (min-width: 992px) {
@@ -343,6 +366,113 @@
       color: #ffffff;
     }
 
+    /* --- LIVE DASHBOARD MODAL & GRID STYLES --- */
+    .live-dashboard-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(11, 14, 20, 0.96);
+      z-index: 4000;
+      flex-direction: column;
+      padding: 20px;
+      overflow-y: auto;
+      backdrop-filter: blur(12px);
+    }
+    .live-dashboard-modal.active { display: flex; }
+    
+    .live-dash-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+    @media (min-width: 992px) {
+      .live-dash-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .live-map-box {
+      background: var(--s3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      min-height: 320px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: var(--m);
+      position: relative;
+    }
+    .live-map-placeholder {
+      text-align: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+    .live-map-sub {
+      font-size: 0.8rem;
+      color: var(--m2);
+      margin-top: 6px;
+    }
+
+    .live-timing-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    .live-timing-table th, .live-timing-table td {
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .live-timing-table th {
+      background: rgba(0,0,0,0.3);
+      color: var(--m);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+    }
+
+    .tyre-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 800;
+      font-size: 0.7rem;
+    }
+    .tyre-soft { background: #ff4a4a; color: #fff; }
+    .tyre-med { background: #ffd700; color: #000; }
+    .tyre-hard { background: #ffffff; color: #000; }
+
+    .live-ticker-container {
+      background: var(--s3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 15px;
+    }
+    .ticker-title {
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-align: center;
+      margin-bottom: 12px;
+      color: #fff;
+    }
+    .ticker-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .ticker-item {
+      background: rgba(11, 14, 20, 0.6);
+      border-left: 4px solid var(--border);
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+    .ticker-item.overtake { border-left-color: #27f4d2; }
+    .ticker-item.vsc { border-left-color: #ffd700; }
+    .ticker-item.pit { border-left-color: #3671c6; }
+
     /* Drivers Grid Cards */
     .driver-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
     .driver-tile { background: var(--s3); border-radius: 8px; padding: 12px; border-left: 4px solid var(--dc, var(--border)); }
@@ -403,6 +533,83 @@
     <table class="f1-table" id="f1CrossTable">
       <!-- Wird dynamisch befüllt -->
     </table>
+  </div>
+</div>
+
+<!-- Live Dashboard Modal -->
+<div id="liveDashboardModal" class="live-dashboard-modal">
+  <div class="fs-header">
+    <div class="fs-title" style="color: #27f4d2;">🔴 LIVE RACE DASHBOARD</div>
+    <button class="btn-fs-close" onclick="closeLiveDashboard()">Dashboard Verlassen</button>
+  </div>
+
+  <div class="live-dash-grid">
+    <!-- Links: 2D / 3D LIVE MAP -->
+    <div class="card live-map-box">
+      <div class="live-map-placeholder">
+        🗺️ 2D / 3D LIVE MAP
+      </div>
+      <div class="live-map-sub">
+        (Zeigt Streckenverlauf &amp; Fahrzeug-Punkte in Echtzeit)
+      </div>
+    </div>
+
+    <!-- Rechts: LIVE TIMING -->
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <div class="card-title" style="padding: 14px 18px 0 18px; margin-bottom: 8px;">
+        <span>⏱️ LIVE TIMING</span>
+      </div>
+      <table class="live-timing-table">
+        <thead>
+          <tr>
+            <th>Pos</th>
+            <th>Fahrer</th>
+            <th>Gap</th>
+            <th>Tyre</th>
+            <th>Sektor</th>
+          </tr>
+        </thead>
+        <tbody id="liveTimingBody">
+          <tr>
+            <td style="font-weight: 800; color: var(--gold);">P1</td>
+            <td><strong>Timo</strong></td>
+            <td>--</td>
+            <td><span class="tyre-badge tyre-med">MED</span></td>
+            <td>1:18.4</td>
+          </tr>
+          <tr>
+            <td style="font-weight: 800; color: var(--silver);">P2</td>
+            <td><strong>Brassch</strong></td>
+            <td>+2.1</td>
+            <td><span class="tyre-badge tyre-hard">HARD</span></td>
+            <td>1:18.9</td>
+          </tr>
+          <tr>
+            <td style="font-weight: 800; color: var(--bronze);">P3</td>
+            <td><strong>Niklas</strong></td>
+            <td>+5.4</td>
+            <td><span class="tyre-badge tyre-soft">SOFT</span></td>
+            <td>1:19.2</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Unten: AUTOMATISCHER LIVE-TICKER -->
+  <div class="live-ticker-container">
+    <div class="ticker-title">AUTOMATISCHER LIVE-TICKER</div>
+    <div class="ticker-list" id="liveTickerList">
+      <div class="ticker-item overtake">
+        <strong>[Runde 14]</strong> 🟢 <strong>Overtake:</strong> Timo hat Brassch für P1 auf Start/Ziel überholt.
+      </div>
+      <div class="ticker-item vsc">
+        <strong>[Runde 12]</strong> 🟨 <strong>VSC:</strong> Virtual Safety Car in Sektor 2 ausgerufen.
+      </div>
+      <div class="ticker-item pit">
+        <strong>[Runde 10]</strong> 🔧 <strong>Pit Stop:</strong> Niklas wechselt auf frische Hards.
+      </div>
+    </div>
   </div>
 </div>
 
@@ -616,7 +823,7 @@ const TEAM_COLORS = {
   'Williams':'#64c4ff','Visa Cash App RB':'#6692ff','Kick Sauber':'#52e252','Haas':'#b6babd',
 };
 
-// Punkteverteilung nach Platzierung (OHNE Schnellste Runde Extra-Punkt!)
+// Punkteverteilung nach Platzierung
 const F1_POINTS = {1:25, 2:18, 3:15, 4:12, 5:10, 6:8, 7:6, 8:4, 9:2, 10:1};
 
 function helmetImg(driverName){
@@ -752,7 +959,6 @@ function recalculateStandingsFromResults() {
       const entry = res[driverName];
       if(!entry) return;
       const pos = parseInt(entry.pos);
-      // Reiner Punktezuwachs durch die Platzierung
       let p = F1_POINTS[pos] || 0;
       
       if(ptsMap[driverName] !== undefined) {
@@ -837,8 +1043,22 @@ window.closeFullscreenStandings = function() {
   if(modal) modal.classList.remove('active');
 };
 
+/* --- LIVE DASHBOARD HANDLER --- */
+window.openLiveDashboard = function() {
+  const modal = document.getElementById('liveDashboardModal');
+  if(modal) modal.classList.add('active');
+};
+
+window.closeLiveDashboard = function() {
+  const modal = document.getElementById('liveDashboardModal');
+  if(modal) modal.classList.remove('active');
+};
+
 document.addEventListener('keydown', (e) => {
-  if(e.key === 'Escape') closeFullscreenStandings();
+  if(e.key === 'Escape') {
+    closeFullscreenStandings();
+    closeLiveDashboard();
+  }
 });
 
 function renderF1CrossTable() {
@@ -881,7 +1101,6 @@ function renderF1CrossTable() {
       let isFastest = false;
 
       if(res && res.pos) {
-        // Reine Zahlen erhalten einen Punkt (z.B. "1."), Freitext/Kürzel wie "DNF" bleiben ohne Punkt
         const trimmedPos = res.pos.trim();
         posText = /^\d+$/.test(trimmedPos) ? trimmedPos + '.' : trimmedPos;
         if(res.fastestLap) {
@@ -1289,8 +1508,8 @@ function updateCountdown(){
     const now=new Date();
     const diff=target-now;
     if(diff<=0){
-      el.textContent='LÄUFT JETZT 🏁';
-      el.style.color='#27f4d2';
+      /* Countdown abgelaufen -> Zeige den GO LIVE-Button an */
+      el.innerHTML=`<button class="btn-go-live" onclick="openLiveDashboard()">🔴 GO LIVE</button>`;
     } else {
       const d=Math.floor(diff/(1000*60*60*24));
       const h=Math.floor((diff/(1000*60*60))%24);
