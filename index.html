@@ -966,6 +966,12 @@ function renderLiveModal(){
   const badge = document.getElementById('liveSessionBadge');
   if(!content) return;
 
+  // Scroll-Position des Tickers merken, bevor wir das HTML komplett neu
+  // aufbauen - sonst springt man beim nächsten automatischen Update
+  // (alle ~1s) immer wieder nach oben, egal wo man gerade hingescrollt hat.
+  const prevTickerEl = document.getElementById('liveTickerList');
+  const prevTickerScrollTop = prevTickerEl ? prevTickerEl.scrollTop : 0;
+
   const sessionActive = !!(liveTimingData && liveTimingData.sessionActive);
   if(badge){
     badge.textContent = sessionActive ? '🔴 LIVE' : 'Session beendet';
@@ -985,7 +991,11 @@ function renderLiveModal(){
 
   // --- Live-Timing-Tabelle ---
   if(liveTimingData && liveTimingData.drivers){
-    const drivers = Object.values(liveTimingData.drivers).sort((a,b) => (a.pos||99) - (b.pos||99));
+    // Ungenutzte Fahrzeug-Slots (F1 25 sendet immer bis zu 22 Slots, auch bei
+    // weniger Fahrern -> pos 0/leer) werden hier rausgefiltert.
+    const drivers = Object.values(liveTimingData.drivers)
+      .filter(d => d.pos && d.pos > 0)
+      .sort((a,b) => a.pos - b.pos);
     html += `<table class="live-table"><thead><tr>
       <th>Pos</th><th class="th-driver">Fahrer</th><th>Rd</th><th>Abstand</th>
       <th>Sektor 1</th><th>Sektor 2</th><th>Sektor 3</th><th>Reifen</th><th>Box</th>
@@ -1022,7 +1032,7 @@ function renderLiveModal(){
   // --- Ticker + Strategie/Archiv nebeneinander ---
   html += `<div class="live-panels">`;
 
-  html += `<div><div class="live-panel-title">📰 Live-Ticker</div><div class="live-ticker-list">`;
+  html += `<div><div class="live-panel-title">📰 Live-Ticker</div><div class="live-ticker-list" id="liveTickerList">`;
   const ticker = (liveTimingData && liveTimingData.ticker) || [];
   if(ticker.length){
     html += [...ticker].reverse().map(ev => `<div class="live-ticker-item">${ev}</div>`).join('');
@@ -1057,6 +1067,10 @@ function renderLiveModal(){
   html += `</div>`; // .live-panels
 
   content.innerHTML = html;
+
+  // Scroll-Position des Tickers wiederherstellen (siehe Kommentar oben)
+  const newTickerEl = document.getElementById('liveTickerList');
+  if(newTickerEl) newTickerEl.scrollTop = prevTickerScrollTop;
 }
 
 document.addEventListener('keydown', (e) => {
