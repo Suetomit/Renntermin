@@ -631,6 +631,16 @@
       <button class="btn" onclick="saveRaceResults()">Rennergebnis Speichern</button>
 
       <hr style="border-color:var(--border); margin:20px 0;">
+      <p style="margin-bottom:6px; font-weight:700;">🎮 Live-Timing Namenszuordnung:</p>
+      <p style="margin-bottom:10px; font-size:0.75rem; color:var(--m);">
+        Ordnet die vom Telemetrie-Skript gemeldeten In-Game-Namen den Liga-Fahrern zu
+        (nötig für Team-Farben in der Live-Anzeige, falls der automatische Racenet-Abgleich nicht greift).
+        Nur Namen, die schon mindestens einmal live gesehen wurden, tauchen hier auf.
+      </p>
+      <div id="liveNameMapEditor" style="margin-bottom:10px;"></div>
+      <button class="btn" onclick="saveLiveNameMap()">Namenszuordnung Speichern</button>
+
+      <hr style="border-color:var(--border); margin:20px 0;">
       <p style="margin-bottom:10px;">Manuelle Punkte-Korrektur:</p>
       <div style="margin-bottom:10px;">Rennen absolviert: <input type="number" id="racesCompleted" style="width:60px;" class="pin-input"></div>
       <div id="standingsInputs"></div>
@@ -754,7 +764,7 @@ let currentUser = '';
 let selectedDates = [];
 let calYear, calMonth;
 let standings = {drivers:ALL_DRIVERS.map(d=>({name:d.name,points:0})),racesCompleted:0};
-let standingsRef, raceResultsRef;
+let standingsRef, raceResultsRef, liveNameMapRef;
 let countdownInterval = null;
 let bannerDismissed = false;
 let liveTimingData = null;
@@ -794,6 +804,14 @@ function initLiveTiming(database){
   onValue(archiveRef, snap => {
     telemetryArchiveData = snap.val() || {};
     if(liveModalOpen) renderLiveModal();
+  });
+
+  const nameMapRef = ref(database, 'liveNameMap');
+  liveNameMapRef = nameMapRef;
+  onValue(nameMapRef, snap => {
+    liveNameMap = snap.val() || {};
+    if(liveModalOpen) renderLiveModal();
+    if(adminUnlocked) renderLiveNameMapEditor();
   });
 }
 
@@ -961,6 +979,54 @@ function fmtGapShort(ms){
   return `+${(ms/1000).toFixed(3)}`;
 }
 
+const TYRE_BADGE = {
+  'SOFT':       {letter:'S',  bg:'#ff2d2d', fg:'#fff'},
+  'MED':        {letter:'M',  bg:'#ffd700', fg:'#000'},
+  'HARD':       {letter:'H',  bg:'#f5f5f5', fg:'#000'},
+  'INTER':      {letter:'I',  bg:'#3cb043', fg:'#fff'},
+  'WET':        {letter:'W',  bg:'#0080ff', fg:'#fff'},
+  'SUPER SOFT': {letter:'SS', bg:'#ff33cc', fg:'#fff'},
+};
+function tyreBadgeHtml(compoundName){
+  const s = TYRE_BADGE[compoundName] || {letter:'?', bg:'#666', fg:'#fff'};
+  return `<span style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:${s.bg}; color:${s.fg}; font-weight:800; font-size:0.65rem; border:2px solid rgba(255,255,255,0.35); flex-shrink:0;">${s.letter}</span>`;
+}
+
+// Baut eine Reifenhistorie-Tabelle im F1TV-Stil: pro Fahrer eine Spalte je
+// Stint (aktuellster zuerst), mit Startrunde + farbigem Compound-Badge.
+function buildTyreHistoryTable(driversForHistory){
+  if(!driversForHistory.length){
+    return `<div class="live-empty-state" style="padding:16px;">Noch keine Reifendaten.</div>`;
+  }
+  const maxStints = Math.max(1, ...driversForHistory.map(d => (d.stints||[]).length));
+  const headCols = [];
+  for(let i=0;i<maxStints;i++){
+    headCols.push(i===0 ? 'AKTUELL' : (i===1 ? 'VORHERIGE' : `VORHERIGE ${i}`));
+  }
+
+  let html = `<table class="live-table"><thead><tr><th>Pos</th><th class="th-driver">Fahrer</th>${headCols.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+  driversForHistory.forEach(d => {
+    const reversedStints = [...(d.stints||[])].reverse(); // aktuellster Stint zuerst
+    let cells = '';
+    for(let i=0;i<maxStints;i++){
+      const s = reversedStints[i];
+      cells += `<td>${s ? `<div style="display:flex; align-items:center; justify-content:center; gap:6px;"><span>${s.start_lap}</span>${tyreBadgeHtml(s.compound)}</div>` : '<span style="color:var(--m3);">-</span>'}</td>`;
+    }
+    html += `<tr>
+      <td style="font-weight:800;">P${d.pos ?? '-'}</td>
+      <td class="td-driver">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="width:4px; height:16px; background:${d.color}; display:inline-block; border-radius:2px;"></span>
+          <span style="font-weight:700;">${d.displayName}</span>
+        </div>
+      </td>
+      ${cells}
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  return html;
+}
+
 function renderLiveModal(){
   const content = document.getElementById('liveModalContent');
   const badge = document.getElementById('liveSessionBadge');
@@ -1029,7 +1095,7 @@ function renderLiveModal(){
     html += `<div class="live-empty-state">Keine aktive Live-Session gerade - aber es gibt bereits archivierte Renndaten unten.</div>`;
   }
 
-  // --- Ticker + Strategie/Archiv nebeneinander ---
+  // --- Ticker + Schnellste-Runde-Box nebeneinander ---
   html += `<div class="live-panels">`;
 
   html += `<div><div class="live-panel-title">📰 Live-Ticker</div><div class="live-ticker-list" id="liveTickerList">`;
@@ -1041,30 +1107,40 @@ function renderLiveModal(){
   }
   html += `</div></div>`;
 
-  html += `<div><div class="live-panel-title">🛞 Strategie${archive ? ' (Rennarchiv)' : ''}</div><div>`;
-  if(archive){
-    if(archive.fastestLap){
-      const fl = archive.fastestLap;
-      const flInfo = getDriverInfoByRacenet(fl.driver);
-      const mins = Math.floor(fl.lap_time_s/60), secs = (fl.lap_time_s%60).toFixed(3);
-      html += `<div class="live-strategy-item" style="border-left:3px solid #b15eff;">⚡ Schnellste Runde: <strong>${flInfo.human || fl.driver}</strong> (${mins}:${secs.padStart(6,'0')})</div>`;
-    }
-    const strategies = archive.strategies || {};
-    Object.keys(strategies).forEach(ingameName => {
-      const info = getDriverInfoByRacenet(ingameName);
-      const stints = strategies[ingameName] || [];
-      const stintStr = stints.map(s => `${s.compound}(${s.start_lap}-${s.end_lap})`).join(' → ');
-      const pitStops = (archive.pitStops || {})[ingameName] ?? 0;
-      html += `<div class="live-strategy-item"><strong>${info.human || ingameName}</strong> - ${pitStops} Boxenstopp(s)<br><span style="color:var(--m);">${stintStr || '-'}</span></div>`;
-    });
-  } else if(liveTimingData && liveTimingData.drivers){
-    html += `<div class="live-empty-state" style="padding:16px;">Strategie-Archiv erscheint hier, sobald das Rennen mit der Zielflagge beendet wurde.</div>`;
+  html += `<div><div class="live-panel-title">⚡ Schnellste Runde</div><div>`;
+  if(archive && archive.fastestLap){
+    const fl = archive.fastestLap;
+    const flInfo = getDriverInfoByRacenet(fl.driver);
+    const mins = Math.floor(fl.lap_time_s/60), secs = (fl.lap_time_s%60).toFixed(3);
+    html += `<div class="live-strategy-item" style="border-left:3px solid #b15eff;">⚡ <strong>${flInfo.human || fl.driver}</strong> (${mins}:${secs.padStart(6,'0')})</div>`;
   } else {
-    html += `<div class="live-empty-state" style="padding:16px;">Noch kein Archiv für dieses Rennen.</div>`;
+    html += `<div class="live-empty-state" style="padding:16px;">Noch keine schnellste Runde erfasst.</div>`;
   }
   html += `</div></div>`;
 
   html += `</div>`; // .live-panels
+
+  // --- Reifenhistorie (F1TV-Style: pro Fahrer die Stints, aktuellster zuerst) ---
+  let tyreHistoryDrivers = [];
+  if(liveTimingData && liveTimingData.drivers){
+    tyreHistoryDrivers = Object.values(liveTimingData.drivers)
+      .filter(d => d.pos && d.pos > 0)
+      .sort((a,b) => a.pos - b.pos)
+      .map(d => {
+        const info = getDriverInfoByRacenet(d.name);
+        return {pos: d.pos, displayName: info.human || d.name, color: TEAM_COLORS[info.team] || '#888', stints: d.stints || []};
+      });
+  } else if(archive && archive.strategies){
+    tyreHistoryDrivers = Object.keys(archive.strategies).map((ingameName, idx) => {
+      const info = getDriverInfoByRacenet(ingameName);
+      return {pos: idx + 1, displayName: info.human || ingameName, color: TEAM_COLORS[info.team] || '#888', stints: archive.strategies[ingameName] || []};
+    });
+  }
+
+  html += `<div style="margin-top:16px;">
+    <div class="live-panel-title">🛞 Reifenhistorie${archive && !(liveTimingData && liveTimingData.drivers) ? ' (Rennarchiv)' : ''}</div>
+    ${buildTyreHistoryTable(tyreHistoryDrivers)}
+  </div>`;
 
   content.innerHTML = html;
 
@@ -1170,19 +1246,76 @@ function initStandings(database){
   });
 }
 
+let liveNameMap = {}; // {rawIngameName: humanLeagueName} - manuelle Zuordnung, überschreibt Racenet-Erkennung
+
 function getDriverInfo(name){return ALL_DRIVERS.find(d=>d.name===name)||{name,team:'',human:null,photo:''};}
 
-// Löst den vom Telemetrie-Skript gemeldeten In-Game-Namen (Steam/Platform-Name,
-// im Idealfall identisch mit dem Racenet-Username) auf einen Liga-Fahrer auf.
-// Kommt kein Treffer zustande, wird der rohe In-Game-Name mit neutralem Look angezeigt -
-// die Zuordnung in ALL_DRIVERS[].racenet ist dann ggf. anzupassen.
+// Löst den vom Telemetrie-Skript gemeldeten In-Game-Namen (Steam/Platform-Name)
+// auf einen Liga-Fahrer auf. Reihenfolge: 1) manuelle Zuordnung (liveNameMap,
+// im Admin-Bereich pflegbar) 2) automatischer Abgleich über ALL_DRIVERS[].racenet
+// 3) Fallback: roher In-Game-Name mit neutralem Look (graue Team-Farbe).
 function getDriverInfoByRacenet(ingameName){
   if(!ingameName) return {name:ingameName||'?', team:'', human:null, photo:''};
   const clean = ingameName.replace(/^\[KI\]\s*/, '');
+
+  const mappedHuman = liveNameMap[ingameName] || liveNameMap[clean];
+  if(mappedHuman){
+    const byHuman = ALL_DRIVERS.find(d => d.human === mappedHuman);
+    if(byHuman) return byHuman;
+  }
+
   const match = ALL_DRIVERS.find(d => d.racenet && d.racenet.toLowerCase() === clean.toLowerCase());
   if(match) return match;
   return {name: ingameName, team:'', human:null, photo:''};
 }
+
+const LEAGUE_HUMANS = ALL_DRIVERS.filter(d => d.human).map(d => d.human);
+
+function renderLiveNameMapEditor(){
+  const el = document.getElementById('liveNameMapEditor');
+  if(!el) return;
+
+  // Alle bisher live gesehenen In-Game-Namen sammeln (aktuelle Session + Archiv)
+  const seenNames = new Set();
+  if(liveTimingData && liveTimingData.drivers){
+    Object.values(liveTimingData.drivers).forEach(d => { if(d.name) seenNames.add(d.name); });
+  }
+  Object.values(telemetryArchiveData || {}).forEach(race => {
+    Object.keys(race.strategies || {}).forEach(n => seenNames.add(n));
+  });
+
+  if(seenNames.size === 0){
+    el.innerHTML = `<div style="font-size:0.8rem; color:var(--m);">Noch keine In-Game-Namen gesehen - erst einmal das Telemetrie-Skript während einer Session laufen lassen.</div>`;
+    return;
+  }
+
+  el.innerHTML = [...seenNames].sort().map((rawName, i) => {
+    const current = liveNameMap[rawName] || '';
+    const options = ['<option value="">- nicht zugeordnet -</option>']
+      .concat(LEAGUE_HUMANS.map(h => `<option value="${h}" ${current===h?'selected':''}>${h}</option>`));
+    return `<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px;">
+      <span style="font-size:0.8rem; font-family:monospace;">${rawName}</span>
+      <select class="pin-input" style="width:auto; margin-bottom:0;" id="namemap_${i}" data-raw="${rawName}">
+        ${options.join('')}
+      </select>
+    </div>`;
+  }).join('');
+}
+
+window.saveLiveNameMap = async function(){
+  const el = document.getElementById('liveNameMapEditor');
+  if(!el) return;
+  const newMap = {};
+  el.querySelectorAll('select[data-raw]').forEach(sel => {
+    if(sel.value) newMap[sel.dataset.raw] = sel.value;
+  });
+  liveNameMap = newMap;
+  if(liveNameMapRef){
+    try{ await set(liveNameMapRef, newMap); alert('Namenszuordnung gespeichert!'); }
+    catch(e){ console.error(e); }
+  }
+  if(liveModalOpen) renderLiveModal();
+};
 
 function renderStandings(){
   const el = document.getElementById('standingsContent');
@@ -1471,6 +1604,7 @@ window.checkPin=function(){
     document.getElementById('standingsAdminArea').style.display='block';
     renderRaceSelectOptions();
     renderRaceResultsEditor();
+    renderLiveNameMapEditor();
     renderStandingsInputs();renderOverview();
   }else{document.getElementById('pinErr').textContent='Falscher PIN!';}
 };
