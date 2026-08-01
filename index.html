@@ -328,7 +328,50 @@
     .race-flag-hdr { display: flex; flex-direction: column; align-items: center; gap: 2px; }
     .race-flag-hdr img { width: 18px; height: 12px; object-fit: cover; border-radius: 1px; }
     .race-flag-code { font-size: 0.65rem; color: var(--m); font-family: monospace; }
-    
+
+    /* Go Live Button (Hero Banner) */
+    .go-live-btn {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      background: #e10600;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      text-transform: uppercase;
+      font-size: 0.9rem;
+      margin-top: 8px;
+      animation: pulseLive 1.6s infinite;
+    }
+    .go-live-btn.show { display: inline-flex; }
+    .go-live-dot { width: 10px; height: 10px; background: #fff; border-radius: 50%; }
+    @keyframes pulseLive {
+      0%   { box-shadow: 0 0 0 0 rgba(225, 6, 0, 0.6); }
+      70%  { box-shadow: 0 0 0 12px rgba(225, 6, 0, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(225, 6, 0, 0); }
+    }
+
+    /* Live-Timing Modal */
+    .live-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; white-space: nowrap; }
+    .live-table th, .live-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.08); text-align: center; }
+    .live-table th { background: #121620; color: var(--m); font-weight: 700; position: sticky; top: 0; z-index: 10; }
+    .live-table th.th-driver, .live-table td.td-driver { text-align: left; }
+    .live-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+    .live-panels { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 16px; }
+    @media (min-width: 992px) { .live-panels { grid-template-columns: 1fr 1fr; } }
+    .live-panel-title { font-weight: 800; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--m); margin-bottom: 8px; }
+    .live-ticker-list { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+    .live-ticker-item { background: rgba(255,255,255,0.03); border-left: 3px solid var(--y); border-radius: 4px; padding: 6px 10px; font-size: 0.82rem; }
+    .live-strategy-item { background: rgba(255,255,255,0.03); border-radius: 4px; padding: 8px 10px; font-size: 0.8rem; margin-bottom: 6px; }
+    .live-empty-state { text-align: center; color: var(--m); padding: 40px 20px; font-size: 0.95rem; }
+    .live-session-badge { font-size: 0.7rem; font-weight: 800; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .live-session-badge.on { background: rgba(225,6,0,0.15); color: #ff4d4d; border: 1px solid #e10600; }
+    .live-session-badge.off { background: rgba(255,255,255,0.06); color: var(--m); border: 1px solid var(--border); }
+
     .pos-cell {
       display: inline-block;
       min-width: 26px;
@@ -405,6 +448,23 @@
   </div>
 </div>
 
+<!-- Live-Timing Modal (gespeist aus Firebase /liveTiming & /telemetryArchive) -->
+<div id="liveModal" class="fs-modal">
+  <div class="fs-header">
+    <div class="fs-title" style="display:flex; align-items:center; gap:12px;">
+      🔴 LIVE-TIMING
+      <span class="live-session-badge off" id="liveSessionBadge">Warte auf Daten...</span>
+    </div>
+    <button class="btn-fs-close" onclick="closeLiveModal()">Schließen (ESC)</button>
+  </div>
+  <div class="fs-table-container" style="padding:16px;">
+    <div id="liveModalContent">
+      <div class="live-empty-state">Warte auf Live-Daten vom Telemetrie-Skript...</div>
+    </div>
+  </div>
+</div>
+
+
 <div class="app-container">
   
   <!-- Header Bar mit Liga Logo -->
@@ -441,6 +501,11 @@
     <div>
       <div class="hero-title" style="text-align:right;">Status / Countdown</div>
       <div class="hero-countdown" id="heroCountdown">Ausstehend</div>
+      <div style="text-align:right;">
+        <button class="go-live-btn" id="goLiveBtn" onclick="openLiveModal()">
+          <span class="go-live-dot"></span> <span id="goLiveBtnLabel">Go Live</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -692,6 +757,10 @@ let standings = {drivers:ALL_DRIVERS.map(d=>({name:d.name,points:0})),racesCompl
 let standingsRef, raceResultsRef;
 let countdownInterval = null;
 let bannerDismissed = false;
+let liveTimingData = null;
+let telemetryArchiveData = {};
+let liveModalOpen = false;
+let raceDayReached = false;
 
 let db, dbRef;
 try {
@@ -708,9 +777,25 @@ try {
     cleanupPastDates();
     initStandings(db);
     initRaceResults(db);
+    initLiveTiming(db);
     render();renderNameButtons();
   }, err=>{ console.error(err);fallbackToLocal(); });
 } catch(e){ console.error(e);fallbackToLocal(); }
+
+function initLiveTiming(database){
+  const liveRef = ref(database, 'liveTiming');
+  onValue(liveRef, snap => {
+    liveTimingData = snap.val();
+    updateGoLiveVisibility();
+    if(liveModalOpen) renderLiveModal();
+  });
+
+  const archiveRef = ref(database, 'telemetryArchive');
+  onValue(archiveRef, snap => {
+    telemetryArchiveData = snap.val() || {};
+    if(liveModalOpen) renderLiveModal();
+  });
+}
 
 function fallbackToLocal(){
   document.getElementById('loadingOverlay').style.display='none';
@@ -836,8 +921,146 @@ window.closeFullscreenStandings = function() {
   if(modal) modal.classList.remove('active');
 };
 
+window.openLiveModal = function() {
+  const modal = document.getElementById('liveModal');
+  if(!modal) return;
+  liveModalOpen = true;
+  renderLiveModal();
+  modal.classList.add('active');
+};
+
+window.closeLiveModal = function() {
+  const modal = document.getElementById('liveModal');
+  if(modal) modal.classList.remove('active');
+  liveModalOpen = false;
+};
+
+function updateGoLiveVisibility(){
+  const btn = document.getElementById('goLiveBtn');
+  const label = document.getElementById('goLiveBtnLabel');
+  if(!btn) return;
+  const sessionActive = !!(liveTimingData && liveTimingData.sessionActive);
+  // Button erscheint sobald der Countdown abgelaufen ist. Läuft gerade eine
+  // Session, zeigt er "LIVE" statt "Go Live".
+  if(raceDayReached){
+    btn.classList.add('show');
+    if(label) label.textContent = sessionActive ? 'LIVE - Jetzt ansehen' : 'Go Live';
+  } else {
+    btn.classList.remove('show');
+  }
+  if(liveModalOpen) renderLiveModal();
+}
+
+function fmtMsShort(ms){
+  if(ms===null || ms===undefined || ms<=0) return '-.---';
+  const m = Math.floor(ms/60000), rest = ms%60000, s = Math.floor(rest/1000), msPart = rest%1000;
+  return (m>0 ? `${m}:${String(s).padStart(2,'0')}` : `${s}`) + `.${String(msPart).padStart(3,'0')}`;
+}
+function fmtGapShort(ms){
+  if(ms===null || ms===undefined || ms===0) return '-';
+  return `+${(ms/1000).toFixed(3)}`;
+}
+
+function renderLiveModal(){
+  const content = document.getElementById('liveModalContent');
+  const badge = document.getElementById('liveSessionBadge');
+  if(!content) return;
+
+  const sessionActive = !!(liveTimingData && liveTimingData.sessionActive);
+  if(badge){
+    badge.textContent = sessionActive ? '🔴 LIVE' : 'Session beendet';
+    badge.className = 'live-session-badge ' + (sessionActive ? 'on' : 'off');
+  }
+
+  // Archiv zum aktuell anstehenden Rennen (erstes Rennen mit done:false)
+  const nextRace = RACES.find(r => !r.done);
+  const archive = nextRace ? telemetryArchiveData[nextRace.num] : null;
+
+  if(!liveTimingData && !archive){
+    content.innerHTML = `<div class="live-empty-state">Warte auf Live-Daten vom Telemetrie-Skript...<br><span style="font-size:0.8rem;">Sobald jemand das Skript startet, erscheinen hier automatisch die Live-Daten.</span></div>`;
+    return;
+  }
+
+  let html = '';
+
+  // --- Live-Timing-Tabelle ---
+  if(liveTimingData && liveTimingData.drivers){
+    const drivers = Object.values(liveTimingData.drivers).sort((a,b) => (a.pos||99) - (b.pos||99));
+    html += `<table class="live-table"><thead><tr>
+      <th>Pos</th><th class="th-driver">Fahrer</th><th>Rd</th><th>Abstand</th>
+      <th>Sektor 1</th><th>Sektor 2</th><th>Sektor 3</th><th>Reifen</th><th>Box</th>
+    </tr></thead><tbody>`;
+    drivers.forEach(d => {
+      const info = getDriverInfoByRacenet(d.name);
+      const color = TEAM_COLORS[info.team] || '#888';
+      const displayName = info.human || d.name;
+      let statusTag = '';
+      if(d.resultStatus === 4 || d.resultStatus === 6) statusTag = ' <span style="color:#ff5555;">[OUT]</span>';
+      else if(d.resultStatus === 5) statusTag = ' <span style="color:#ff5555;">[DSQ]</span>';
+      html += `<tr>
+        <td style="font-weight:800;">P${d.pos ?? '-'}</td>
+        <td class="td-driver">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="width:4px; height:16px; background:${color}; display:inline-block; border-radius:2px;"></span>
+            <span style="font-weight:700;">${displayName}</span>${statusTag}
+          </div>
+        </td>
+        <td>${d.lap ?? '-'}</td>
+        <td>${fmtGapShort(d.gapMs)}</td>
+        <td>${fmtMsShort(d.sector1Ms)}</td>
+        <td>${fmtMsShort(d.sector2Ms)}</td>
+        <td>${fmtMsShort(d.sector3Ms)}</td>
+        <td>${d.tyre || '?'}</td>
+        <td>${d.pitStops ?? 0}</td>
+      </tr>`;
+    });
+    html += `</tbody></table>`;
+  } else {
+    html += `<div class="live-empty-state">Keine aktive Live-Session gerade - aber es gibt bereits archivierte Renndaten unten.</div>`;
+  }
+
+  // --- Ticker + Strategie/Archiv nebeneinander ---
+  html += `<div class="live-panels">`;
+
+  html += `<div><div class="live-panel-title">📰 Live-Ticker</div><div class="live-ticker-list">`;
+  const ticker = (liveTimingData && liveTimingData.ticker) || [];
+  if(ticker.length){
+    html += [...ticker].reverse().map(ev => `<div class="live-ticker-item">${ev}</div>`).join('');
+  } else {
+    html += `<div class="live-empty-state" style="padding:16px;">Keine Events bisher.</div>`;
+  }
+  html += `</div></div>`;
+
+  html += `<div><div class="live-panel-title">🛞 Strategie${archive ? ' (Rennarchiv)' : ''}</div><div>`;
+  if(archive){
+    if(archive.fastestLap){
+      const fl = archive.fastestLap;
+      const flInfo = getDriverInfoByRacenet(fl.driver);
+      const mins = Math.floor(fl.lap_time_s/60), secs = (fl.lap_time_s%60).toFixed(3);
+      html += `<div class="live-strategy-item" style="border-left:3px solid #b15eff;">⚡ Schnellste Runde: <strong>${flInfo.human || fl.driver}</strong> (${mins}:${secs.padStart(6,'0')})</div>`;
+    }
+    const strategies = archive.strategies || {};
+    Object.keys(strategies).forEach(ingameName => {
+      const info = getDriverInfoByRacenet(ingameName);
+      const stints = strategies[ingameName] || [];
+      const stintStr = stints.map(s => `${s.compound}(${s.start_lap}-${s.end_lap})`).join(' → ');
+      const pitStops = (archive.pitStops || {})[ingameName] ?? 0;
+      html += `<div class="live-strategy-item"><strong>${info.human || ingameName}</strong> - ${pitStops} Boxenstopp(s)<br><span style="color:var(--m);">${stintStr || '-'}</span></div>`;
+    });
+  } else if(liveTimingData && liveTimingData.drivers){
+    html += `<div class="live-empty-state" style="padding:16px;">Strategie-Archiv erscheint hier, sobald das Rennen mit der Zielflagge beendet wurde.</div>`;
+  } else {
+    html += `<div class="live-empty-state" style="padding:16px;">Noch kein Archiv für dieses Rennen.</div>`;
+  }
+  html += `</div></div>`;
+
+  html += `</div>`; // .live-panels
+
+  content.innerHTML = html;
+}
+
 document.addEventListener('keydown', (e) => {
-  if(e.key === 'Escape') closeFullscreenStandings();
+  if(e.key === 'Escape'){ closeFullscreenStandings(); closeLiveModal(); }
 });
 
 function renderF1CrossTable() {
@@ -934,6 +1157,18 @@ function initStandings(database){
 }
 
 function getDriverInfo(name){return ALL_DRIVERS.find(d=>d.name===name)||{name,team:'',human:null,photo:''};}
+
+// Löst den vom Telemetrie-Skript gemeldeten In-Game-Namen (Steam/Platform-Name,
+// im Idealfall identisch mit dem Racenet-Username) auf einen Liga-Fahrer auf.
+// Kommt kein Treffer zustande, wird der rohe In-Game-Name mit neutralem Look angezeigt -
+// die Zuordnung in ALL_DRIVERS[].racenet ist dann ggf. anzupassen.
+function getDriverInfoByRacenet(ingameName){
+  if(!ingameName) return {name:ingameName||'?', team:'', human:null, photo:''};
+  const clean = ingameName.replace(/^\[KI\]\s*/, '');
+  const match = ALL_DRIVERS.find(d => d.racenet && d.racenet.toLowerCase() === clean.toLowerCase());
+  if(match) return match;
+  return {name: ingameName, team:'', human:null, photo:''};
+}
 
 function renderStandings(){
   const el = document.getElementById('standingsContent');
@@ -1399,6 +1634,8 @@ function updateHeroCountdown() {
     cdEl.textContent = 'Ausstehend';
     cdEl.style.color = 'var(--y)';
     if(countdownInterval) clearInterval(countdownInterval);
+    raceDayReached = false;
+    updateGoLiveVisibility();
     return;
   }
 
@@ -1413,6 +1650,8 @@ function updateHeroCountdown() {
       cdEl.textContent = '🏎️ RACE DAY! GO GO GO!';
       cdEl.style.color = '#27f4d2';
       if(countdownInterval) clearInterval(countdownInterval);
+      raceDayReached = true;
+      updateGoLiveVisibility();
       return;
     }
 
@@ -1423,6 +1662,8 @@ function updateHeroCountdown() {
 
     cdEl.textContent = `${days}d ${String(hours).padStart(2,'0')}h ${String(mins).padStart(2,'0')}m ${String(secs).padStart(2,'0')}s`;
     cdEl.style.color = '#27f4d2';
+    raceDayReached = false;
+    updateGoLiveVisibility();
   }
 
   tick();
