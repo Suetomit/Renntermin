@@ -1262,8 +1262,19 @@ function computeEloRatings(){
     entries.forEach(e => {
       const p = String(e.raw.pos).trim();
       e.rankVal = /^\d+$/.test(p) ? parseInt(p) : 99; // DNF/DSQ/Text -> ans Ende
-      const g = parseFloat(e.raw.qualGap);
-      e.qualGap = isNaN(g) ? null : g;
+
+      const qRaw = e.raw.qualGap !== undefined && e.raw.qualGap !== null ? String(e.raw.qualGap).trim() : '';
+      if(qRaw === ''){
+        e.qualGap = null;      // kein Wert erfasst -> wird gleich neutral (0.5) gewertet
+        e.qualyDnf = false;
+      } else if(/^(dnf|dsq|dns)$/i.test(qRaw)){
+        e.qualGap = null;
+        e.qualyDnf = true;     // Quali-DNF -> wird gleich als schlechtester Wert (0) gewertet
+      } else {
+        const g = parseFloat(qRaw.replace(',', '.'));
+        e.qualGap = isNaN(g) ? null : g;
+        e.qualyDnf = false;
+      }
     });
 
     const N = entries.length;
@@ -1272,11 +1283,14 @@ function computeEloRatings(){
     const byRank = [...entries].sort((a,b)=>a.rankVal-b.rankVal);
     byRank.forEach((e, idx) => { e.raceScore = N > 1 ? (N - 1 - idx) / (N - 1) : 1; });
 
-    // Quali-Score: kleinster Gap zur Pole = 1.0, größter (unter den Anwesenden) = 0.0
-    const withGap = entries.filter(e => e.qualGap !== null);
+    // Quali-Score: kleinster Gap zur Pole = 1.0, größter (unter den Anwesenden) = 0.0.
+    // Quali-DNF wird explizit als schlechtester Wert (0) gewertet, nicht neutral -
+    // wer gar keine Zeit gesetzt hat, war in der Quali eindeutig am schlechtesten.
+    const withGap = entries.filter(e => e.qualGap !== null && !e.qualyDnf);
     const maxGap = withGap.length ? Math.max(...withGap.map(e => e.qualGap)) : 0;
     entries.forEach(e => {
-      if(e.qualGap === null) e.qualyScore = 0.5; // kein Wert erfasst -> neutral werten
+      if(e.qualyDnf) e.qualyScore = 0;
+      else if(e.qualGap === null) e.qualyScore = 0.5; // kein Wert erfasst -> neutral werten
       else e.qualyScore = maxGap > 0 ? (1 - e.qualGap / maxGap) : 1;
     });
 
@@ -1451,7 +1465,7 @@ function renderRaceResultsEditor() {
         <input type="text" id="res_pos_${i}" class="pin-input" style="margin-bottom:0; padding:4px;" value="${driverRes.pos || ''}" placeholder="z.B. 1">
       </td>
       <td style="padding:6px;">
-        <input type="number" step="0.001" min="0" id="res_qgap_${i}" class="pin-input" style="margin-bottom:0; padding:4px;" value="${driverRes.qualGap ?? ''}" placeholder="z.B. 0.245">
+        <input type="text" id="res_qgap_${i}" class="pin-input" style="margin-bottom:0; padding:4px;" value="${driverRes.qualGap ?? ''}" placeholder="z.B. 0.245 oder DNF">
       </td>
       <td style="padding:6px; text-align:center;">
         <input type="radio" name="fl_radio_group" id="res_fl_${i}" value="${i}" ${isFl ? 'checked' : ''} style="cursor:pointer; width:16px; height:16px;">
@@ -1472,8 +1486,7 @@ window.saveRaceResults = async function() {
 
   ALL_DRIVERS.forEach((d, i) => {
     const posVal = document.getElementById(`res_pos_${i}`)?.value.trim() || '';
-    const qgapRaw = document.getElementById(`res_qgap_${i}`)?.value;
-    const qgapVal = (qgapRaw !== undefined && qgapRaw !== '') ? parseFloat(qgapRaw) : '';
+    const qgapVal = document.getElementById(`res_qgap_${i}`)?.value.trim() || '';
     const isFl = (i === flIndex);
 
     if(posVal || isFl || qgapVal !== '') {
