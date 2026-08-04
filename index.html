@@ -228,10 +228,10 @@
       text-align: center;
     }
     .race-item.open .track-wrapper { 
-      max-height: 300px; 
+      max-height: 1400px; 
       padding: 10px; 
       border-top: 1px solid var(--border); 
-      transition: max-height 0.3s ease-in-out; 
+      transition: max-height 0.4s ease-in-out; 
     }
     .track-img { 
       max-width: 100%; 
@@ -242,6 +242,21 @@
       transition: transform 0.2s; 
     }
     .track-img:hover { transform: scale(1.03); }
+
+    /* Rennarchiv (im Kalender-Card, bei absolvierten Rennen aufklappbar) */
+    .archive-box { text-align: left; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border); }
+    .archive-empty { text-align: center; color: var(--m); font-size: 0.78rem; padding: 10px 0; font-style: italic; }
+    .archive-fl { background: rgba(177,94,255,0.1); border-left: 3px solid #b15eff; border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; margin-bottom: 8px; }
+    .archive-strategy-item { background: rgba(255,255,255,0.03); border-radius: 4px; padding: 7px 10px; font-size: 0.78rem; margin-bottom: 5px; border-left: 3px solid var(--border); }
+    .archive-strategy-item .as-name { font-weight: 700; }
+    .archive-strategy-item .as-pits { color: var(--m); font-size: 0.72rem; }
+    .archive-strategy-item .as-stints { color: var(--m); margin-top: 2px; }
+
+    /* Elo-Tab */
+    .elo-trend { font-size: 0.7rem; font-weight: 700; margin-left: 6px; }
+    .elo-trend.up { color: #52e252; }
+    .elo-trend.down { color: #ff5555; }
+    .elo-trend.flat { color: var(--m2); }
 
     /* Lightbox Modal */
     .lightbox {
@@ -543,6 +558,7 @@
           <div class="tabs">
             <button class="tab-btn active" id="tabFahrer" onclick="switchTab('fahrer')">Fahrer</button>
             <button class="tab-btn" id="tabKonstrukteur" onclick="switchTab('konstrukteur')">Teams</button>
+            <button class="tab-btn" id="tabElo" onclick="switchTab('elo')">⚡ Elo</button>
           </div>
           <button class="icon-expand-btn" onclick="openFullscreenStandings()" title="Saisonergebnisse / Vollbildansicht">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -619,6 +635,7 @@
             <tr style="background:var(--s3); text-align:left;">
               <th style="padding:6px;">Fahrer</th>
               <th style="padding:6px;">Platz (1-20 / DNF)</th>
+              <th style="padding:6px;">Quali-Gap zur Pole (Sek.)</th>
               <th style="padding:6px; text-align:center;">⚡ Schnellste Runde (FL)</th>
             </tr>
           </thead>
@@ -629,16 +646,6 @@
       </div>
 
       <button class="btn" onclick="saveRaceResults()">Rennergebnis Speichern</button>
-
-      <hr style="border-color:var(--border); margin:20px 0;">
-      <p style="margin-bottom:6px; font-weight:700;">🎮 Live-Timing Namenszuordnung:</p>
-      <p style="margin-bottom:10px; font-size:0.75rem; color:var(--m);">
-        Ordnet die vom Telemetrie-Skript gemeldeten In-Game-Namen den Liga-Fahrern zu
-        (nötig für Team-Farben in der Live-Anzeige, falls der automatische Racenet-Abgleich nicht greift).
-        Nur Namen, die schon mindestens einmal live gesehen wurden, tauchen hier auf.
-      </p>
-      <div id="liveNameMapEditor" style="margin-bottom:10px;"></div>
-      <button class="btn" onclick="saveLiveNameMap()">Namenszuordnung Speichern</button>
 
       <hr style="border-color:var(--border); margin:20px 0;">
       <p style="margin-bottom:10px;">Manuelle Punkte-Korrektur:</p>
@@ -764,13 +771,14 @@ let currentUser = '';
 let selectedDates = [];
 let calYear, calMonth;
 let standings = {drivers:ALL_DRIVERS.map(d=>({name:d.name,points:0})),racesCompleted:0};
-let standingsRef, raceResultsRef, liveNameMapRef;
+let standingsRef, raceResultsRef;
 let countdownInterval = null;
 let bannerDismissed = false;
 let liveTimingData = null;
 let telemetryArchiveData = {};
 let liveModalOpen = false;
 let raceDayReached = false;
+let eloCache = null; // {ratings:{name:elo}, history:{name:[{raceNum,elo}]}} - wird gecacht, bis raceResults sich ändern
 
 let db, dbRef;
 try {
@@ -804,14 +812,7 @@ function initLiveTiming(database){
   onValue(archiveRef, snap => {
     telemetryArchiveData = snap.val() || {};
     if(liveModalOpen) renderLiveModal();
-  });
-
-  const nameMapRef = ref(database, 'liveNameMap');
-  liveNameMapRef = nameMapRef;
-  onValue(nameMapRef, snap => {
-    liveNameMap = snap.val() || {};
-    if(liveModalOpen) renderLiveModal();
-    if(adminUnlocked) renderLiveNameMapEditor();
+    renderRaceCalendar(); // Archiv-Box im Kalender aktualisieren, auch wenn dessen Card nicht aufgeklappt ist
   });
 }
 
@@ -837,6 +838,7 @@ function initRaceResults(database){
       raceResults = data;
       recalculateStandingsFromResults();
     }
+    eloCache = null;
     render();
     if(adminUnlocked) renderRaceResultsEditor();
   });
@@ -903,6 +905,7 @@ function renderRaceCalendar(){
       </div>
       <div class="track-wrapper">
         <img src="${r.trackImg}" class="track-img" alt="Strecke ${r.country}" onclick="openLightbox('${r.trackImg}')" onerror="this.src='header_banner.png'; this.alt='Streckenbild nicht vorhanden';">
+        ${r.done ? raceArchiveBoxHtml(r.num) : ''}
       </div>
     </div>`;
   }).join('')}</div>`;
@@ -979,52 +982,40 @@ function fmtGapShort(ms){
   return `+${(ms/1000).toFixed(3)}`;
 }
 
-const TYRE_BADGE = {
-  'SOFT':       {letter:'S',  bg:'#ff2d2d', fg:'#fff'},
-  'MED':        {letter:'M',  bg:'#ffd700', fg:'#000'},
-  'HARD':       {letter:'H',  bg:'#f5f5f5', fg:'#000'},
-  'INTER':      {letter:'I',  bg:'#3cb043', fg:'#fff'},
-  'WET':        {letter:'W',  bg:'#0080ff', fg:'#fff'},
-  'SUPER SOFT': {letter:'SS', bg:'#ff33cc', fg:'#fff'},
-};
-function tyreBadgeHtml(compoundName){
-  const s = TYRE_BADGE[compoundName] || {letter:'?', bg:'#666', fg:'#fff'};
-  return `<span style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:${s.bg}; color:${s.fg}; font-weight:800; font-size:0.65rem; border:2px solid rgba(255,255,255,0.35); flex-shrink:0;">${s.letter}</span>`;
+// Baut die "Fastest Lap + Strategie je Fahrer"-HTML aus einem einzelnen
+// telemetryArchive/{raceNum}-Objekt. itemClass/flClass steuern das Aussehen,
+// je nachdem ob im Live-Modal oder im Rennkalender genutzt wird.
+function archiveStrategyHtml(archive, itemClass, flClass){
+  if(!archive) return '';
+  let html = '';
+  if(archive.fastestLap){
+    const fl = archive.fastestLap;
+    const flInfo = getDriverInfoByRacenet(fl.driver);
+    const mins = Math.floor(fl.lap_time_s/60), secs = (fl.lap_time_s%60).toFixed(3);
+    html += `<div class="${flClass}">⚡ Schnellste Runde: <strong>${flInfo.human || fl.driver}</strong> (${mins}:${secs.padStart(6,'0')})</div>`;
+  }
+  const strategies = archive.strategies || {};
+  const names = Object.keys(strategies);
+  names.forEach(ingameName => {
+    const info = getDriverInfoByRacenet(ingameName);
+    const stints = strategies[ingameName] || [];
+    const stintStr = stints.map(s => `${s.compound}(${s.start_lap}-${s.end_lap})`).join(' → ');
+    const pitStops = (archive.pitStops || {})[ingameName] ?? 0;
+    html += `<div class="${itemClass}"><strong>${info.human || ingameName}</strong> - ${pitStops} Boxenstopp(s)<br><span style="color:var(--m);">${stintStr || '-'}</span></div>`;
+  });
+  return html;
 }
 
-// Baut eine Reifenhistorie-Tabelle im F1TV-Stil: pro Fahrer eine Spalte je
-// Stint (aktuellster zuerst), mit Startrunde + farbigem Compound-Badge.
-function buildTyreHistoryTable(driversForHistory){
-  if(!driversForHistory.length){
-    return `<div class="live-empty-state" style="padding:16px;">Noch keine Reifendaten.</div>`;
+// Baut die im Rennkalender-Card aufklappbare Rennarchiv-Box für ein
+// absolviertes Rennen. Zeigt einen Hinweistext, solange das Telemetrie-Skript
+// für dieses Rennen noch keine Daten nach Firebase gepusht hat.
+function raceArchiveBoxHtml(raceNum){
+  const archive = telemetryArchiveData[raceNum];
+  if(!archive){
+    return `<div class="archive-box"><div class="archive-empty">🛞 Noch kein Telemetrie-Archiv für dieses Rennen vorhanden.</div></div>`;
   }
-  const maxStints = Math.max(1, ...driversForHistory.map(d => (d.stints||[]).length));
-  const headCols = [];
-  for(let i=0;i<maxStints;i++){
-    headCols.push(i===0 ? 'AKTUELL' : (i===1 ? 'VORHERIGE' : `VORHERIGE ${i}`));
-  }
-
-  let html = `<table class="live-table"><thead><tr><th>Pos</th><th class="th-driver">Fahrer</th>${headCols.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
-  driversForHistory.forEach(d => {
-    const reversedStints = [...(d.stints||[])].reverse(); // aktuellster Stint zuerst
-    let cells = '';
-    for(let i=0;i<maxStints;i++){
-      const s = reversedStints[i];
-      cells += `<td>${s ? `<div style="display:flex; align-items:center; justify-content:center; gap:6px;"><span>${s.start_lap}</span>${tyreBadgeHtml(s.compound)}</div>` : '<span style="color:var(--m3);">-</span>'}</td>`;
-    }
-    html += `<tr>
-      <td style="font-weight:800;">P${d.pos ?? '-'}</td>
-      <td class="td-driver">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span style="width:4px; height:16px; background:${d.color}; display:inline-block; border-radius:2px;"></span>
-          <span style="font-weight:700;">${d.displayName}</span>
-        </div>
-      </td>
-      ${cells}
-    </tr>`;
-  });
-  html += `</tbody></table>`;
-  return html;
+  const inner = archiveStrategyHtml(archive, 'archive-strategy-item', 'archive-fl');
+  return `<div class="archive-box">${inner || '<div class="archive-empty">Keine Strategiedaten erfasst.</div>'}</div>`;
 }
 
 function renderLiveModal(){
@@ -1095,7 +1086,7 @@ function renderLiveModal(){
     html += `<div class="live-empty-state">Keine aktive Live-Session gerade - aber es gibt bereits archivierte Renndaten unten.</div>`;
   }
 
-  // --- Ticker + Schnellste-Runde-Box nebeneinander ---
+  // --- Ticker + Strategie/Archiv nebeneinander ---
   html += `<div class="live-panels">`;
 
   html += `<div><div class="live-panel-title">📰 Live-Ticker</div><div class="live-ticker-list" id="liveTickerList">`;
@@ -1107,40 +1098,17 @@ function renderLiveModal(){
   }
   html += `</div></div>`;
 
-  html += `<div><div class="live-panel-title">⚡ Schnellste Runde</div><div>`;
-  if(archive && archive.fastestLap){
-    const fl = archive.fastestLap;
-    const flInfo = getDriverInfoByRacenet(fl.driver);
-    const mins = Math.floor(fl.lap_time_s/60), secs = (fl.lap_time_s%60).toFixed(3);
-    html += `<div class="live-strategy-item" style="border-left:3px solid #b15eff;">⚡ <strong>${flInfo.human || fl.driver}</strong> (${mins}:${secs.padStart(6,'0')})</div>`;
+  html += `<div><div class="live-panel-title">🛞 Strategie${archive ? ' (Rennarchiv)' : ''}</div><div>`;
+  if(archive){
+    html += archiveStrategyHtml(archive, 'live-strategy-item', 'live-strategy-item');
+  } else if(liveTimingData && liveTimingData.drivers){
+    html += `<div class="live-empty-state" style="padding:16px;">Strategie-Archiv erscheint hier, sobald das Rennen mit der Zielflagge beendet wurde.</div>`;
   } else {
-    html += `<div class="live-empty-state" style="padding:16px;">Noch keine schnellste Runde erfasst.</div>`;
+    html += `<div class="live-empty-state" style="padding:16px;">Noch kein Archiv für dieses Rennen.</div>`;
   }
   html += `</div></div>`;
 
   html += `</div>`; // .live-panels
-
-  // --- Reifenhistorie (F1TV-Style: pro Fahrer die Stints, aktuellster zuerst) ---
-  let tyreHistoryDrivers = [];
-  if(liveTimingData && liveTimingData.drivers){
-    tyreHistoryDrivers = Object.values(liveTimingData.drivers)
-      .filter(d => d.pos && d.pos > 0)
-      .sort((a,b) => a.pos - b.pos)
-      .map(d => {
-        const info = getDriverInfoByRacenet(d.name);
-        return {pos: d.pos, displayName: info.human || d.name, color: TEAM_COLORS[info.team] || '#888', stints: d.stints || []};
-      });
-  } else if(archive && archive.strategies){
-    tyreHistoryDrivers = Object.keys(archive.strategies).map((ingameName, idx) => {
-      const info = getDriverInfoByRacenet(ingameName);
-      return {pos: idx + 1, displayName: info.human || ingameName, color: TEAM_COLORS[info.team] || '#888', stints: archive.strategies[ingameName] || []};
-    });
-  }
-
-  html += `<div style="margin-top:16px;">
-    <div class="live-panel-title">🛞 Reifenhistorie${archive && !(liveTimingData && liveTimingData.drivers) ? ' (Rennarchiv)' : ''}</div>
-    ${buildTyreHistoryTable(tyreHistoryDrivers)}
-  </div>`;
 
   content.innerHTML = html;
 
@@ -1229,6 +1197,7 @@ window.switchTab = function(tab) {
   standingsTab = tab;
   document.getElementById('tabFahrer').classList.toggle('active', tab==='fahrer');
   document.getElementById('tabKonstrukteur').classList.toggle('active', tab==='konstrukteur');
+  document.getElementById('tabElo').classList.toggle('active', tab==='elo');
   render();
 };
 
@@ -1246,76 +1215,149 @@ function initStandings(database){
   });
 }
 
-let liveNameMap = {}; // {rawIngameName: humanLeagueName} - manuelle Zuordnung, überschreibt Racenet-Erkennung
-
 function getDriverInfo(name){return ALL_DRIVERS.find(d=>d.name===name)||{name,team:'',human:null,photo:''};}
 
-// Löst den vom Telemetrie-Skript gemeldeten In-Game-Namen (Steam/Platform-Name)
-// auf einen Liga-Fahrer auf. Reihenfolge: 1) manuelle Zuordnung (liveNameMap,
-// im Admin-Bereich pflegbar) 2) automatischer Abgleich über ALL_DRIVERS[].racenet
-// 3) Fallback: roher In-Game-Name mit neutralem Look (graue Team-Farbe).
+// Löst den vom Telemetrie-Skript gemeldeten In-Game-Namen (Steam/Platform-Name,
+// im Idealfall identisch mit dem Racenet-Username) auf einen Liga-Fahrer auf.
+// Kommt kein Treffer zustande, wird der rohe In-Game-Name mit neutralem Look angezeigt -
+// die Zuordnung in ALL_DRIVERS[].racenet ist dann ggf. anzupassen.
 function getDriverInfoByRacenet(ingameName){
   if(!ingameName) return {name:ingameName||'?', team:'', human:null, photo:''};
   const clean = ingameName.replace(/^\[KI\]\s*/, '');
-
-  const mappedHuman = liveNameMap[ingameName] || liveNameMap[clean];
-  if(mappedHuman){
-    const byHuman = ALL_DRIVERS.find(d => d.human === mappedHuman);
-    if(byHuman) return byHuman;
-  }
-
   const match = ALL_DRIVERS.find(d => d.racenet && d.racenet.toLowerCase() === clean.toLowerCase());
   if(match) return match;
   return {name: ingameName, team:'', human:null, photo:''};
 }
 
-const LEAGUE_HUMANS = ALL_DRIVERS.filter(d => d.human).map(d => d.human);
+// ---------------------------------------------------------------------
+// ELO-SYSTEM
+// Stützt sich - analog zur ursprünglichen Auto-Zuteilungs-Methodik - auf
+// 70% Rennplatzierung unter den 8 Liga-Menschen + 30% Quali-Gap zur Pole.
+// Pro Rennen wird daraus ein kombinierter Score (0-1) je Fahrer gebildet
+// und dann paarweise (Round-Robin) als Standard-Elo-Update verrechnet,
+// K wird durch (Teilnehmerzahl - 1) geteilt, damit ein Rennen mit vielen
+// Teilnehmern nicht überproportional viel Elo bewegt.
+// ---------------------------------------------------------------------
+const ELO_K = 28;
+const ELO_START = 1000;
 
-function renderLiveNameMapEditor(){
-  const el = document.getElementById('liveNameMapEditor');
-  if(!el) return;
+function computeEloRatings(){
+  const humanDrivers = ALL_DRIVERS.filter(d => d.human);
+  const elo = {};
+  const history = {};
+  humanDrivers.forEach(d => { elo[d.name] = ELO_START; history[d.name] = [{raceNum:0, elo:ELO_START}]; });
 
-  // Alle bisher live gesehenen In-Game-Namen sammeln (aktuelle Session + Archiv)
-  const seenNames = new Set();
-  if(liveTimingData && liveTimingData.drivers){
-    Object.values(liveTimingData.drivers).forEach(d => { if(d.name) seenNames.add(d.name); });
-  }
-  Object.values(telemetryArchiveData || {}).forEach(race => {
-    Object.keys(race.strategies || {}).forEach(n => seenNames.add(n));
+  const raceNums = Object.keys(raceResults).map(Number).sort((a,b)=>a-b);
+
+  raceNums.forEach(raceNum => {
+    const res = raceResults[raceNum];
+    if(!res) return;
+
+    const entries = humanDrivers
+      .map(d => ({ name:d.name, raw: res[d.name] }))
+      .filter(e => e.raw && e.raw.pos && String(e.raw.pos).trim() !== '');
+
+    if(entries.length < 2) return; // Vergleich braucht mind. 2 Fahrer
+
+    entries.forEach(e => {
+      const p = String(e.raw.pos).trim();
+      e.rankVal = /^\d+$/.test(p) ? parseInt(p) : 99; // DNF/DSQ/Text -> ans Ende
+      const g = parseFloat(e.raw.qualGap);
+      e.qualGap = isNaN(g) ? null : g;
+    });
+
+    const N = entries.length;
+
+    // Rang-Score: bester Platz unter den anwesenden Menschen = 1.0, letzter = 0.0
+    const byRank = [...entries].sort((a,b)=>a.rankVal-b.rankVal);
+    byRank.forEach((e, idx) => { e.raceScore = N > 1 ? (N - 1 - idx) / (N - 1) : 1; });
+
+    // Quali-Score: kleinster Gap zur Pole = 1.0, größter (unter den Anwesenden) = 0.0
+    const withGap = entries.filter(e => e.qualGap !== null);
+    const maxGap = withGap.length ? Math.max(...withGap.map(e => e.qualGap)) : 0;
+    entries.forEach(e => {
+      if(e.qualGap === null) e.qualyScore = 0.5; // kein Wert erfasst -> neutral werten
+      else e.qualyScore = maxGap > 0 ? (1 - e.qualGap / maxGap) : 1;
+    });
+
+    entries.forEach(e => { e.combined = 0.7 * e.raceScore + 0.3 * e.qualyScore; });
+
+    const deltas = {};
+    entries.forEach(e => deltas[e.name] = 0);
+
+    for(let i=0;i<entries.length;i++){
+      for(let j=0;j<entries.length;j++){
+        if(i===j) continue;
+        const a = entries[i], b = entries[j];
+        const expectedA = 1 / (1 + Math.pow(10, (elo[b.name]-elo[a.name])/400));
+        let scoreA;
+        if(a.combined > b.combined) scoreA = 1;
+        else if(a.combined < b.combined) scoreA = 0;
+        else scoreA = 0.5;
+        deltas[a.name] += ELO_K * (scoreA - expectedA) / (entries.length - 1);
+      }
+    }
+
+    entries.forEach(e => {
+      elo[e.name] = elo[e.name] + deltas[e.name];
+      history[e.name].push({ raceNum, elo: elo[e.name] });
+    });
   });
 
-  if(seenNames.size === 0){
-    el.innerHTML = `<div style="font-size:0.8rem; color:var(--m);">Noch keine In-Game-Namen gesehen - erst einmal das Telemetrie-Skript während einer Session laufen lassen.</div>`;
-    return;
-  }
+  return { ratings: elo, history };
+}
 
-  el.innerHTML = [...seenNames].sort().map((rawName, i) => {
-    const current = liveNameMap[rawName] || '';
-    const options = ['<option value="">- nicht zugeordnet -</option>']
-      .concat(LEAGUE_HUMANS.map(h => `<option value="${h}" ${current===h?'selected':''}>${h}</option>`));
-    return `<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px;">
-      <span style="font-size:0.8rem; font-family:monospace;">${rawName}</span>
-      <select class="pin-input" style="width:auto; margin-bottom:0;" id="namemap_${i}" data-raw="${rawName}">
-        ${options.join('')}
-      </select>
+function getEloData(){
+  if(!eloCache) eloCache = computeEloRatings();
+  return eloCache;
+}
+
+function renderEloStandings(){
+  const el = document.getElementById('standingsContent');
+  if(!el) return;
+
+  const { ratings, history } = getEloData();
+  const humanDrivers = ALL_DRIVERS.filter(d => d.human);
+
+  const sorted = [...humanDrivers].sort((a,b) => ratings[b.name] - ratings[a.name]);
+  const maxElo = Math.max(...sorted.map(d => ratings[d.name]), 1);
+  const minElo = Math.min(...sorted.map(d => ratings[d.name]), 0);
+  const range = Math.max(maxElo - minElo, 1);
+
+  el.innerHTML = sorted.map((d, i) => {
+    const rating = Math.round(ratings[d.name]);
+    const hist = history[d.name] || [];
+    let trendCls = 'flat', trendSym = '–';
+    if(hist.length >= 2){
+      const lastDelta = hist[hist.length-1].elo - hist[hist.length-2].elo;
+      if(lastDelta > 1){ trendCls = 'up'; trendSym = `▲ ${Math.round(lastDelta)}`; }
+      else if(lastDelta < -1){ trendCls = 'down'; trendSym = `▼ ${Math.round(Math.abs(lastDelta))}`; }
+      else { trendCls = 'flat'; trendSym = '–'; }
+    }
+    const posClass = i === 0 ? 'p1' : i === 1 ? 'p2' : i === 2 ? 'p3' : '';
+    const badge = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+    const pct = Math.round(((rating - minElo) / range) * 100);
+    const photoImg = d.photo ? `<img src="${d.photo}" class="st-img" alt="${d.name}" onerror="this.style.display='none'">` : '';
+    const teamColor = TEAM_COLORS[d.team] || '#888';
+    const racesCounted = Math.max(hist.length - 1, 0);
+
+    return `<div class="standings-row ${posClass}">
+      <div class="st-pos">${badge}</div>
+      ${photoImg}
+      <div class="st-driver">
+        <div>
+          <div style="font-weight:700;font-size:0.85rem;">${d.human}<span class="elo-trend ${trendCls}">${trendSym}</span></div>
+          <div style="font-size:0.68rem;color:${teamColor};">${d.team} · ${racesCounted} Rennen gewertet</div>
+        </div>
+      </div>
+      <div class="st-pts-wrap">
+        <div class="st-pts">${rating}</div>
+        <div class="st-pts-lbl">Elo</div>
+      </div>
+      <div class="st-bar-wrap"><div class="st-bar-fill" style="width:${pct}%;background:${teamColor}"></div></div>
     </div>`;
   }).join('');
 }
-
-window.saveLiveNameMap = async function(){
-  const el = document.getElementById('liveNameMapEditor');
-  if(!el) return;
-  const newMap = {};
-  el.querySelectorAll('select[data-raw]').forEach(sel => {
-    if(sel.value) newMap[sel.dataset.raw] = sel.value;
-  });
-  liveNameMap = newMap;
-  if(liveNameMapRef){
-    try{ await set(liveNameMapRef, newMap); alert('Namenszuordnung gespeichert!'); }
-    catch(e){ console.error(e); }
-  }
-  if(liveModalOpen) renderLiveModal();
-};
 
 function renderStandings(){
   const el = document.getElementById('standingsContent');
@@ -1400,13 +1442,16 @@ function renderRaceResultsEditor() {
   const currentRaceData = raceResults[raceNum] || {};
 
   tbody.innerHTML = ALL_DRIVERS.map((d, i) => {
-    const driverRes = currentRaceData[d.name] || { pos: '', fastestLap: false };
+    const driverRes = currentRaceData[d.name] || { pos: '', fastestLap: false, qualGap: '' };
     const isFl = driverRes.fastestLap === true;
 
     return `<tr>
       <td style="padding:6px; font-weight:600;">${d.name}</td>
       <td style="padding:6px;">
         <input type="text" id="res_pos_${i}" class="pin-input" style="margin-bottom:0; padding:4px;" value="${driverRes.pos || ''}" placeholder="z.B. 1">
+      </td>
+      <td style="padding:6px;">
+        <input type="number" step="0.001" min="0" id="res_qgap_${i}" class="pin-input" style="margin-bottom:0; padding:4px;" value="${driverRes.qualGap ?? ''}" placeholder="z.B. 0.245">
       </td>
       <td style="padding:6px; text-align:center;">
         <input type="radio" name="fl_radio_group" id="res_fl_${i}" value="${i}" ${isFl ? 'checked' : ''} style="cursor:pointer; width:16px; height:16px;">
@@ -1427,12 +1472,15 @@ window.saveRaceResults = async function() {
 
   ALL_DRIVERS.forEach((d, i) => {
     const posVal = document.getElementById(`res_pos_${i}`)?.value.trim() || '';
+    const qgapRaw = document.getElementById(`res_qgap_${i}`)?.value;
+    const qgapVal = (qgapRaw !== undefined && qgapRaw !== '') ? parseFloat(qgapRaw) : '';
     const isFl = (i === flIndex);
 
-    if(posVal || isFl) {
+    if(posVal || isFl || qgapVal !== '') {
       raceResults[raceNum][d.name] = {
         pos: posVal,
-        fastestLap: isFl
+        fastestLap: isFl,
+        qualGap: qgapVal
       };
     } else {
       delete raceResults[raceNum][d.name];
@@ -1440,6 +1488,7 @@ window.saveRaceResults = async function() {
   });
 
   recalculateStandingsFromResults();
+  eloCache = null; // Elo-Cache invalidieren, wird beim nächsten Render neu berechnet
 
   if(raceResultsRef) {
     try {
@@ -1604,7 +1653,6 @@ window.checkPin=function(){
     document.getElementById('standingsAdminArea').style.display='block';
     renderRaceSelectOptions();
     renderRaceResultsEditor();
-    renderLiveNameMapEditor();
     renderStandingsInputs();renderOverview();
   }else{document.getElementById('pinErr').textContent='Falscher PIN!';}
 };
@@ -1864,7 +1912,8 @@ function render(){
   renderReminderBanner();
   updateHeroCountdown();
   if(standingsTab==='fahrer') renderStandings();
-  else renderConstructorStandings();
+  else if(standingsTab==='konstrukteur') renderConstructorStandings();
+  else renderEloStandings();
   
   if(document.getElementById('fullscreenStandingsModal')?.classList.contains('active')) {
     renderF1CrossTable();
