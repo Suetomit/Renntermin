@@ -37,6 +37,8 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
       background: var(--card-bg);
       border: 1px solid var(--border);
       padding: 16px 28px;
@@ -46,6 +48,19 @@
     .logo-area { display: flex; align-items: center; gap: 20px; }
     .logo-area img { height: 110px; max-height: 120px; width: auto; object-fit: contain; }
     .logo-area h1 { font-size: 1.8rem; font-weight: 800; letter-spacing: 0.5px; }
+
+    /* Podium-GIF des zuletzt gefahrenen Rennens, mittig im Header-Banner */
+    .header-podium {
+      display: none; /* wird per JS auf 'flex' gesetzt, sobald ein Bild existiert */
+      align-items: center;
+      gap: 10px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 6px 14px 6px 6px;
+    }
+    .header-podium-img { height: 72px; width: auto; border-radius: 6px; display: block; }
+    .header-podium-label { font-size: 0.72rem; color: var(--m); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
 
     .status-bar { display: flex; align-items: center; font-size: 0.85rem; color: var(--m); }
     .dot { width: 10px; height: 10px; background: #ff9100; border-radius: 50%; display: inline-block; margin-right: 8px; }
@@ -492,6 +507,12 @@
       <img src="logo.png" alt="Gurkensöhne Logo" onerror="this.style.display='none'">
       <h1>Gurkensöhne Cup 2026</h1>
     </div>
+    <!-- Podium-GIF des zuletzt gefahrenen Rennens - Sichtbarkeit/Bild wird per JS
+         (updateHeaderPodium) gesteuert, siehe dortigen Kommentar für die Namenskonvention. -->
+    <div class="header-podium" id="headerPodium">
+      <img id="headerPodiumImg" src="" alt="Podium" class="header-podium-img">
+      <div class="header-podium-label" id="headerPodiumLabel"></div>
+    </div>
     <div class="status-bar">
       <span id="statusDot" class="dot"></span> <span id="statusText">Verbinde...</span>
     </div>
@@ -742,30 +763,30 @@ const ALL_DRIVERS = [
 ];
 
 const RACES = [
-  { num:1,  code:'AUS', cc:'au', country:'Australien',           city:'Melbourne',        done:true,  trackImg:'australia-gp.png',                      heroImg:'Australia.avif' },
-  { num:2,  code:'CHN', cc:'cn', country:'China',                 city:'Shanghai',         done:true,  trackImg:'chinese-gp.png',                        heroImg:'China.avif' },
-  { num:3,  code:'JPN', cc:'jp', country:'Japan',                 city:'Suzuka',           done:false, trackImg:'japanese-gp.png',                       heroImg:'Japan.avif' },
-  { num:4,  code:'BHR', cc:'bh', country:'Bahrain',               city:'Sachir',           done:false, trackImg:'bahrain-gp.png',                        heroImg:'Bahrain.avif' },
-  { num:5,  code:'SAU', cc:'sa', country:'Saudi-Arabien',         city:'Dschidda',         done:false, trackImg:'saudi-arabian-gp.png',                  heroImg:'Saudi-Arabia.avif' },
-  { num:6,  code:'MIA', cc:'us', country:'USA',                   city:'Miami',            done:false, trackImg:'miami-gp.png',                          heroImg:'Miami.avif' },
-  { num:7,  code:'IMO', cc:'it', country:'Emilia-Romagna',        city:'Imola',            done:false, trackImg:'emilia-romagna-gp.png',                 heroImg:'Emilia Romagna.avif' },
-  { num:8,  code:'MCO', cc:'mc', country:'Monaco',                city:'Monte Carlo',      done:false, trackImg:'monaco-gp.png',                         heroImg:'Monaco.avif' },
-  { num:9,  code:'ESP', cc:'es', country:'Spanien',               city:'Barcelona',        done:false, trackImg:'spanish-gp.png',                        heroImg:'Spain.avif' },
-  { num:10, code:'CAN', cc:'ca', country:'Kanada',                city:'Montreal',         done:false, trackImg:'canadian-gp.png',                       heroImg:'Canada.avif' },
-  { num:11, code:'AUT', cc:'at', country:'Österreich',            city:'Spielberg',        done:false, trackImg:'austrian-gp.png',                       heroImg:'Austria.avif' },
-  { num:12, code:'GBR', cc:'gb', country:'Großbritannien',        city:'Silverstone',      done:false, trackImg:'british-gp.png',                        heroImg:'Great Britain.avif' },
-  { num:13, code:'BEL', cc:'be', country:'Belgien',               city:'Spa-Francorchamps',done:false, trackImg:'belgian-gp.png',                        heroImg:'Belgium.avif' },
-  { num:14, code:'HUN', cc:'hu', country:'Ungarn',                city:'Hungaroring',      done:false, trackImg:'hungarian-gp.png',                      heroImg:'Hungary.avif' },
-  { num:15, code:'NLD', cc:'nl', country:'Niederlande',           city:'Zandvoort',        done:false, trackImg:'dutch-gp.png',                          heroImg:'Netherlands.avif' },
-  { num:16, code:'ITA', cc:'it', country:'Italien',               city:'Monza',            done:false, trackImg:'italian-gp.png',                        heroImg:'Italy.avif' },
-  { num:17, code:'AZE', cc:'az', country:'Aserbaidschan',         city:'Baku',             done:false, trackImg:'azerbaijan-gp.png',                     heroImg:'Azerbaijan.avif' },
-  { num:18, code:'SGP', cc:'sg', country:'Singapur',              city:'Singapur',         done:false, trackImg:'singapore-gp.png',                      heroImg:'Singapore.avif' },
-  { num:19, code:'USA', cc:'us', country:'USA',                   city:'Austin',           done:false, trackImg:'united-states-gp.png',                  heroImg:'USA.avif' },
-  { num:20, code:'MEX', cc:'mx', country:'Mexiko',                city:'Mexiko-Stadt',     done:false, trackImg:'mexican-gp.png',                        heroImg:'Mexico.avif' },
-  { num:21, code:'BRA', cc:'br', country:'Brasilien',             city:'São Paulo',        done:false, trackImg:'sao-paulo-gp.png',                      heroImg:'Brazil.avif' },
-  { num:22, code:'VGS', cc:'us', country:'USA',                   city:'Las Vegas',        done:false, trackImg:'las-vegas-gp.png',                      heroImg:'Las Vegas.avif' },
-  { num:23, code:'QAT', cc:'qa', country:'Katar',                 city:'Lusail',           done:false, trackImg:'qatar-gp.png',                          heroImg:'Qatar.avif' },
-  { num:24, code:'UAE', cc:'ae', country:'Ver. Arab. Emirate',    city:'Abu Dhabi',        done:false, trackImg:'yas-marina-circuit-abu-dhabi-2.png',    heroImg:'Abu Dhabi.avif' },
+  { num:1,  code:'AUS', cc:'au', country:'Australien',           city:'Melbourne',        done:true,  trackImg:'australia-gp.png',                      heroImg:'hero-aus.avif' },
+  { num:2,  code:'CHN', cc:'cn', country:'China',                 city:'Shanghai',         done:true,  trackImg:'chinese-gp.png',                        heroImg:'hero-chn.avif' },
+  { num:3,  code:'JPN', cc:'jp', country:'Japan',                 city:'Suzuka',           done:false, trackImg:'japanese-gp.png',                       heroImg:'hero-jpn.avif' },
+  { num:4,  code:'BHR', cc:'bh', country:'Bahrain',               city:'Sachir',           done:false, trackImg:'bahrain-gp.png',                        heroImg:'hero-bhr.avif' },
+  { num:5,  code:'SAU', cc:'sa', country:'Saudi-Arabien',         city:'Dschidda',         done:false, trackImg:'saudi-arabian-gp.png',                  heroImg:'hero-sau.avif' },
+  { num:6,  code:'MIA', cc:'us', country:'USA',                   city:'Miami',            done:false, trackImg:'miami-gp.png',                          heroImg:'hero-mia.avif' },
+  { num:7,  code:'IMO', cc:'it', country:'Emilia-Romagna',        city:'Imola',            done:false, trackImg:'emilia-romagna-gp.png',                 heroImg:'hero-imo.avif' },
+  { num:8,  code:'MCO', cc:'mc', country:'Monaco',                city:'Monte Carlo',      done:false, trackImg:'monaco-gp.png',                         heroImg:'hero-mco.avif' },
+  { num:9,  code:'ESP', cc:'es', country:'Spanien',               city:'Barcelona',        done:false, trackImg:'spanish-gp.png',                        heroImg:'hero-esp.avif' },
+  { num:10, code:'CAN', cc:'ca', country:'Kanada',                city:'Montreal',         done:false, trackImg:'canadian-gp.png',                       heroImg:'hero-can.avif' },
+  { num:11, code:'AUT', cc:'at', country:'Österreich',            city:'Spielberg',        done:false, trackImg:'austrian-gp.png',                       heroImg:'hero-aut.avif' },
+  { num:12, code:'GBR', cc:'gb', country:'Großbritannien',        city:'Silverstone',      done:false, trackImg:'british-gp.png',                        heroImg:'hero-gbr.avif' },
+  { num:13, code:'BEL', cc:'be', country:'Belgien',               city:'Spa-Francorchamps',done:false, trackImg:'belgian-gp.png',                        heroImg:'hero-bel.avif' },
+  { num:14, code:'HUN', cc:'hu', country:'Ungarn',                city:'Hungaroring',      done:false, trackImg:'hungarian-gp.png',                      heroImg:'hero-hun.avif' },
+  { num:15, code:'NLD', cc:'nl', country:'Niederlande',           city:'Zandvoort',        done:false, trackImg:'dutch-gp.png',                          heroImg:'hero-nld.avif' },
+  { num:16, code:'ITA', cc:'it', country:'Italien',               city:'Monza',            done:false, trackImg:'italian-gp.png',                        heroImg:'hero-ita.avif' },
+  { num:17, code:'AZE', cc:'az', country:'Aserbaidschan',         city:'Baku',             done:false, trackImg:'azerbaijan-gp.png',                     heroImg:'hero-aze.avif' },
+  { num:18, code:'SGP', cc:'sg', country:'Singapur',              city:'Singapur',         done:false, trackImg:'singapore-gp.png',                      heroImg:'hero-sgp.avif' },
+  { num:19, code:'USA', cc:'us', country:'USA',                   city:'Austin',           done:false, trackImg:'united-states-gp.png',                  heroImg:'hero-usa.avif' },
+  { num:20, code:'MEX', cc:'mx', country:'Mexiko',                city:'Mexiko-Stadt',     done:false, trackImg:'mexican-gp.png',                        heroImg:'hero-mex.avif' },
+  { num:21, code:'BRA', cc:'br', country:'Brasilien',             city:'São Paulo',        done:false, trackImg:'sao-paulo-gp.png',                      heroImg:'hero-bra.avif' },
+  { num:22, code:'VGS', cc:'us', country:'USA',                   city:'Las Vegas',        done:false, trackImg:'las-vegas-gp.png',                      heroImg:'hero-vgs.avif' },
+  { num:23, code:'QAT', cc:'qa', country:'Katar',                 city:'Lusail',           done:false, trackImg:'qatar-gp.png',                          heroImg:'hero-qat.avif' },
+  { num:24, code:'UAE', cc:'ae', country:'Ver. Arab. Emirate',    city:'Abu Dhabi',        done:false, trackImg:'yas-marina-circuit-abu-dhabi-2.png',    heroImg:'hero-uae.avif' },
 ];
 
 let S = {persons:[],confirmedDate:null,confirmedStart:null,confirmedEnd:null};
@@ -921,7 +942,7 @@ function renderRaceCalendar(){
       </div>
       <div class="track-wrapper">
         <img src="${r.trackImg}" class="track-img" alt="Strecke ${r.country}" onclick="openLightbox('${r.trackImg}')" onerror="this.src='header_banner.png'; this.alt='Streckenbild nicht vorhanden';">
-        ${r.done ? raceArchiveBoxHtml(r.num) : ''}
+        ${r.done ? raceArchiveBoxHtml(r) : ''}
       </div>
     </div>`;
   }).join('')}</div>`;
@@ -1025,8 +1046,8 @@ function archiveStrategyHtml(archive, itemClass, flClass){
 // Baut die im Rennkalender-Card aufklappbare Rennarchiv-Box für ein
 // absolviertes Rennen. Zeigt einen Hinweistext, solange das Telemetrie-Skript
 // für dieses Rennen noch keine Daten nach Firebase gepusht hat.
-function raceArchiveBoxHtml(raceNum){
-  const archive = telemetryArchiveData[raceNum];
+function raceArchiveBoxHtml(r){
+  const archive = telemetryArchiveData[r.num];
   if(!archive){
     return `<div class="archive-box"><div class="archive-empty">🛞 Noch kein Telemetrie-Archiv für dieses Rennen vorhanden.</div></div>`;
   }
@@ -1933,6 +1954,40 @@ window.dismissBanner = function() {
   document.getElementById('reminderBanner').style.display = 'none';
 };
 
+// Zeigt das Podium-GIF des zuletzt gefahrenen Rennens im Header an.
+// Erwartet eine Datei "podium-{code}.gif" (z.B. podium-chn.gif, derselbe
+// Code wie bei RACES[].code) im selben Verzeichnis wie die anderen Bilder.
+// Einfach nach jedem Rennen die neue Datei mit passendem Code hochladen -
+// KEINE Code-Änderung nötig. Über ein Test-Image wird erst geprüft, ob die
+// Datei existiert, damit nie kurz ein kaputtes Bild-Icon aufblitzt.
+function updateHeaderPodium(){
+  const wrap = document.getElementById('headerPodium');
+  const img = document.getElementById('headerPodiumImg');
+  const label = document.getElementById('headerPodiumLabel');
+  if(!wrap || !img || !label) return;
+
+  const doneRaces = RACES.filter(r => r.done);
+  if(!doneRaces.length){ wrap.style.display = 'none'; return; }
+
+  const last = doneRaces[doneRaces.length - 1]; // zuletzt gefahrenes Rennen
+  const src = `podium-${last.code.toLowerCase()}.gif`;
+
+  if(wrap.dataset.loadedSrc === src) return; // schon geladen -> nicht neu triggern (GIF würde sonst neu starten)
+
+  const tester = new Image();
+  tester.onload = () => {
+    img.src = src;
+    label.textContent = `🏆 Podium: ${last.country}`;
+    wrap.style.display = 'flex';
+    wrap.dataset.loadedSrc = src;
+  };
+  tester.onerror = () => {
+    wrap.style.display = 'none';
+    wrap.dataset.loadedSrc = '';
+  };
+  tester.src = src;
+}
+
 function render(){
   renderRaceCalendar();
   renderPersons();
@@ -1940,6 +1995,7 @@ function render(){
   renderConfirmedArea();
   renderReminderBanner();
   updateHeroCountdown();
+  updateHeaderPodium();
   if(standingsTab==='fahrer') renderStandings();
   else if(standingsTab==='konstrukteur') renderConstructorStandings();
   else renderEloStandings();
