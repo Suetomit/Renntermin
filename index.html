@@ -49,18 +49,30 @@
     .logo-area img { height: 110px; max-height: 120px; width: auto; object-fit: contain; }
     .logo-area h1 { font-size: 1.8rem; font-weight: 800; letter-spacing: 0.5px; }
 
-    /* Podium-GIF des zuletzt gefahrenen Rennens, mittig im Header-Banner */
+    /* Podium-GIF des zuletzt gefahrenen Rennens - als eigenständige Bildkarte
+       mit Text-Overlay (wie eine TV-Broadcast-Grafik), kein zusätzlicher
+       Rahmen/Hintergrund drumrum, das Bild trägt sich selbst. */
     .header-podium {
-      display: none; /* wird per JS auf 'flex' gesetzt, sobald ein Bild existiert */
-      align-items: center;
-      gap: 10px;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 6px 14px 6px 6px;
+      display: none; /* wird per JS auf 'block' gesetzt, sobald ein Bild existiert */
+      position: relative;
+      height: 118px;
+      border-radius: 12px;
+      overflow: hidden;
+      flex-shrink: 0;
+      box-shadow: 0 12px 28px rgba(0,0,0,0.45);
+      border-bottom: 3px solid var(--y);
+      transition: transform 0.2s ease;
     }
-    .header-podium-img { height: 72px; width: auto; border-radius: 6px; display: block; }
-    .header-podium-label { font-size: 0.72rem; color: var(--m); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+    .header-podium:hover { transform: scale(1.02); }
+    .header-podium-img { height: 100%; width: auto; display: block; }
+    .header-podium-overlay {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      background: linear-gradient(to top, rgba(6,8,12,0.95) 0%, rgba(6,8,12,0.65) 55%, rgba(6,8,12,0) 100%);
+      padding: 22px 14px 8px;
+    }
+    .header-podium-eyebrow { font-size: 0.62rem; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--y); }
+    .header-podium-label { font-size: 1rem; font-weight: 800; color: #fff; line-height: 1.15; text-shadow: 0 1px 4px rgba(0,0,0,0.6); }
 
     .status-bar { display: flex; align-items: center; font-size: 0.85rem; color: var(--m); }
     .dot { width: 10px; height: 10px; background: #ff9100; border-radius: 50%; display: inline-block; margin-right: 8px; }
@@ -511,7 +523,10 @@
          (updateHeaderPodium) gesteuert, siehe dortigen Kommentar für die Namenskonvention. -->
     <div class="header-podium" id="headerPodium">
       <img id="headerPodiumImg" src="" alt="Podium" class="header-podium-img">
-      <div class="header-podium-label" id="headerPodiumLabel"></div>
+      <div class="header-podium-overlay">
+        <div class="header-podium-eyebrow">🏆 Podium</div>
+        <div class="header-podium-label" id="headerPodiumLabel"></div>
+      </div>
     </div>
     <div class="status-bar">
       <span id="statusDot" class="dot"></span> <span id="statusText">Verbinde...</span>
@@ -1977,8 +1992,8 @@ function updateHeaderPodium(){
   const tester = new Image();
   tester.onload = () => {
     img.src = src;
-    label.textContent = `🏆 Podium: ${last.country}`;
-    wrap.style.display = 'flex';
+    label.textContent = last.country;
+    wrap.style.display = 'block';
     wrap.dataset.loadedSrc = src;
   };
   tester.onerror = () => {
