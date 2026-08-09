@@ -45,9 +45,9 @@
       border-radius: 12px;
       backdrop-filter: blur(8px);
     }
-    .logo-area { display: flex; align-items: center; gap: 20px; }
-    .logo-area img { height: 110px; max-height: 120px; width: auto; object-fit: contain; }
-    .logo-area h1 { font-size: 1.8rem; font-weight: 800; letter-spacing: 0.5px; }
+    .logo-area { display: flex; align-items: center; gap: 20px; min-width: 0; }
+    .logo-area img { height: 110px; max-height: 120px; width: auto; object-fit: contain; flex-shrink: 0; }
+    .logo-area h1 { font-size: 1.8rem; font-weight: 800; letter-spacing: 0.5px; min-width: 0; overflow-wrap: break-word; }
 
     /* Podium-GIF des zuletzt gefahrenen Rennens - als eigenständige Bildkarte
        mit Text-Overlay (wie eine TV-Broadcast-Grafik), kein zusätzlicher
@@ -61,7 +61,7 @@
       flex-shrink: 0;
       box-shadow: 0 12px 28px rgba(0,0,0,0.45);
       border-bottom: 3px solid var(--y);
-      transition: transform 0.2s ease;
+      transition: transform 0.2s ease, height 0.2s ease;
     }
     .header-podium:hover { transform: scale(1.02); }
     .header-podium-img { height: 100%; width: auto; display: block; }
@@ -73,6 +73,20 @@
     }
     .header-podium-eyebrow { font-size: 0.62rem; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--y); }
     .header-podium-label { font-size: 1rem; font-weight: 800; color: #fff; line-height: 1.15; text-shadow: 0 1px 4px rgba(0,0,0,0.6); }
+
+    /* Schmale Bildschirme (Handy): Logo, Titel und Podium-Karte verkleinern,
+       damit der Header nicht über den Kartenrand hinausläuft. */
+    @media (max-width: 640px) {
+      .header-bar { padding: 14px 16px; gap: 10px 14px; }
+      .logo-area { gap: 12px; }
+      .logo-area img { height: 56px; }
+      .logo-area h1 { font-size: 1.15rem; line-height: 1.2; }
+      .header-podium { height: 72px; }
+      .header-podium-overlay { padding: 14px 10px 6px; }
+      .header-podium-eyebrow { font-size: 0.55rem; letter-spacing: 1px; }
+      .header-podium-label { font-size: 0.8rem; }
+      .status-bar { font-size: 0.75rem; }
+    }
 
     .status-bar { display: flex; align-items: center; font-size: 0.85rem; color: var(--m); }
     .dot { width: 10px; height: 10px; background: #ff9100; border-radius: 50%; display: inline-block; margin-right: 8px; }
