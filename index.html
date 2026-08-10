@@ -834,7 +834,18 @@ let liveModalOpen = false;
 let raceDayReached = false;
 let eloCache = null; // {ratings:{name:elo}, history:{name:[{raceNum,elo}]}} - wird gecacht, bis raceResults sich ändern
 
-let db, dbRef;
+// Überschreibt pro Rennnummer den statischen "done"-Wert aus RACES[] (siehe raceStatus in
+// Firebase). So kann der Admin ein Rennen direkt auf der Website als "gefahren" markieren,
+// ohne den Code anzufassen/neu zu deployen. isRaceDone() ist die einzige Stelle, die den
+// tatsächlichen Status eines Rennens ermittelt - überall sonst im Code bitte isRaceDone(r)
+// statt r.done verwenden.
+let raceStatusOverrides = {};
+function isRaceDone(r){
+  const ov = raceStatusOverrides[r.num];
+  return ov !== undefined ? ov : r.done;
+}
+
+let db, dbRef, raceStatusRef, currentRaceRef;
 try {
   const app = initializeApp(firebaseConfig);
   db = getDatabase(app);
@@ -850,9 +861,43 @@ try {
     initStandings(db);
     initRaceResults(db);
     initLiveTiming(db);
+    initRaceStatus(db);
     render();renderNameButtons();
   }, err=>{ console.error(err);fallbackToLocal(); });
 } catch(e){ console.error(e);fallbackToLocal(); }
+
+// Lädt raceStatus (manuelle "gefahren"-Overrides je Rennnummer) aus Firebase und hält
+// zusätzlich currentRaceNumber - das ist die Rennnummer, die sich das Telemetrie-Skript
+// beim Start automatisch zieht, damit dort niemand mehr RACE_NUMBER von Hand pflegen muss.
+function initRaceStatus(database){
+  raceStatusRef = ref(database, 'raceStatus');
+  currentRaceRef = ref(database, 'currentRaceNumber');
+  onValue(raceStatusRef, snap => {
+    raceStatusOverrides = snap.val() || {};
+    render();
+  });
+}
+
+// Schreibt die Nummer des nächsten noch offenen Rennens nach /currentRaceNumber, damit das
+// Telemetrie-Skript sie beim Start automatisch übernehmen kann (siehe f1_telemetry_dashboard.py).
+async function updateCurrentRaceNumber(){
+  if(!currentRaceRef) return;
+  const nextOpen = RACES.find(r => !isRaceDone(r));
+  try{ await set(currentRaceRef, nextOpen ? nextOpen.num : null); }catch(e){ console.error(e); }
+}
+
+window.toggleRaceDone = async function(num, ev){
+  if(ev){ ev.stopPropagation(); }
+  const race = RACES.find(r => r.num === num);
+  if(!race) return;
+  const newVal = !isRaceDone(race);
+  raceStatusOverrides = {...raceStatusOverrides, [num]: newVal};
+  if(raceStatusRef){
+    try{ await set(ref(db, 'raceStatus/' + num), newVal); }catch(e){ console.error(e); }
+  }
+  await updateCurrentRaceNumber();
+  render();
+};
 
 function initLiveTiming(database){
   const liveRef = ref(database, 'liveTiming');
@@ -931,7 +976,7 @@ function recalculateStandingsFromResults() {
 function renderRaceCalendar(){
   const el=document.getElementById('calendarContent');
   if(!el)return;
-  const nextIdx=RACES.findIndex(r=>!r.done);
+  const nextIdx=RACES.findIndex(r=>!isRaceDone(r));
   const heroBanner=document.querySelector('.hero-banner');
 
   if(nextIdx >= 0) {
@@ -953,25 +998,30 @@ function renderRaceCalendar(){
 
   el.innerHTML=`<div class="race-list">${RACES.map((r,i)=>{
     const isNext=i===nextIdx;
-    const cls=r.done?'done':isNext?'next':'upcoming';
+    const done=isRaceDone(r);
+    const cls=done?'done':isNext?'next':'upcoming';
     const flagImg=`<img src="https://flagcdn.com/w40/${r.cc}.png" width="20" height="14" style="border-radius:2px;object-fit:cover;display:block;" alt="${r.country}" onerror="this.style.display='none'">`;
+    const adminToggleBtn = adminUnlocked
+      ? `<button class="btn-copy" style="width:auto; padding:2px 8px; font-size:0.7rem; ${done?'border-color:#ff5555;color:#ff5555;':'border-color:#52e252;color:#52e252;'}" onclick="toggleRaceDone(${r.num}, event)">${done ? '↺ Zurücksetzen' : '✓ Als gefahren markieren'}</button>`
+      : '';
     
     return`<div class="race-item ${cls}" id="race-item-${i}">
       <div class="race-header" onclick="toggleTrack(${i})">
         <div class="race-num">${r.num}</div>
         <div>${flagImg}</div>
         <div class="race-info">
-          <div class="race-country" style="${r.done?'color:var(--m2);':isNext?'color:var(--y);':''}">${r.country}</div>
+          <div class="race-country" style="${done?'color:var(--m2);':isNext?'color:var(--y);':''}">${r.country}</div>
           <div class="race-city">${r.city}</div>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
-          <span>${r.done ? checkeredFlagIcon : isNext ? '⚡' : ''}</span>
+          ${adminToggleBtn}
+          <span>${done ? checkeredFlagIcon : isNext ? '⚡' : ''}</span>
           <span class="toggle-arrow">▼</span>
         </div>
       </div>
       <div class="track-wrapper">
         <img src="${r.trackImg}" class="track-img" alt="Strecke ${r.country}" onclick="openLightbox('${r.trackImg}')" onerror="this.src='header_banner.png'; this.alt='Streckenbild nicht vorhanden';">
-        ${r.done ? raceArchiveBoxHtml(r) : ''}
+        ${done ? raceArchiveBoxHtml(r) : ''}
       </div>
     </div>`;
   }).join('')}</div>`;
@@ -1102,7 +1152,7 @@ function renderLiveModal(){
   }
 
   // Archiv zum aktuell anstehenden Rennen (erstes Rennen mit done:false)
-  const nextRace = RACES.find(r => !r.done);
+  const nextRace = RACES.find(r => !isRaceDone(r));
   const archive = nextRace ? telemetryArchiveData[nextRace.num] : null;
 
   if(!liveTimingData && !archive){
@@ -1733,6 +1783,7 @@ window.checkPin=function(){
     renderRaceSelectOptions();
     renderRaceResultsEditor();
     renderStandingsInputs();renderOverview();
+    renderRaceCalendar(); // damit die "Als gefahren markieren"-Buttons sofort erscheinen
   }else{document.getElementById('pinErr').textContent='Falscher PIN!';}
 };
 
@@ -1995,7 +2046,7 @@ function updateHeaderPodium(){
   const label = document.getElementById('headerPodiumLabel');
   if(!wrap || !img || !label) return;
 
-  const doneRaces = RACES.filter(r => r.done);
+  const doneRaces = RACES.filter(r => isRaceDone(r));
   if(!doneRaces.length){ wrap.style.display = 'none'; return; }
 
   const last = doneRaces[doneRaces.length - 1]; // zuletzt gefahrenes Rennen
