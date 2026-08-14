@@ -299,7 +299,18 @@
 
     /* Elo-Tab */
     .elo-trend { font-size: 0.7rem; font-weight: 700; margin-left: 6px; }
-    .st-sparkline-wrap { flex-shrink: 0; display: flex; align-items: center; opacity: 0.9; }
+    .st-sparkline-wrap {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.02);
+    }
+    .st-sparkline-wrap.up { border-color: rgba(82, 226, 82, 0.5); }
+    .st-sparkline-wrap.down { border-color: rgba(255, 85, 85, 0.5); }
     @media (max-width: 640px) { .st-sparkline-wrap { display: none; } }
     .elo-trend.up { color: #52e252; }
     .elo-trend.down { color: #ff5555; }
@@ -1557,11 +1568,11 @@ function renderEloStandings(){
       ${photoImg}
       <div class="st-driver">
         <div>
-          <div style="font-weight:700;font-size:0.85rem;">${d.human}<span class="elo-trend ${trendCls}">${trendSym}</span></div>
+          <div style="font-weight:700;font-size:0.85rem;">${d.human}</div>
           <div style="font-size:0.68rem;color:${teamColor};">${d.team} · ${racesCounted} Rennen gewertet</div>
         </div>
       </div>
-      <div class="st-sparkline-wrap" title="Elo-Formkurve">${eloSparklineSvg(hist)}</div>
+      <div class="st-sparkline-wrap ${trendCls}" title="Elo-Formkurve">${eloSparklineSvg(hist)}<span class="elo-trend ${trendCls}" style="margin-left:0;">${trendSym}</span></div>
       <div class="st-pts-wrap">
         <div class="st-pts">${rating}</div>
         <div class="st-pts-lbl">Elo</div>
