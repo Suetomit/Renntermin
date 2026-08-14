@@ -299,6 +299,8 @@
 
     /* Elo-Tab */
     .elo-trend { font-size: 0.7rem; font-weight: 700; margin-left: 6px; }
+    .st-sparkline-wrap { flex-shrink: 0; display: flex; align-items: center; opacity: 0.9; }
+    @media (max-width: 640px) { .st-sparkline-wrap { display: none; } }
     .elo-trend.up { color: #52e252; }
     .elo-trend.down { color: #ff5555; }
     .elo-trend.flat { color: var(--m2); }
@@ -825,11 +827,12 @@ let currentUser = '';
 let selectedDates = [];
 let calYear, calMonth;
 let standings = {drivers:ALL_DRIVERS.map(d=>({name:d.name,points:0})),racesCompleted:0};
-let standingsRef, raceResultsRef;
+let standingsRef, raceResultsRef, trackRecordsRef;
 let countdownInterval = null;
 let bannerDismissed = false;
 let liveTimingData = null;
 let telemetryArchiveData = {};
+let trackRecordsData = {}; // {code: {time, driver, raceNum, updatedAt}} - Streckenrekorde, ueberdauern Saisonwechsel
 let liveModalOpen = false;
 let raceDayReached = false;
 let eloCache = null; // {ratings:{name:elo}, history:{name:[{raceNum,elo}]}} - wird gecacht, bis raceResults sich ändern
@@ -912,7 +915,43 @@ function initLiveTiming(database){
     telemetryArchiveData = snap.val() || {};
     if(liveModalOpen) renderLiveModal();
     renderRaceCalendar(); // Archiv-Box im Kalender aktualisieren, auch wenn dessen Card nicht aufgeklappt ist
+    syncTrackRecords();
   });
+
+  trackRecordsRef = ref(database, 'trackRecords');
+  onValue(trackRecordsRef, snap => {
+    trackRecordsData = snap.val() || {};
+    renderRaceCalendar();
+    if(liveModalOpen) renderLiveModal();
+  });
+}
+
+// Vergleicht jede vorhandene telemetryArchive-Bestzeit mit dem bisherigen Streckenrekord
+// (gespeichert unter trackRecords/{code}, ueberlebt also Saisonwechsel/Reset von
+// telemetryArchive) und schreibt bei einer neuen Bestzeit den Rekord fort. Wird nach jedem
+// telemetryArchive-Update aufgerufen; harmlos, wenn mehrere Clients das gleichzeitig tun,
+// da am Ende derselbe (korrekte) Wert geschrieben wird.
+async function syncTrackRecords(){
+  if(!trackRecordsRef) return;
+  for(const raceNum of Object.keys(telemetryArchiveData)){
+    const archive = telemetryArchiveData[raceNum];
+    const fl = archive && archive.fastestLap;
+    if(!fl || !fl.lap_time_s) continue;
+    const race = RACES.find(r => r.num === parseInt(raceNum));
+    if(!race) continue;
+    const existing = trackRecordsData[race.code];
+    if(!existing || fl.lap_time_s < existing.time){
+      const info = getDriverInfoByRacenet(fl.driver);
+      const record = {
+        time: fl.lap_time_s,
+        driver: info.human || fl.driver,
+        raceNum: race.num,
+        updatedAt: Date.now()
+      };
+      trackRecordsData = {...trackRecordsData, [race.code]: record};
+      try{ await set(ref(db, 'trackRecords/' + race.code), record); }catch(e){ console.error(e); }
+    }
+  }
 }
 
 function fallbackToLocal(){
@@ -1125,13 +1164,33 @@ function archiveStrategyHtml(archive, itemClass, flClass){
 // Baut die im Rennkalender-Card aufklappbare Rennarchiv-Box für ein
 // absolviertes Rennen. Zeigt einen Hinweistext, solange das Telemetrie-Skript
 // für dieses Rennen noch keine Daten nach Firebase gepusht hat.
+function fmtLapTimeS(seconds){
+  if(seconds===null || seconds===undefined) return '-.---';
+  const mins = Math.floor(seconds/60);
+  const secs = (seconds%60).toFixed(3);
+  return `${mins}:${secs.padStart(6,'0')}`;
+}
+
+// Baut die Streckenrekord-Zeile für ein Rennen: liest den (saisonübergreifenden)
+// Rekord aus trackRecords/{code} und markiert ihn, falls genau dieses Rennen ihn
+// aktuell hält (also fastestLap-Zeit == Rekordzeit).
+function trackRecordHtml(r, archive){
+  const rec = trackRecordsData[r.code];
+  if(!rec) return '';
+  const isCurrentHolder = archive && archive.fastestLap && Math.abs(archive.fastestLap.lap_time_s - rec.time) < 0.0005;
+  const badge = isCurrentHolder ? ' 🎉 (aktuell hier aufgestellt!)' : '';
+  const seasonHint = isCurrentHolder ? '' : ` <span style="color:var(--m);">(Rennen #${rec.raceNum})</span>`;
+  return `<div class="archive-fl" style="background:rgba(255,215,0,0.1); border-left-color:var(--y);">🏆 Streckenrekord: <strong>${rec.driver}</strong> (${fmtLapTimeS(rec.time)})${seasonHint}${badge}</div>`;
+}
+
 function raceArchiveBoxHtml(r){
   const archive = telemetryArchiveData[r.num];
+  const recordHtml = trackRecordHtml(r, archive);
   if(!archive){
-    return `<div class="archive-box"><div class="archive-empty">🛞 Noch kein Telemetrie-Archiv für dieses Rennen vorhanden.</div></div>`;
+    return `<div class="archive-box">${recordHtml}<div class="archive-empty">🛞 Noch kein Telemetrie-Archiv für dieses Rennen vorhanden.</div></div>`;
   }
   const inner = archiveStrategyHtml(archive, 'archive-strategy-item', 'archive-fl');
-  return `<div class="archive-box">${inner || '<div class="archive-empty">Keine Strategiedaten erfasst.</div>'}</div>`;
+  return `<div class="archive-box">${recordHtml}${inner || '<div class="archive-empty">Keine Strategiedaten erfasst.</div>'}</div>`;
 }
 
 function renderLiveModal(){
@@ -1442,6 +1501,28 @@ function getEloData(){
   return eloCache;
 }
 
+// Baut eine kleine Inline-SVG-Sparkline aus dem Elo-Verlauf eines Fahrers.
+// Skaliert auf den eigenen Min/Max-Bereich des Fahrers (nicht global), damit
+// auch kleinere Formschwankungen sichtbar bleiben. Grün wenn der aktuelle
+// Wert über dem Startwert liegt, sonst rot.
+function eloSparklineSvg(hist){
+  if(!hist || hist.length < 2) return '';
+  const vals = hist.map(h => h.elo);
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const range = Math.max(max - min, 1);
+  const w = 64, h = 22, pad = 3;
+  const step = (w - pad*2) / (vals.length - 1);
+  const points = vals.map((v,i) => {
+    const x = pad + i*step;
+    const y = h - pad - ((v - min) / range) * (h - pad*2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const color = vals[vals.length-1] >= vals[0] ? '#52e252' : '#ff5555';
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" class="elo-sparkline">
+    <polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+}
+
 function renderEloStandings(){
   const el = document.getElementById('standingsContent');
   if(!el) return;
@@ -1480,6 +1561,7 @@ function renderEloStandings(){
           <div style="font-size:0.68rem;color:${teamColor};">${d.team} · ${racesCounted} Rennen gewertet</div>
         </div>
       </div>
+      <div class="st-sparkline-wrap" title="Elo-Formkurve">${eloSparklineSvg(hist)}</div>
       <div class="st-pts-wrap">
         <div class="st-pts">${rating}</div>
         <div class="st-pts-lbl">Elo</div>
