@@ -482,8 +482,51 @@
     .btn-copy.green { border-color: #52e252; color: #52e252; }
 
     /* Admin Section */
-    .admin-sec { display: none; margin-top: 20px; }
-    .admin-sec.on { display: block; }
+    .admin-header-btn {
+      background: var(--s3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+    .admin-header-btn:hover { background: var(--y); color: #000; border-color: var(--y); }
+
+    .admin-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 210px;
+      flex-shrink: 0;
+    }
+    .admin-nav-btn {
+      text-align: left;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      color: var(--m);
+      padding: 10px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+    .admin-nav-btn.active { background: var(--y); color: #000; border-color: var(--y); }
+    .admin-content {
+      flex: 1;
+      overflow-y: auto;
+      background: rgba(15, 18, 25, 0.92);
+      border: 1px solid #2d3548;
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .admin-section h3 { color: #fff; }
+    @media (max-width: 800px) {
+      #adminBody { flex-direction: column; }
+      .admin-nav { flex-direction: row; flex-wrap: wrap; min-width: 0; }
+    }
     .pin-input { width: 100%; padding: 8px; background: var(--bg); border: 1px solid var(--border); color: #fff; border-radius: 6px; margin-bottom: 8px; }
 
     .race-matrix-editor {
@@ -537,6 +580,116 @@
   </div>
 </div>
 
+<!-- Admin-Bereich: eigenes Vollbild-Overlay statt eingebetteter Card, mit Seitennavigation -->
+<div id="adminModal" class="fs-modal">
+  <div class="fs-header">
+    <div class="fs-title">🔑 ADMIN-BEREICH</div>
+    <button class="btn-fs-close" onclick="closeAdminModal()">Schließen (ESC)</button>
+  </div>
+
+  <div id="adminPinGate" style="max-width:380px; margin:60px auto; text-align:center;">
+    <p style="margin-bottom:14px; color:var(--m);">Bitte PIN eingeben, um den Admin-Bereich freizuschalten.</p>
+    <input type="password" id="pinIn" class="pin-input" placeholder="Admin PIN eingeben">
+    <button class="btn" onclick="checkPin()">Freischalten</button>
+    <div id="pinErr" style="color:#ff5555; font-size:0.8rem; margin-top:8px;"></div>
+  </div>
+
+  <div id="adminBody" style="display:none; flex:1; gap:20px; overflow:hidden; min-height:0;">
+    <div class="admin-nav">
+      <button class="admin-nav-btn active" data-sec="results" onclick="switchAdminSection('results')">🏁 Rennergebnisse</button>
+      <button class="admin-nav-btn" data-sec="drivers" onclick="switchAdminSection('drivers')">🏎️ Fahrer</button>
+      <button class="admin-nav-btn" data-sec="calendar" onclick="switchAdminSection('calendar')">🗓️ Rennkalender</button>
+      <button class="admin-nav-btn" data-sec="season" onclick="switchAdminSection('season')">🏆 Saison</button>
+      <button class="admin-nav-btn" data-sec="misc" onclick="switchAdminSection('misc')">⚙️ Termin &amp; Sonstiges</button>
+    </div>
+
+    <div class="admin-content">
+
+      <!-- 🏁 Rennergebnisse -->
+      <div id="adminSecResults" class="admin-section">
+        <h3 style="margin-bottom:14px;">🏁 Rennergebnisse eintragen</h3>
+        <div style="margin-bottom:12px; display:flex; align-items:center; gap:10px;">
+          <span>Rennen auswählen:</span>
+          <select id="adminRaceSelect" class="pin-input" style="width:auto; margin-bottom:0;" onchange="renderRaceResultsEditor()"></select>
+        </div>
+        <div class="race-matrix-editor">
+          <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+            <thead>
+              <tr style="background:var(--s3); text-align:left;">
+                <th style="padding:6px;">Fahrer</th>
+                <th style="padding:6px;">Platz (1-20 / DNF)</th>
+                <th style="padding:6px;">Quali-Gap zur Pole (Sek.)</th>
+                <th style="padding:6px; text-align:center;">⚡ Schnellste Runde (FL)</th>
+              </tr>
+            </thead>
+            <tbody id="raceResultsEditorBody"></tbody>
+          </table>
+        </div>
+        <button class="btn" onclick="saveRaceResults()">Rennergebnis Speichern</button>
+      </div>
+
+      <!-- 🏎️ Fahrer-Verwaltung -->
+      <div id="adminSecDrivers" class="admin-section" style="display:none;">
+        <h3 style="margin-bottom:6px;">🏎️ Fahrer-Verwaltung</h3>
+        <p style="color:var(--m); font-size:0.8rem; margin-bottom:14px;">
+          Fahrer hinzufügen/entfernen. "Liga-Name" ist der Vorname, unter dem der Mensch auf der Website erscheint (leer lassen = KI-Fahrer).
+          Foto-Dateiname muss zu einer bereits hochgeladenen Bilddatei passen.
+        </p>
+        <div class="race-matrix-editor">
+          <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+            <thead>
+              <tr style="background:var(--s3); text-align:left;">
+                <th style="padding:6px;">Voller Name</th>
+                <th style="padding:6px;">Racenet/Ingame-Name</th>
+                <th style="padding:6px;">Team</th>
+                <th style="padding:6px;">Liga-Name (Mensch)</th>
+                <th style="padding:6px;">Foto-Dateiname</th>
+                <th style="padding:6px;"></th>
+              </tr>
+            </thead>
+            <tbody id="adminDriverListBody"></tbody>
+          </table>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+          <button class="btn-copy" style="width:auto;" onclick="addDriverDraft()">+ Fahrer hinzufügen</button>
+          <button class="btn" style="margin-top:0;" onclick="saveDriverRoster()">Roster Speichern</button>
+        </div>
+      </div>
+
+      <!-- 🗓️ Rennkalender -->
+      <div id="adminSecCalendar" class="admin-section" style="display:none;">
+        <h3 style="margin-bottom:6px;">🗓️ Rennkalender dieser Saison</h3>
+        <p style="color:var(--m); font-size:0.8rem; margin-bottom:14px;">
+          Rennen an-/abwählen und mit ▲▼ neu sortieren. Wirkt sich nur auf die aktuelle Saison aus.
+        </p>
+        <div class="race-matrix-editor" id="adminCalendarList" style="max-height:420px;"></div>
+        <button class="btn" onclick="saveCalendar()">Kalender Speichern</button>
+      </div>
+
+      <!-- 🏆 Saison-Verwaltung -->
+      <div id="adminSecSeason" class="admin-section" style="display:none;">
+        <h3 style="margin-bottom:14px;">🏆 Saison-Verwaltung</h3>
+        <div id="adminSeasonInfo"></div>
+      </div>
+
+      <!-- ⚙️ Termin & Sonstiges -->
+      <div id="adminSecMisc" class="admin-section" style="display:none;">
+        <h3 style="margin-bottom:14px;">📅 Renntermin manuell festlegen</h3>
+        <div id="pickGrid" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;"></div>
+        <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+          <input type="time" id="raceStart" value="14:00" class="pin-input" style="width:auto;">
+          <input type="time" id="raceEnd" value="18:00" class="pin-input" style="width:auto;">
+          <button class="btn" id="confBtn" style="margin-top:0;" onclick="confirmRace()">Bestätigen</button>
+          <button class="btn-copy" style="border-color:#ff5555; color:#ff5555; width:auto; padding:0 16px;" onclick="removeConfirmedRace()">Termin aufheben</button>
+        </div>
+        <hr style="border-color:var(--border); margin:15px 0;">
+        <button class="btn-rm" onclick="resetAll()">⚠️ Alle Termin-Einträge zurücksetzen</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 
 <div class="app-container">
   
@@ -555,8 +708,11 @@
         <div class="header-podium-label" id="headerPodiumLabel"></div>
       </div>
     </div>
-    <div class="status-bar">
-      <span id="statusDot" class="dot"></span> <span id="statusText">Verbinde...</span>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <div class="status-bar">
+        <span id="statusDot" class="dot"></span> <span id="statusText">Verbinde...</span>
+      </div>
+      <button class="admin-header-btn" id="adminHeaderBtn" onclick="openAdminModal()" title="Admin-Bereich">⚙️ Admin</button>
     </div>
   </div>
 
@@ -660,68 +816,6 @@
   <!-- Festgelegter Termin Banner -->
   <div id="confirmedArea"></div>
 
-  <!-- Admin Controls Toggle -->
-  <div style="text-align:center; margin-top:20px;">
-    <button class="btn-copy" id="adminBtn" style="width:auto; padding:6px 16px;" onclick="toggleAdmin()">⚙️ Admin-Bereich</button>
-  </div>
-
-  <div class="card admin-sec" id="adminSec">
-    <div class="card-title">🔑 Admin-Einstellungen</div>
-    <div id="pinArea">
-      <input type="password" id="pinIn" class="pin-input" placeholder="Admin PIN eingeben">
-      <button class="btn" onclick="checkPin()">Freischalten</button>
-      <div id="pinErr" style="color:#ff5555; font-size:0.8rem; margin-top:4px;"></div>
-    </div>
-
-    <div id="adminCtrl" style="display:none;">
-      <p style="margin-bottom:10px;">Renntermin manuell festlegen:</p>
-      <div id="pickGrid" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;"></div>
-      <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
-        <input type="time" id="raceStart" value="14:00" class="pin-input" style="width:auto;">
-        <input type="time" id="raceEnd" value="18:00" class="pin-input" style="width:auto;">
-        <button class="btn" id="confBtn" style="margin-top:0;" onclick="confirmRace()">Bestätigen</button>
-        <!-- Neuer Button zum Aufheben des Termins -->
-        <button class="btn-copy" style="border-color:#ff5555; color:#ff5555; width:auto; padding:0 16px;" onclick="removeConfirmedRace()">Termin aufheben</button>
-      </div>
-      <hr style="border-color:var(--border); margin:15px 0;">
-      <button class="btn-rm" onclick="resetAll()">⚠️ Alle Termin-Einträge zurücksetzen</button>
-    </div>
-
-    <div id="standingsAdminArea" style="display:none; margin-top:20px;">
-      <p style="margin-bottom:10px; font-weight:700;">🏁 Rennergebnisse eintragen:</p>
-      <div style="margin-bottom:12px; display:flex; align-items:center; gap:10px;">
-        <span>Rennen auswählen:</span>
-        <select id="adminRaceSelect" class="pin-input" style="width:auto; margin-bottom:0;" onchange="renderRaceResultsEditor()">
-          <!-- Wird befüllt -->
-        </select>
-      </div>
-      
-      <div class="race-matrix-editor">
-        <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
-          <thead>
-            <tr style="background:var(--s3); text-align:left;">
-              <th style="padding:6px;">Fahrer</th>
-              <th style="padding:6px;">Platz (1-20 / DNF)</th>
-              <th style="padding:6px;">Quali-Gap zur Pole (Sek.)</th>
-              <th style="padding:6px; text-align:center;">⚡ Schnellste Runde (FL)</th>
-            </tr>
-          </thead>
-          <tbody id="raceResultsEditorBody">
-            <!-- Wird dynamisch erzeugt -->
-          </tbody>
-        </table>
-      </div>
-
-      <button class="btn" onclick="saveRaceResults()">Rennergebnis Speichern</button>
-
-      <hr style="border-color:var(--border); margin:20px 0;">
-      <p style="margin-bottom:10px;">Manuelle Punkte-Korrektur:</p>
-      <div style="margin-bottom:10px;">Rennen absolviert: <input type="number" id="racesCompleted" style="width:60px;" class="pin-input"></div>
-      <div id="standingsInputs"></div>
-      <button class="btn" onclick="saveStandings()">Manuelle Punkte Speichern</button>
-    </div>
-  </div>
-
 </div>
 
 <script type="module">
@@ -740,7 +834,11 @@ const firebaseConfig = {
 };
 
 const PIN = 'ArianaGrande';
-const DRIVERS = ['Eric','Pascale','Tim','Timo','Marcel','Philipp','Yannis','Niklas'];
+// DRIVERS und DRIVER_TEAM werden nicht mehr von Hand gepflegt, sondern aus ALL_DRIVERS
+// abgeleitet (siehe rebuildDerivedDriverMaps() weiter unten) - so gibt es nur noch EINE
+// Stelle (ALL_DRIVERS), an der ein Fahrer hinzugefügt/entfernt werden muss.
+let DRIVERS = [];
+let DRIVER_TEAM = {};
 
 const TEAM_HELMET_IMG = {
   'McLaren':               'helmet_mclaren.png',
@@ -755,10 +853,7 @@ const TEAM_HELMET_IMG = {
   'Kick Sauber':           'helmet_kicksauber.png',
 };
 
-const DRIVER_TEAM = {
-  'Eric':'Ferrari','Pascale':'Visa Cash App RB','Tim':'Kick Sauber','Timo':'Visa Cash App RB',
-  'Marcel':'Red Bull','Philipp':'McLaren','Yannis':'Alpine','Niklas':'Aston Martin',
-};
+// DRIVER_TEAM wird jetzt aus ALL_DRIVERS abgeleitet, siehe rebuildDerivedDriverMaps().
 
 const TEAM_COLORS = {
   'Ferrari':'#e8002d','McLaren':'#ff8000','Red Bull':'#3671c6',
@@ -781,7 +876,10 @@ function helmetImgByTeam(team){
              : `<div style="width:36px;height:36px;background:var(--s3);border-radius:50%;flex-shrink:0;"></div>`;
 }
 
-const ALL_DRIVERS = [
+// ALL_DRIVERS_DEFAULT ist der Startbestand (Season-1-Seed). Der Admin kann Fahrer über
+// das Admin-Panel hinzufügen/entfernen; das Ergebnis wird nach Firebase (driverRoster)
+// geschrieben und überschreibt dann ALL_DRIVERS beim Laden (siehe applyDriverRoster()).
+const ALL_DRIVERS_DEFAULT = [
   { name:'Timotheus Müller',    racenet:'RealSuetomit',    team:'Visa Cash App RB',       human:'Timo',    photo:'timotheus-mueller-racingbulls.png'      },
   { name:'Pascale Braasch',     racenet:'lafillederue',    team:'Visa Cash App RB',       human:'Pascale', photo:'pascale-braasch-racingbulls.png'        },
   { name:'Niklas Schweisfurth', racenet:'niklasschwei',    team:'Aston Martin',           human:'Niklas',  photo:'niklas-schweisfurth-astonmartin.png'    },
@@ -804,9 +902,34 @@ const ALL_DRIVERS = [
   { name:'Lance Stroll',        racenet:null,              team:'Aston Martin',           human:null,      photo:'lance-stroll-aston-martin.png'          },
 ];
 
-const RACES = [
-  { num:1,  code:'AUS', cc:'au', country:'Australien',           city:'Melbourne',        done:true,  trackImg:'australia-gp.png',                      heroImg:'Australia.avif' },
-  { num:2,  code:'CHN', cc:'cn', country:'China',                 city:'Shanghai',         done:true,  trackImg:'chinese-gp.png',                        heroImg:'China.avif' },
+let ALL_DRIVERS = ALL_DRIVERS_DEFAULT.slice();
+
+// Baut DRIVERS (Namensliste der 8 Liga-Menschen fürs Verfügbarkeits-Formular) und
+// DRIVER_TEAM (Name -> Team) aus ALL_DRIVERS neu auf. Muss nach jeder Änderung an
+// ALL_DRIVERS (Roster-Load aus Firebase, Admin-Speichern) aufgerufen werden.
+function rebuildDerivedDriverMaps(){
+  DRIVER_TEAM = {};
+  ALL_DRIVERS.forEach(d => { if(d.human) DRIVER_TEAM[d.human] = d.team; });
+  DRIVERS = ALL_DRIVERS.filter(d => d.human).map(d => d.human);
+}
+rebuildDerivedDriverMaps();
+
+// Wendet einen aus Firebase geladenen Fahrer-Roster an (oder setzt auf den Default
+// zurück, falls noch keiner gespeichert wurde) und baut die abgeleiteten Maps neu.
+function applyDriverRoster(rosterData){
+  const list = rosterData ? (Array.isArray(rosterData) ? rosterData : Object.values(rosterData)) : null;
+  ALL_DRIVERS = (list && list.length) ? list : ALL_DRIVERS_DEFAULT.slice();
+  rebuildDerivedDriverMaps();
+}
+
+// RACES_MASTER ist die feste Vorlage aller 24 verfügbaren Strecken (samt Bild-Dateinamen).
+// Welche davon in der AKTUELLEN Saison gefahren werden und in welcher Reihenfolge, legt
+// der Admin über den Kalender-Editor fest (gespeichert als Code-Liste in Firebase unter
+// raceCalendarCodes). RACES ist die daraus abgeleitete, tatsächlich angezeigte Saison-Liste -
+// der Rest des Codes arbeitet unverändert mit RACES/r.num weiter.
+const RACES_MASTER = [
+  { num:1,  code:'AUS', cc:'au', country:'Australien',           city:'Melbourne',        done:false, trackImg:'australia-gp.png',                      heroImg:'Australia.avif' },
+  { num:2,  code:'CHN', cc:'cn', country:'China',                 city:'Shanghai',         done:false, trackImg:'chinese-gp.png',                        heroImg:'China.avif' },
   { num:3,  code:'JPN', cc:'jp', country:'Japan',                 city:'Suzuka',           done:false, trackImg:'japanese-gp.png',                       heroImg:'Japan.avif' },
   { num:4,  code:'BHR', cc:'bh', country:'Bahrain',               city:'Sachir',           done:false, trackImg:'bahrain-gp.png',                        heroImg:'Bahrain.avif' },
   { num:5,  code:'SAU', cc:'sa', country:'Saudi-Arabien',         city:'Dschidda',         done:false, trackImg:'saudi-arabian-gp.png',                  heroImg:'Saudi_Arabia.avif' },
@@ -831,6 +954,21 @@ const RACES = [
   { num:24, code:'UAE', cc:'ae', country:'Ver. Arab. Emirate',    city:'Abu Dhabi',        done:false, trackImg:'yas-marina-circuit-abu-dhabi-2.png',    heroImg:'Abu Dhabi.avif' },
 ];
 
+let raceCalendarCodes = null; // null = alle 24 in Standard-Reihenfolge (siehe deriveSeasonRaces)
+let RACES = RACES_MASTER.slice();
+
+// Baut die tatsächlich für diese Saison aktive RACES-Liste aus raceCalendarCodes.
+// r.num wird dabei bewusst neu als 1..N (Position im Kalender) vergeben - genau dieses
+// num wird überall sonst im Code als Firebase-Schlüssel benutzt (raceResults[num],
+// telemetryArchive[num], raceStatus[num]), daher bleibt der Rest der Anwendung unverändert.
+function deriveSeasonRaces(){
+  const codes = (raceCalendarCodes && raceCalendarCodes.length) ? raceCalendarCodes : RACES_MASTER.map(r => r.code);
+  RACES = codes.map((code, i) => {
+    const master = RACES_MASTER.find(r => r.code === code);
+    return master ? {...master, num: i+1} : null;
+  }).filter(Boolean);
+}
+
 let S = {persons:[],confirmedDate:null,confirmedStart:null,confirmedEnd:null};
 let raceResults = {}; 
 let adminUnlocked = false;
@@ -847,6 +985,9 @@ let trackRecordsData = {}; // {code: {time, driver, raceNum, updatedAt}} - Strec
 let liveModalOpen = false;
 let raceDayReached = false;
 let eloCache = null; // {ratings:{name:elo}, history:{name:[{raceNum,elo}]}} - wird gecacht, bis raceResults sich ändern
+let currentSeasonNum = 1;
+let seasonsArchive = {}; // {seasonNum: {raceResults, standings, calendarCodes, endedAt}} - archivierte Vor-Saisons
+let driverRosterRef, currentSeasonRef, seasonsArchiveRef, calendarCodesRef;
 
 // Überschreibt pro Rennnummer den statischen "done"-Wert aus RACES[] (siehe raceStatus in
 // Firebase). So kann der Admin ein Rennen direkt auf der Website als "gefahren" markieren,
@@ -876,9 +1017,54 @@ try {
     initRaceResults(db);
     initLiveTiming(db);
     initRaceStatus(db);
+    initDriverRoster(db);
+    initSeasonManagement(db);
     render();renderNameButtons();
   }, err=>{ console.error(err);fallbackToLocal(); });
 } catch(e){ console.error(e);fallbackToLocal(); }
+
+// Lädt einen ggf. vom Admin angepassten Fahrer-Roster (Hinzufügen/Entfernen von Fahrern)
+// und baut danach überall abhängige Anzeigen neu auf.
+function initDriverRoster(database){
+  driverRosterRef = ref(database, 'driverRoster');
+  onValue(driverRosterRef, snap => {
+    applyDriverRoster(snap.val());
+    adminDriverDraft = null;
+    eloCache = null;
+    recalculateStandingsFromResults();
+    render();
+    renderNameButtons();
+    if(adminUnlocked){ renderAdminDriverList(); renderRaceResultsEditor(); }
+  });
+}
+
+// Lädt die aktuelle Saisonnummer, das Archiv vergangener Saisons (für die Elo-Historie
+// über Saisongrenzen hinweg) sowie die vom Admin gewählte Kalender-Reihenfolge.
+function initSeasonManagement(database){
+  currentSeasonRef = ref(database, 'currentSeason');
+  onValue(currentSeasonRef, snap => {
+    currentSeasonNum = snap.val() || 1;
+    render();
+    if(adminUnlocked) renderAdminSeasonInfo();
+  });
+
+  seasonsArchiveRef = ref(database, 'seasons');
+  onValue(seasonsArchiveRef, snap => {
+    seasonsArchive = snap.val() || {};
+    eloCache = null;
+    render();
+    if(adminUnlocked) renderAdminSeasonInfo();
+  });
+
+  calendarCodesRef = ref(database, 'raceCalendarCodes');
+  onValue(calendarCodesRef, snap => {
+    raceCalendarCodes = snap.val() || null;
+    adminCalendarDraft = null;
+    deriveSeasonRaces();
+    render();
+    if(adminUnlocked) renderAdminCalendarEditor();
+  });
+}
 
 // Lädt raceStatus (manuelle "gefahren"-Overrides je Rennnummer) aus Firebase und hält
 // zusätzlich currentRaceNumber - das ist die Rennnummer, die sich das Telemetrie-Skript
@@ -1304,7 +1490,7 @@ function renderLiveModal(){
 }
 
 document.addEventListener('keydown', (e) => {
-  if(e.key === 'Escape'){ closeFullscreenStandings(); closeLiveModal(); }
+  if(e.key === 'Escape'){ closeFullscreenStandings(); closeLiveModal(); closeAdminModal(); }
 });
 
 function renderF1CrossTable() {
@@ -1397,7 +1583,6 @@ function initStandings(database){
       recalculateStandingsFromResults();
     }
     render();
-    if(adminUnlocked)renderStandingsInputs();
   });
 }
 
@@ -1427,16 +1612,30 @@ function getDriverInfoByRacenet(ingameName){
 const ELO_K = 28;
 const ELO_START = 1000;
 
+// Baut eine chronologisch sortierte Liste aller je gefahrenen Rennen (archivierte
+// Vor-Saisons + laufende Saison), mit einer global aufsteigenden Nummer (Saison*1000 +
+// Rennnummer) statt der rohen raceNum, die pro Saison wieder bei 1 anfängt. Nur so kann
+// die Elo (die laut Vorgabe NIE zurückgesetzt wird) über Saisongrenzen hinweg weiterlaufen.
+function getChronologicalRaceResults(){
+  const list = [];
+  Object.keys(seasonsArchive).map(Number).sort((a,b)=>a-b).forEach(sNum => {
+    const res = (seasonsArchive[sNum] && seasonsArchive[sNum].raceResults) || {};
+    Object.keys(res).forEach(rn => list.push({ globalNum: sNum*1000 + parseInt(rn), results: res[rn] }));
+  });
+  Object.keys(raceResults).forEach(rn => list.push({ globalNum: currentSeasonNum*1000 + parseInt(rn), results: raceResults[rn] }));
+  list.sort((a,b) => a.globalNum - b.globalNum);
+  return list;
+}
+
 function computeEloRatings(){
   const humanDrivers = ALL_DRIVERS.filter(d => d.human);
   const elo = {};
   const history = {};
   humanDrivers.forEach(d => { elo[d.name] = ELO_START; history[d.name] = [{raceNum:0, elo:ELO_START}]; });
 
-  const raceNums = Object.keys(raceResults).map(Number).sort((a,b)=>a-b);
+  const chronological = getChronologicalRaceResults();
 
-  raceNums.forEach(raceNum => {
-    const res = raceResults[raceNum];
+  chronological.forEach(({globalNum, results: res}) => {
     if(!res) return;
 
     const entries = humanDrivers
@@ -1500,7 +1699,7 @@ function computeEloRatings(){
 
     entries.forEach(e => {
       elo[e.name] = elo[e.name] + deltas[e.name];
-      history[e.name].push({ raceNum, elo: elo[e.name] });
+      history[e.name].push({ raceNum: globalNum, elo: elo[e.name] });
     });
   });
 
@@ -1725,26 +1924,162 @@ window.saveRaceResults = async function() {
   render();
 };
 
-function renderStandingsInputs(){
-  const el=document.getElementById('standingsInputs');
+// -----------------------------------------------------------------------
+// ADMIN: FAHRER-VERWALTUNG
+// Arbeitet auf einer lokalen Kopie (adminDriverDraft), damit man erst in Ruhe
+// mehrere Fahrer hinzufügen/ändern kann, bevor mit einem Klick alles auf
+// einmal nach Firebase (driverRoster) geschrieben wird.
+// -----------------------------------------------------------------------
+let adminDriverDraft = null;
+
+function renderAdminDriverList(){
+  const el = document.getElementById('adminDriverListBody');
   if(!el) return;
-  document.getElementById('racesCompleted').value=standings.racesCompleted||0;
-  el.innerHTML=ALL_DRIVERS.map((info,i)=>{
-    const entry=standings.drivers.find(d=>d.name===info.name);
-    const pts=entry?entry.points:0;
-    return`<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-      <span style="font-size:0.8rem;">${info.name}</span>
-      <input type="number" class="pin-input" style="width:70px; margin-bottom:0;" id="pts_${i}" value="${pts}"/>
+  if(!adminDriverDraft) adminDriverDraft = ALL_DRIVERS.map(d => ({...d}));
+
+  el.innerHTML = adminDriverDraft.map((d,i) => `
+    <tr>
+      <td style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${d.name||''}" onchange="updateDriverDraft(${i},'name',this.value)"></td>
+      <td style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${d.racenet||''}" onchange="updateDriverDraft(${i},'racenet',this.value)" placeholder="Racenet/Ingame-Name"></td>
+      <td style="padding:4px;">
+        <select class="pin-input" style="margin-bottom:0;" onchange="updateDriverDraft(${i},'team',this.value)">
+          ${Object.keys(TEAM_COLORS).map(t => `<option value="${t}" ${d.team===t?'selected':''}>${t}</option>`).join('')}
+        </select>
+      </td>
+      <td style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${d.human||''}" onchange="updateDriverDraft(${i},'human',this.value||null)" placeholder="leer = KI-Fahrer"></td>
+      <td style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${d.photo||''}" onchange="updateDriverDraft(${i},'photo',this.value)" placeholder="dateiname.png"></td>
+      <td style="padding:4px; text-align:center;"><button class="btn-rm" onclick="removeDriverDraft(${i})">✕</button></td>
+    </tr>`).join('');
+}
+
+window.updateDriverDraft = function(i, field, value){
+  if(adminDriverDraft[i]) adminDriverDraft[i][field] = value;
+};
+
+window.removeDriverDraft = function(i){
+  const d = adminDriverDraft[i];
+  if(!confirm(`"${d?.name}" wirklich aus dem Roster entfernen?`)) return;
+  adminDriverDraft.splice(i,1);
+  renderAdminDriverList();
+};
+
+window.addDriverDraft = function(){
+  adminDriverDraft.push({ name:'Neuer Fahrer', racenet:'', team:Object.keys(TEAM_COLORS)[0], human:null, photo:'' });
+  renderAdminDriverList();
+};
+
+window.saveDriverRoster = async function(){
+  if(!adminDriverDraft || !adminDriverDraft.length){ alert('Der Roster darf nicht leer sein.'); return; }
+  try{
+    await set(driverRosterRef, adminDriverDraft);
+    alert('Fahrer-Roster gespeichert!');
+  }catch(e){ console.error(e); alert('Fehler beim Speichern des Rosters.'); }
+};
+
+// -----------------------------------------------------------------------
+// ADMIN: RENNKALENDER-EDITOR
+// Wie beim Fahrer-Editor: lokaler Entwurf (adminCalendarDraft, Liste von
+// Streckencodes in Reihenfolge), erst beim Speichern wird raceCalendarCodes
+// in Firebase geschrieben. Wirkt sich nur auf die AKTUELLE Saison aus.
+// -----------------------------------------------------------------------
+let adminCalendarDraft = null;
+
+function renderAdminCalendarEditor(){
+  const el = document.getElementById('adminCalendarList');
+  if(!el) return;
+  if(!adminCalendarDraft) adminCalendarDraft = (raceCalendarCodes && raceCalendarCodes.length) ? raceCalendarCodes.slice() : RACES_MASTER.map(r => r.code);
+
+  el.innerHTML = RACES_MASTER.map(master => {
+    const idx = adminCalendarDraft.indexOf(master.code);
+    const included = idx >= 0;
+    return `<div style="display:flex; align-items:center; gap:10px; padding:7px 10px; ${included?'':'opacity:0.4;'} border-bottom:1px solid var(--border);">
+      <input type="checkbox" ${included?'checked':''} onchange="toggleCalendarCode('${master.code}')" style="cursor:pointer;">
+      <span style="flex:1;">${master.country} <span style="color:var(--m); font-size:0.75rem;">(${master.city})</span></span>
+      ${included ? `
+        <span style="color:var(--m); font-size:0.75rem; min-width:60px;">Pos. ${idx+1}</span>
+        <button class="btn-copy" style="width:auto; padding:2px 8px;" onclick="moveCalendarCode('${master.code}',-1)">▲</button>
+        <button class="btn-copy" style="width:auto; padding:2px 8px;" onclick="moveCalendarCode('${master.code}',1)">▼</button>
+      ` : ''}
     </div>`;
   }).join('');
 }
 
-window.saveStandings=async function(){
-  const drivers=ALL_DRIVERS.map((info,i)=>({name:info.name,points:parseInt(document.getElementById('pts_'+i)?.value)||0}));
-  const racesCompleted=parseInt(document.getElementById('racesCompleted')?.value)||0;
-  standings={drivers,racesCompleted};
-  if(standingsRef){try{await set(standingsRef,standings);}catch(e){console.error(e);}}
-  render();
+window.toggleCalendarCode = function(code){
+  const idx = adminCalendarDraft.indexOf(code);
+  if(idx >= 0) adminCalendarDraft.splice(idx,1);
+  else adminCalendarDraft.push(code);
+  renderAdminCalendarEditor();
+};
+
+window.moveCalendarCode = function(code, dir){
+  const idx = adminCalendarDraft.indexOf(code);
+  const newIdx = idx + dir;
+  if(idx < 0 || newIdx < 0 || newIdx >= adminCalendarDraft.length) return;
+  [adminCalendarDraft[idx], adminCalendarDraft[newIdx]] = [adminCalendarDraft[newIdx], adminCalendarDraft[idx]];
+  renderAdminCalendarEditor();
+};
+
+window.saveCalendar = async function(){
+  if(!adminCalendarDraft || !adminCalendarDraft.length){ alert('Mindestens ein Rennen muss ausgewählt sein.'); return; }
+  try{
+    await set(calendarCodesRef, adminCalendarDraft);
+    alert('Rennkalender gespeichert!');
+  }catch(e){ console.error(e); alert('Fehler beim Speichern des Kalenders.'); }
+};
+
+// -----------------------------------------------------------------------
+// ADMIN: SAISON-VERWALTUNG
+// Archiviert Rennergebnisse & Punktestand der laufenden Saison unter
+// seasons/{n} (bleiben dort einsehbar/für die Elo-Historie erhalten) und
+// setzt raceResults/raceStatus/currentRaceNumber/standings zurück. Die
+// Elo-Wertung selbst wird NICHT zurückgesetzt (siehe getChronologicalRaceResults()).
+// -----------------------------------------------------------------------
+function renderAdminSeasonInfo(){
+  const el = document.getElementById('adminSeasonInfo');
+  if(!el) return;
+  const completedThisSeason = Object.keys(raceResults).filter(k => raceResults[k] && Object.keys(raceResults[k]).length > 0).length;
+  const archivedSeasons = Object.keys(seasonsArchive).map(Number).sort((a,b)=>a-b);
+
+  el.innerHTML = `
+    <div class="dcard" style="margin-bottom:16px;">
+      <div class="dc-cnt">Aktuell aktiv: Saison ${currentSeasonNum}</div>
+      <div style="color:var(--m); font-size:0.85rem;">${completedThisSeason} von ${RACES.length} Rennen dieser Saison eingetragen.</div>
+    </div>
+    <button class="btn" style="background:#e10600; color:#fff;" onclick="startNewSeason()">🏁 Saison ${currentSeasonNum} beenden &amp; Saison ${currentSeasonNum+1} starten</button>
+    <p style="margin-top:10px; font-size:0.78rem; color:var(--m);">
+      Setzt Rennergebnisse, Punktestand und "gefahren"-Status aller Rennen zurück. Die Elo-Wertung läuft nahtlos weiter,
+      Streckenrekorde bleiben ebenfalls erhalten. Die beendete Saison wird archiviert und bleibt hier unten sichtbar.
+    </p>
+    ${archivedSeasons.length ? `
+      <hr style="border-color:var(--border); margin:18px 0;">
+      <p style="font-weight:700; margin-bottom:8px;">Archivierte Saisons</p>
+      ${archivedSeasons.map(sNum => {
+        const arch = seasonsArchive[sNum];
+        const raceCount = Object.keys(arch.raceResults || {}).length;
+        return `<div class="dc-chip" style="display:block; margin-bottom:6px;">Saison ${sNum} — ${raceCount} Rennen, beendet am ${new Date(arch.endedAt).toLocaleDateString('de-DE')}</div>`;
+      }).join('')}
+    ` : ''}
+  `;
+}
+
+window.startNewSeason = async function(){
+  if(!confirm(`Saison ${currentSeasonNum} wirklich beenden und archivieren?\n\nRennergebnisse & Punktestand werden zurückgesetzt. Die Elo-Wertung bleibt erhalten.`)) return;
+  const archiveEntry = {
+    raceResults: raceResults,
+    standings: standings,
+    calendarCodes: raceCalendarCodes || RACES_MASTER.map(r => r.code),
+    endedAt: Date.now()
+  };
+  try{
+    await set(ref(db, 'seasons/' + currentSeasonNum), archiveEntry);
+    const nextSeason = currentSeasonNum + 1;
+    await set(currentSeasonRef, nextSeason);
+    await set(raceResultsRef, {});
+    await set(ref(db, 'raceStatus'), {});
+    await set(ref(db, 'currentRaceNumber'), null);
+    await set(standingsRef, { drivers: ALL_DRIVERS.map(d => ({name:d.name, points:0})), racesCompleted:0 });
+    alert(`Saison ${nextSeason} gestartet! Viel Erfolg. 🏁`);
+  }catch(e){ console.error(e); alert('Fehler beim Starten der neuen Saison.'); }
 };
 
 function fmtDate(iso){if(!iso)return'';return new Date(iso+'T00:00:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'});}
@@ -1863,20 +2198,46 @@ window.copySlot=async function(date,from,to,myName){
   await saveState();renderNameButtons();
 };
 
-window.toggleAdmin=function(){
-  document.getElementById('adminSec').classList.toggle('on');
+let adminActiveSection = 'results';
+
+window.openAdminModal = function(){
+  const modal = document.getElementById('adminModal');
+  if(!modal) return;
+  modal.classList.add('active');
+  if(adminUnlocked){
+    document.getElementById('adminPinGate').style.display = 'none';
+    document.getElementById('adminBody').style.display = 'flex';
+  }
+};
+
+window.closeAdminModal = function(){
+  const modal = document.getElementById('adminModal');
+  if(modal) modal.classList.remove('active');
+};
+
+window.switchAdminSection = function(sec){
+  adminActiveSection = sec;
+  document.querySelectorAll('.admin-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.sec === sec));
+  document.querySelectorAll('.admin-section').forEach(s => { s.style.display = 'none'; });
+  const map = { results:'adminSecResults', drivers:'adminSecDrivers', calendar:'adminSecCalendar', season:'adminSecSeason', misc:'adminSecMisc' };
+  const target = document.getElementById(map[sec]);
+  if(target) target.style.display = 'block';
+  // Bereich beim Öffnen jeweils frisch aufbauen
+  if(sec === 'drivers') renderAdminDriverList();
+  if(sec === 'calendar') renderAdminCalendarEditor();
+  if(sec === 'season') renderAdminSeasonInfo();
 };
 
 window.checkPin=function(){
   if(document.getElementById('pinIn').value===PIN){
     adminUnlocked=true;
-    document.getElementById('pinArea').style.display='none';
-    document.getElementById('adminCtrl').style.display='block';
-    document.getElementById('standingsAdminArea').style.display='block';
+    document.getElementById('adminPinGate').style.display='none';
+    document.getElementById('adminBody').style.display='flex';
     renderRaceSelectOptions();
     renderRaceResultsEditor();
-    renderStandingsInputs();renderOverview();
+    renderOverview();
     renderRaceCalendar(); // damit die "Als gefahren markieren"-Buttons sofort erscheinen
+    switchAdminSection(adminActiveSection);
   }else{document.getElementById('pinErr').textContent='Falscher PIN!';}
 };
 
