@@ -1930,6 +1930,21 @@ function generateNewsTicker(){
     }
   }
 
+  // Enges Duell WEITER HINTEN in der Tabelle (bewusst ab Rang 2, damit nicht
+  // immer wieder derselbe Spitzenreiter im Ticker auftaucht, sondern auch
+  // das Mittelfeld/Hinterfeld eine Schlagzeile bekommt).
+  if(sortedPts.length >= 3){
+    let closest = null;
+    for(let i = 2; i < sortedPts.length; i++){
+      if(sortedPts[i-1].points === 0 && sortedPts[i].points === 0) continue;
+      const gap = sortedPts[i-1].points - sortedPts[i].points;
+      if(closest === null || gap < closest.gap) closest = {gap, a:sortedPts[i-1], b:sortedPts[i], rank:i+1};
+    }
+    if(closest && closest.gap <= 3){
+      news.push(`⚔️ Enges Duell um P${closest.rank}: ${displayName(closest.a.name)} vs ${displayName(closest.b.name)} - nur ${closest.gap} Punkte trennen sie.`);
+    }
+  }
+
   let eloLeaderName = null;
   if(humans.length >= 2){
     const { ratings, history } = getEloData();
@@ -1937,14 +1952,16 @@ function generateNewsTicker(){
     eloLeaderName = sortedElo[0].human;
     news.push(`⚡ Elo-Spitzenreiter: ${eloLeaderName} (${Math.round(ratings[sortedElo[0].name])}).`);
 
-    let bestForm = null;
+    let bestForm = null, worstForm = null;
     humans.forEach(d => {
       const hist = history[d.name] || [];
       if(hist.length < 2) return;
       const delta = hist[hist.length-1].elo - hist[hist.length-2].elo;
       if(delta > 1 && (!bestForm || delta > bestForm.delta)) bestForm = {name:d.human, delta};
+      if(delta < -1 && (!worstForm || delta < worstForm.delta)) worstForm = {name:d.human, delta};
     });
     if(bestForm) news.push(`📈 ${bestForm.name} ist in Bestform: +${Math.round(bestForm.delta)} Elo im letzten Rennen.`);
+    if(worstForm) news.push(`📉 ${worstForm.name} steckt in einer Formkrise: ${Math.round(worstForm.delta)} Elo im letzten Rennen.`);
   }
 
   const records = Object.entries(trackRecordsData || {});
@@ -2015,6 +2032,94 @@ function generateNewsTicker(){
     const pitSpecialist = pitEntries.map(([name,v]) => [name, v.stops/v.races]).sort((a,b) => a[1]-b[1])[0];
     news.push(`🛞 ${displayName(pitSpecialist[0])} kommt im Schnitt mit den wenigsten Boxenstopps aus (Ø ${pitSpecialist[1].toFixed(1)}).`);
   }
+
+  // Quali-König: bester Ø-Gap zur Pole über die gesamte Vereinshistorie (oft
+  // eine andere Person als der Punkte-Spitzenreiter, da hier die reine
+  // Rundenzeit zählt statt Rennresultat).
+  const chronForStats = getChronologicalRaceResults();
+  const qualiGapSums = {};
+  chronForStats.forEach(({results}) => {
+    if(!results) return;
+    ALL_DRIVERS.forEach(d => {
+      const e = results[d.name];
+      if(!e) return;
+      const raw = e.qualGap !== undefined ? String(e.qualGap).trim() : '';
+      if(raw === '' || /^(dnf|dsq|dns)$/i.test(raw)) return;
+      const g = parseFloat(raw.replace(',','.'));
+      if(isNaN(g)) return;
+      if(!qualiGapSums[d.name]) qualiGapSums[d.name] = {sum:0, count:0};
+      qualiGapSums[d.name].sum += g;
+      qualiGapSums[d.name].count++;
+    });
+  });
+  const qualiEntries = Object.entries(qualiGapSums).filter(([,v]) => v.count >= 2);
+  if(qualiEntries.length){
+    const qualiKing = qualiEntries.map(([name,v]) => [name, v.sum/v.count]).sort((a,b) => a[1]-b[1])[0];
+    news.push(`🎯 Quali-König der Liga: ${displayName(qualiKing[0])} mit im Schnitt nur ${qualiKing[1].toFixed(3)} Sek. Rückstand zur Pole.`);
+  }
+
+  // Konstantester Fahrer: kleinste Streuung der Zielankunfts-Platzierungen
+  // (mind. 3 gewertete Ergebnisse), unabhängig davon, WO er im Schnitt landet.
+  const posLists = {};
+  chronForStats.forEach(({results}) => {
+    if(!results) return;
+    ALL_DRIVERS.forEach(d => {
+      const p = parsedPos(results[d.name]);
+      if(p === null) return;
+      if(!posLists[d.name]) posLists[d.name] = [];
+      posLists[d.name].push(p);
+    });
+  });
+  let consistencyKing = null;
+  Object.entries(posLists).forEach(([name, arr]) => {
+    if(arr.length < 3) return;
+    const mean = arr.reduce((a,b) => a+b, 0) / arr.length;
+    const stdev = Math.sqrt(arr.reduce((a,b) => a+(b-mean)**2, 0) / arr.length);
+    if(!consistencyKing || stdev < consistencyKing.stdev) consistencyKing = {name, stdev};
+  });
+  if(consistencyKing){
+    news.push(`🧊 Mr. Konstanz: ${displayName(consistencyKing.name)} liefert die verlässlichsten Ergebnisse der Liga ab (Schwankung nur ±${consistencyKing.stdev.toFixed(1)} Plätze).`);
+  }
+
+  // Aufholjäger: größter Sprung von Quali-Rang zu Rennplatzierung in einem
+  // einzelnen Rennen dieser Saison.
+  let bestComeback = null;
+  Object.keys(raceResults).forEach(rn => {
+    const results = raceResults[rn];
+    if(!results) return;
+    const withGap = ALL_DRIVERS.map(d => ({name:d.name, raw:results[d.name]}))
+      .filter(e => e.raw && e.raw.qualGap !== undefined && !isNaN(parseFloat(String(e.raw.qualGap).trim().replace(',','.'))))
+      .map(e => ({...e, gap: parseFloat(String(e.raw.qualGap).trim().replace(',','.'))}))
+      .sort((a,b) => a.gap - b.gap);
+    withGap.forEach((e,i) => { e.qualiRank = i+1; });
+    withGap.forEach(e => {
+      const finishPos = parsedPos(e.raw);
+      if(finishPos === null) return;
+      const gain = e.qualiRank - finishPos;
+      if(gain > 0 && (!bestComeback || gain > bestComeback.gain)){
+        const race = RACES.find(r => r.num === parseInt(rn));
+        bestComeback = {name: e.name, gain, raceLabel: race ? race.country : null};
+      }
+    });
+  });
+  if(bestComeback && bestComeback.gain >= 3){
+    news.push(`🚀 Aufholjäger des Rennens: ${displayName(bestComeback.name)} gewann${bestComeback.raceLabel ? ' in ' + bestComeback.raceLabel : ''} ${bestComeback.gain} Plätze im Rennverlauf.`);
+  }
+
+  // Team-interne Duelle (z.B. wenn 2 Fahrer sich ein Team teilen) - nutzt
+  // dieselbe Head-to-Head-Logik wie der Rivalitäten-Tab.
+  const teamGroups = {};
+  ALL_DRIVERS.forEach(d => { if(!d.team) return; (teamGroups[d.team] = teamGroups[d.team] || []).push(d.name); });
+  Object.entries(teamGroups).forEach(([team, names]) => {
+    if(names.length < 2) return;
+    const h2h = computeHeadToHead(names[0], names[1]);
+    if(h2h.racesTogether > 0 && h2h.aWinsRace !== h2h.bWinsRace){
+      const [leadName, trailName, leadWins, trailWins] = h2h.aWinsRace > h2h.bWinsRace
+        ? [names[0], names[1], h2h.aWinsRace, h2h.bWinsRace]
+        : [names[1], names[0], h2h.bWinsRace, h2h.aWinsRace];
+      news.push(`🤝 Team-internes Duell bei ${team}: ${displayName(leadName)} liegt gegen ${displayName(trailName)} mit ${leadWins}:${trailWins} vorn.`);
+    }
+  });
 
   // --- Spekulative Liga-Talk-Schlagzeilen (fixer Themen-Pool, 5 werden einmal
   // pro Seitenaufruf zufällig gezogen; jedes datenbasierte Thema hat einen
