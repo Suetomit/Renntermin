@@ -366,6 +366,38 @@
       cursor: pointer;
       text-transform: uppercase;
     }
+    .fs-tabs { display: flex; gap: 8px; margin-bottom: 15px; }
+    .fs-tab-btn {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid #2d3548;
+      color: var(--m);
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+    .fs-tab-btn.active { background: #e10600; color: #fff; border-color: #e10600; }
+
+    .rivalry-picker { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .rivalry-vs { font-weight: 900; color: var(--y); font-size: 1.1rem; }
+    .rivalry-compare { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; }
+    .rivalry-side { text-align: center; }
+    .rivalry-name { font-weight: 800; font-size: 1.05rem; margin-bottom: 10px; }
+    .rivalry-stat-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .rivalry-stat-num { font-weight: 800; font-size: 1.3rem; }
+    .rivalry-stat-label { text-align: center; font-size: 0.72rem; color: var(--m); text-transform: uppercase; letter-spacing: 0.5px; }
+    .rivalry-bar-wrap { height: 8px; background: var(--s3); border-radius: 4px; overflow: hidden; display: flex; }
+
+    .stats-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .stats-table th, .stats-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.08); text-align: center; }
+    .stats-table th { background: #121620; color: var(--m); font-weight: 700; }
+    .stats-table th.stats-driver-col, .stats-table td.stats-driver-col { text-align: left; }
+
+    .news-ticker-card { border-left: 4px solid #e10600; }
+    .news-ticker-list { display: flex; flex-direction: column; gap: 8px; }
+    .news-item { background: rgba(255,255,255,0.03); border-radius: 6px; padding: 8px 12px; font-size: 0.85rem; }
+
     .fs-table-container {
       flex: 1;
       overflow-x: auto;
@@ -557,10 +589,17 @@
     <div class="fs-title">🏁 SAISONERGEBNISSE &amp; F1 RANGLISTE</div>
     <button class="btn-fs-close" onclick="closeFullscreenStandings()">Schließen (ESC)</button>
   </div>
+  <div class="fs-tabs">
+    <button class="fs-tab-btn active" data-fstab="cross" onclick="switchFsTab('cross')">📊 Kreuztabelle</button>
+    <button class="fs-tab-btn" data-fstab="rivalry" onclick="switchFsTab('rivalry')">⚔️ Rivalitäten</button>
+    <button class="fs-tab-btn" data-fstab="stats" onclick="switchFsTab('stats')">📈 Statistiken</button>
+  </div>
   <div class="fs-table-container">
     <table class="f1-table" id="f1CrossTable">
       <!-- Wird dynamisch befüllt -->
     </table>
+    <div id="fsRivalryPane" style="display:none; padding:20px;"></div>
+    <div id="fsStatsPane" style="display:none; padding:20px;"></div>
   </div>
 </div>
 
@@ -745,6 +784,12 @@
         </button>
       </div>
     </div>
+  </div>
+
+  <!-- Breaking News Ticker: automatisch generierte Headlines aus Standings/Elo/Streckenrekorden -->
+  <div class="card news-ticker-card" id="newsTickerCard" style="display:none;">
+    <div class="card-title" style="margin-bottom:10px;">📰 Breaking News</div>
+    <div class="news-ticker-list" id="newsTickerList"></div>
   </div>
 
   <!-- Top Area: Kalender, Termin & WM Grid -->
@@ -1282,16 +1327,29 @@ window.closeLightbox = function() {
   if(lb) lb.classList.remove('active');
 };
 
+let fsActiveTab = 'cross';
+
 window.openFullscreenStandings = function() {
   const modal = document.getElementById('fullscreenStandingsModal');
   if(!modal) return;
-  renderF1CrossTable();
+  switchFsTab(fsActiveTab);
   modal.classList.add('active');
 };
 
 window.closeFullscreenStandings = function() {
   const modal = document.getElementById('fullscreenStandingsModal');
   if(modal) modal.classList.remove('active');
+};
+
+window.switchFsTab = function(tab){
+  fsActiveTab = tab;
+  document.querySelectorAll('.fs-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.fstab === tab));
+  document.getElementById('f1CrossTable').style.display = tab === 'cross' ? 'table' : 'none';
+  document.getElementById('fsRivalryPane').style.display = tab === 'rivalry' ? 'block' : 'none';
+  document.getElementById('fsStatsPane').style.display = tab === 'stats' ? 'block' : 'none';
+  if(tab === 'cross') renderF1CrossTable();
+  else if(tab === 'rivalry') renderRivalryPane();
+  else if(tab === 'stats') renderStatsPane();
 };
 
 window.openLiveModal = function() {
@@ -1625,6 +1683,247 @@ function getChronologicalRaceResults(){
   Object.keys(raceResults).forEach(rn => list.push({ globalNum: currentSeasonNum*1000 + parseInt(rn), results: raceResults[rn] }));
   list.sort((a,b) => a.globalNum - b.globalNum);
   return list;
+}
+
+// Wandelt ein raceResults-pos-Feld ("1".."20", "DNF", "DSQ", leer, ...) in eine Zahl
+// um, oder null, wenn kein gültiges numerisches Ergebnis vorliegt (= Ausfall/leer).
+function parsedPos(entry){
+  if(!entry || entry.pos === undefined || entry.pos === null) return null;
+  const p = String(entry.pos).trim();
+  return /^\d+$/.test(p) ? parseInt(p) : null;
+}
+
+// ---------------------------------------------------------------------
+// RIVALITÄTEN-TRACKER (Head-to-Head über die gesamte Vereinshistorie, alle
+// Saisons zusammen - passend zur "läuft nie zurück"-Philosophie der Elo).
+// Zählt: wer war in einem gemeinsam gefahrenen Rennen vorne, wer war in der
+// Quali näher an der Pole. Ein DNF/DSQ zählt als Niederlage gegen einen
+// Fahrer, der das Rennen beendet hat.
+// ---------------------------------------------------------------------
+function computeHeadToHead(nameA, nameB){
+  const chron = getChronologicalRaceResults();
+  let racesTogether = 0, aWinsRace = 0, bWinsRace = 0, qualiCompared = 0, aWinsQuali = 0, bWinsQuali = 0;
+
+  chron.forEach(({results}) => {
+    if(!results) return;
+    const a = results[nameA], b = results[nameB];
+    if(!a || !b) return;
+    racesTogether++;
+
+    const posA = parsedPos(a), posB = parsedPos(b);
+    if(posA !== null && posB !== null){
+      if(posA < posB) aWinsRace++; else if(posB < posA) bWinsRace++;
+    } else if(posA !== null && posB === null){
+      aWinsRace++;
+    } else if(posB !== null && posA === null){
+      bWinsRace++;
+    }
+
+    const qaRaw = a.qualGap !== undefined ? String(a.qualGap).trim() : '';
+    const qbRaw = b.qualGap !== undefined ? String(b.qualGap).trim() : '';
+    const qa = qaRaw !== '' && !isNaN(parseFloat(qaRaw.replace(',','.'))) ? parseFloat(qaRaw.replace(',','.')) : null;
+    const qb = qbRaw !== '' && !isNaN(parseFloat(qbRaw.replace(',','.'))) ? parseFloat(qbRaw.replace(',','.')) : null;
+    if(qa !== null && qb !== null){
+      qualiCompared++;
+      if(qa < qb) aWinsQuali++; else if(qb < qa) bWinsQuali++;
+    }
+  });
+
+  return {racesTogether, aWinsRace, bWinsRace, qualiCompared, aWinsQuali, bWinsQuali};
+}
+
+let rivalryDriverA = null, rivalryDriverB = null;
+
+function renderRivalryPane(){
+  const el = document.getElementById('fsRivalryPane');
+  if(!el) return;
+  const humans = ALL_DRIVERS.filter(d => d.human);
+  if(humans.length < 2){ el.innerHTML = '<p style="color:var(--m);">Mindestens 2 menschliche Fahrer nötig.</p>'; return; }
+  if(!rivalryDriverA) rivalryDriverA = humans[0].name;
+  if(!rivalryDriverB || rivalryDriverB === rivalryDriverA) rivalryDriverB = humans.find(d => d.name !== rivalryDriverA)?.name;
+
+  const infoA = getDriverInfo(rivalryDriverA), infoB = getDriverInfo(rivalryDriverB);
+  const h2h = computeHeadToHead(rivalryDriverA, rivalryDriverB);
+  const eloRatings = getEloData().ratings;
+
+  const options = d => humans.map(h => `<option value="${h.name}" ${d===h.name?'selected':''}>${h.human} (${h.team})</option>`).join('');
+
+  function barRow(label, aVal, bVal){
+    const total = Math.max(aVal + bVal, 1);
+    const aPct = Math.round(aVal/total*100);
+    return `<div class="rivalry-stat-row">
+      <div style="text-align:right;"><span class="rivalry-stat-num">${aVal}</span></div>
+      <div class="rivalry-stat-label">${label}</div>
+      <div style="text-align:left;"><span class="rivalry-stat-num">${bVal}</span></div>
+    </div>
+    <div class="rivalry-bar-wrap" style="margin-bottom:14px;">
+      <div style="width:${aPct}%; background:${TEAM_COLORS[infoA.team]||'#888'};"></div>
+      <div style="width:${100-aPct}%; background:${TEAM_COLORS[infoB.team]||'#888'};"></div>
+    </div>`;
+  }
+
+  el.innerHTML = `
+    <div class="rivalry-picker">
+      <select class="pin-input" style="width:auto; margin-bottom:0;" onchange="rivalryDriverA=this.value; renderRivalryPane();">${options(rivalryDriverA)}</select>
+      <span class="rivalry-vs">VS</span>
+      <select class="pin-input" style="width:auto; margin-bottom:0;" onchange="rivalryDriverB=this.value; renderRivalryPane();">${options(rivalryDriverB)}</select>
+    </div>
+    <div class="rivalry-compare">
+      <div class="rivalry-side"><div class="rivalry-name" style="color:${TEAM_COLORS[infoA.team]||'#fff'}">${infoA.human}</div></div>
+      <div></div>
+      <div class="rivalry-side"><div class="rivalry-name" style="color:${TEAM_COLORS[infoB.team]||'#fff'}">${infoB.human}</div></div>
+    </div>
+    ${h2h.racesTogether === 0 ? '<p style="color:var(--m); margin-top:10px;">Diese beiden sind noch in keinem gemeinsamen Rennen gegeneinander angetreten.</p>' : `
+      ${barRow('Rennen gewonnen (Head-to-Head)', h2h.aWinsRace, h2h.bWinsRace)}
+      ${h2h.qualiCompared > 0 ? barRow('Quali gewonnen', h2h.aWinsQuali, h2h.bWinsQuali) : ''}
+      ${barRow('Aktuelle Elo', Math.round(eloRatings[rivalryDriverA]||1000), Math.round(eloRatings[rivalryDriverB]||1000))}
+      <p style="color:var(--m); font-size:0.8rem; margin-top:6px;">Basierend auf ${h2h.racesTogether} gemeinsam gefahrenen Rennen (alle Saisons).</p>
+    `}
+  `;
+}
+
+// ---------------------------------------------------------------------
+// KARRIERE-STATISTIKEN (Zuverlässigkeit, Siege, Podien) - über alle Saisons
+// hinweg, analog zur Elo-Philosophie "läuft nie zurück".
+// ---------------------------------------------------------------------
+function computeCareerStats(){
+  const humans = ALL_DRIVERS.filter(d => d.human);
+  const chron = getChronologicalRaceResults();
+  const stats = {};
+  humans.forEach(d => stats[d.name] = { starts:0, finishes:0, dnfs:0, wins:0, podiums:0, bestPos:null, posSum:0, posCount:0 });
+
+  chron.forEach(({results}) => {
+    if(!results) return;
+    humans.forEach(d => {
+      const e = results[d.name];
+      if(!e || e.pos === undefined || String(e.pos).trim() === '') return;
+      const s = stats[d.name];
+      s.starts++;
+      const posNum = parsedPos(e);
+      if(posNum !== null){
+        s.finishes++;
+        s.posSum += posNum; s.posCount++;
+        if(s.bestPos === null || posNum < s.bestPos) s.bestPos = posNum;
+        if(posNum === 1) s.wins++;
+        if(posNum <= 3) s.podiums++;
+      } else {
+        s.dnfs++;
+      }
+    });
+  });
+
+  return stats;
+}
+
+function renderStatsPane(){
+  const el = document.getElementById('fsStatsPane');
+  if(!el) return;
+  const stats = computeCareerStats();
+  const humans = ALL_DRIVERS.filter(d => d.human);
+  const rows = humans.map(d => ({ d, s: stats[d.name] }))
+    .sort((a,b) => b.s.wins - a.s.wins || b.s.podiums - a.s.podiums || a.d.name.localeCompare(b.d.name));
+
+  el.innerHTML = `
+    <p style="color:var(--m); font-size:0.8rem; margin-bottom:14px;">Karrierestatistik über alle Saisons hinweg.</p>
+    <table class="stats-table">
+      <thead><tr>
+        <th class="stats-driver-col">Fahrer</th>
+        <th>Starts</th><th>Siege</th><th>Podien</th><th>Bester Platz</th>
+        <th>Ø Platzierung</th><th>Ausfälle</th><th>Zuverlässigkeit</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(({d,s}) => {
+          const reliability = s.starts > 0 ? Math.round(s.finishes/s.starts*100) : 0;
+          const avgPos = s.posCount > 0 ? (s.posSum/s.posCount).toFixed(1) : '-';
+          const relColor = reliability >= 80 ? '#52e252' : reliability >= 50 ? '#ffd700' : '#ff5555';
+          return `<tr>
+            <td class="stats-driver-col" style="font-weight:700;">${d.human}</td>
+            <td>${s.starts}</td>
+            <td style="color:var(--y); font-weight:700;">${s.wins}</td>
+            <td>${s.podiums}</td>
+            <td>${s.bestPos ?? '-'}</td>
+            <td>${avgPos}</td>
+            <td style="color:${s.dnfs>0?'#ff5555':'inherit'};">${s.dnfs}</td>
+            <td style="color:${relColor}; font-weight:700;">${s.starts>0 ? reliability+'%' : '-'}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+// ---------------------------------------------------------------------
+// BREAKING-NEWS-TICKER: kurze automatisch generierte Headlines, rein aus
+// bereits vorhandenen Daten (Standings, Elo, Streckenrekorde, DNF-Stats) -
+// kein zusätzliches Tracking, wird bei jedem render() neu berechnet.
+// ---------------------------------------------------------------------
+function generateNewsTicker(){
+  const news = [];
+  const humans = ALL_DRIVERS.filter(d => d.human);
+  if(humans.length === 0) return news;
+
+  // Aktueller Punkte-Spitzenreiter (nur laufende Saison)
+  const sortedPts = [...standings.drivers].filter(d => getDriverInfo(d.name).human).sort((a,b) => b.points - a.points);
+  if(sortedPts.length >= 1 && sortedPts[0].points > 0){
+    const leaderInfo = getDriverInfo(sortedPts[0].name);
+    const gap = sortedPts.length >= 2 ? sortedPts[0].points - sortedPts[1].points : sortedPts[0].points;
+    if(sortedPts.length >= 2 && gap <= 5){
+      news.push(`🔥 Enges Titelrennen: ${leaderInfo.human} führt nur ${gap} Punkte vor ${getDriverInfo(sortedPts[1].name).human}.`);
+    } else {
+      news.push(`🏆 ${leaderInfo.human} führt die Fahrerwertung mit ${sortedPts[0].points} Punkten an.`);
+    }
+  }
+
+  // Elo-Spitzenreiter & Bestform
+  if(humans.length >= 2){
+    const { ratings, history } = getEloData();
+    const sortedElo = [...humans].sort((a,b) => ratings[b.name]-ratings[a.name]);
+    news.push(`⚡ Elo-Spitzenreiter: ${sortedElo[0].human} (${Math.round(ratings[sortedElo[0].name])}).`);
+
+    let bestForm = null;
+    humans.forEach(d => {
+      const hist = history[d.name] || [];
+      if(hist.length < 2) return;
+      const delta = hist[hist.length-1].elo - hist[hist.length-2].elo;
+      if(delta > 1 && (!bestForm || delta > bestForm.delta)) bestForm = {name:d.human, delta};
+    });
+    if(bestForm) news.push(`📈 ${bestForm.name} ist in Bestform: +${Math.round(bestForm.delta)} Elo im letzten Rennen.`);
+  }
+
+  // Neuester Streckenrekord
+  const records = Object.entries(trackRecordsData || {});
+  if(records.length){
+    const newest = records.sort((a,b) => (b[1].updatedAt||0) - (a[1].updatedAt||0))[0];
+    const race = RACES_MASTER.find(r => r.code === newest[0]);
+    if(race) news.push(`🏁 Streckenrekord in ${race.country}: ${newest[1].driver} (${fmtLapTimeS(newest[1].time)}).`);
+  }
+
+  // Meiste Ausfälle dieser Saison (nur wenn es überhaupt welche gibt)
+  const dnfCounts = {};
+  Object.values(raceResults).forEach(res => {
+    humans.forEach(d => {
+      const e = res && res[d.name];
+      if(e && parsedPos(e) === null && e.pos !== undefined && String(e.pos).trim() !== '') {
+        dnfCounts[d.name] = (dnfCounts[d.name]||0) + 1;
+      }
+    });
+  });
+  const worstDnf = Object.entries(dnfCounts).sort((a,b) => b[1]-a[1])[0];
+  if(worstDnf && worstDnf[1] >= 2){
+    news.push(`💥 ${getDriverInfo(worstDnf[0]).human} führt die Ausfall-Statistik dieser Saison an: ${worstDnf[1]} Ausfälle.`);
+  }
+
+  return news;
+}
+
+function renderNewsTicker(){
+  const card = document.getElementById('newsTickerCard');
+  const list = document.getElementById('newsTickerList');
+  if(!card || !list) return;
+  const news = generateNewsTicker();
+  if(!news.length){ card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  list.innerHTML = news.map(n => `<div class="news-item">${n}</div>`).join('');
 }
 
 function computeEloRatings(){
@@ -2528,6 +2827,7 @@ function render(){
   renderOverview();
   renderConfirmedArea();
   renderReminderBanner();
+  renderNewsTicker();
   updateHeroCountdown();
   updateHeaderPodium();
   if(standingsTab==='fahrer') renderStandings();
@@ -2535,7 +2835,7 @@ function render(){
   else renderEloStandings();
   
   if(document.getElementById('fullscreenStandingsModal')?.classList.contains('active')) {
-    renderF1CrossTable();
+    switchFsTab(fsActiveTab);
   }
 }
 
