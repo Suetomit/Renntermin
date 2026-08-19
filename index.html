@@ -1674,14 +1674,25 @@ function initStandings(database){
 
 function getDriverInfo(name){return ALL_DRIVERS.find(d=>d.name===name)||{name,team:'',human:null,photo:''};}
 
+// Zeigt bei Fahrer-News einen sinnvollen Namen an: bei Menschen den kurzen
+// Liga-Vornamen (z.B. "Timo"), bei KI-Fahrern den vollen Namen (z.B. "Max Verstappen"),
+// da KI-Fahrer kein "human"-Feld haben.
+function displayName(driverName){
+  const info = getDriverInfo(driverName);
+  return info.human || info.name;
+}
+
 // Löst den vom Telemetrie-Skript gemeldeten In-Game-Namen (Steam/Platform-Name,
 // im Idealfall identisch mit dem Racenet-Username) auf einen Liga-Fahrer auf.
+// Menschen werden über racenet gematcht, KI-Fahrer über den vollen Namen (das
+// Telemetrie-Skript meldet für KI-Fahrer deren Klarnamen mit "[KI] "-Präfix).
 // Kommt kein Treffer zustande, wird der rohe In-Game-Name mit neutralem Look angezeigt -
 // die Zuordnung in ALL_DRIVERS[].racenet ist dann ggf. anzupassen.
 function getDriverInfoByRacenet(ingameName){
   if(!ingameName) return {name:ingameName||'?', team:'', human:null, photo:''};
   const clean = ingameName.replace(/^\[KI\]\s*/, '');
-  const match = ALL_DRIVERS.find(d => d.racenet && d.racenet.toLowerCase() === clean.toLowerCase());
+  const match = ALL_DRIVERS.find(d => d.racenet && d.racenet.toLowerCase() === clean.toLowerCase())
+    || ALL_DRIVERS.find(d => !d.human && d.name.toLowerCase() === clean.toLowerCase());
   if(match) return match;
   return {name: ingameName, team:'', human:null, photo:''};
 }
@@ -1901,16 +1912,17 @@ let speculativeNewsPicks = null;
 function generateNewsTicker(){
   const news = [];
   const humans = ALL_DRIVERS.filter(d => d.human);
-  if(humans.length === 0) return news;
+  if(ALL_DRIVERS.length === 0) return news;
 
-  // --- Harte Fakten ---
-  const sortedPts = [...standings.drivers].filter(d => getDriverInfo(d.name).human).sort((a,b) => b.points - a.points);
+  // --- Harte Fakten (Punkte/DNF/schnellste Runden/Boxenstopps: ALLE Fahrer,
+  // also auch KI - nur die Elo-Wertung weiter unten bleibt bewusst
+  // menschen-only, siehe computeEloRatings()). ---
+  const sortedPts = [...standings.drivers].sort((a,b) => b.points - a.points);
   let leaderName = null, secondName = null;
   if(sortedPts.length >= 1 && sortedPts[0].points > 0){
-    const leaderInfo = getDriverInfo(sortedPts[0].name);
-    leaderName = leaderInfo.human;
+    leaderName = displayName(sortedPts[0].name);
     const gap = sortedPts.length >= 2 ? sortedPts[0].points - sortedPts[1].points : sortedPts[0].points;
-    if(sortedPts.length >= 2) secondName = getDriverInfo(sortedPts[1].name).human;
+    if(sortedPts.length >= 2) secondName = displayName(sortedPts[1].name);
     if(sortedPts.length >= 2 && gap <= 5){
       news.push(`🔥 Enges Titelrennen: ${leaderName} führt nur ${gap} Punkte vor ${secondName}.`);
     } else {
@@ -1952,55 +1964,56 @@ function generateNewsTicker(){
   const sortedTeams = Object.entries(teamPts).sort((a,b) => b[1]-a[1]);
   const topTeam = sortedTeams.length && sortedTeams[0][1] > 0 ? sortedTeams[0][0] : null;
 
-  // DNF-Statistik dieser Saison + letzter Ausfall (für die "warum gecrasht"-Frage)
+  // DNF-Statistik dieser Saison + letzter Ausfall (für die "warum gecrasht"-Frage) - alle Fahrer
   const dnfCounts = {};
   let lastRaceDnfDriver = null, lastRaceDnfRaceNum = null;
   const raceNumsDesc = Object.keys(raceResults).map(Number).sort((a,b) => b-a);
   for(const rn of raceNumsDesc){
     const res = raceResults[rn];
-    humans.forEach(d => {
+    ALL_DRIVERS.forEach(d => {
       const e = res && res[d.name];
       if(e && parsedPos(e) === null && e.pos !== undefined && String(e.pos).trim() !== '') {
         dnfCounts[d.name] = (dnfCounts[d.name] || 0) + 1;
-        if(lastRaceDnfDriver === null){ lastRaceDnfDriver = d.human; lastRaceDnfRaceNum = rn; }
+        if(lastRaceDnfDriver === null){ lastRaceDnfDriver = displayName(d.name); lastRaceDnfRaceNum = rn; }
       }
     });
   }
   const worstDnf = Object.entries(dnfCounts).sort((a,b) => b[1]-a[1])[0];
   if(worstDnf && worstDnf[1] >= 2){
-    news.push(`💥 ${getDriverInfo(worstDnf[0]).human} führt die Ausfall-Statistik dieser Saison an: ${worstDnf[1]} Ausfälle.`);
+    news.push(`💥 ${displayName(worstDnf[0])} führt die Ausfall-Statistik dieser Saison an: ${worstDnf[1]} Ausfälle.`);
   }
 
-  // Meiste schnellste Rennrunden dieser Saison
+  // Meiste schnellste Rennrunden dieser Saison - alle Fahrer
   const flCounts = {};
   Object.values(raceResults).forEach(res => {
-    humans.forEach(d => {
+    ALL_DRIVERS.forEach(d => {
       const e = res && res[d.name];
       if(e && e.fastestLap === true) flCounts[d.name] = (flCounts[d.name] || 0) + 1;
     });
   });
   const flLeader = Object.entries(flCounts).sort((a,b) => b[1]-a[1])[0];
   if(flLeader && flLeader[1] >= 2){
-    news.push(`⏱️ ${getDriverInfo(flLeader[0]).human} sammelt die meisten schnellsten Rennrunden dieser Saison: ${flLeader[1]}x.`);
+    news.push(`⏱️ ${displayName(flLeader[0])} sammelt die meisten schnellsten Rennrunden dieser Saison: ${flLeader[1]}x.`);
   }
 
-  // Boxenstopp-Sparsamster (aus Telemetrie-Archiv, falls vorhanden)
+  // Boxenstopp-Sparsamster (aus Telemetrie-Archiv, falls vorhanden) - alle Fahrer,
+  // die per Racenet (Mensch) oder Namen (KI) im Roster gefunden werden.
   const pitTotals = {};
   Object.values(telemetryArchiveData || {}).forEach(archive => {
     const pitStops = archive && archive.pitStops;
     if(!pitStops) return;
     Object.keys(pitStops).forEach(ingameName => {
       const info = getDriverInfoByRacenet(ingameName);
-      if(!info.human) return;
-      if(!pitTotals[info.human]) pitTotals[info.human] = {stops:0, races:0};
-      pitTotals[info.human].stops += pitStops[ingameName] || 0;
-      pitTotals[info.human].races += 1;
+      if(!info.name || info.name === ingameName) return; // kein Treffer im Roster
+      if(!pitTotals[info.name]) pitTotals[info.name] = {stops:0, races:0};
+      pitTotals[info.name].stops += pitStops[ingameName] || 0;
+      pitTotals[info.name].races += 1;
     });
   });
   const pitEntries = Object.entries(pitTotals).filter(([,v]) => v.races >= 2);
   if(pitEntries.length){
     const pitSpecialist = pitEntries.map(([name,v]) => [name, v.stops/v.races]).sort((a,b) => a[1]-b[1])[0];
-    news.push(`🛞 ${pitSpecialist[0]} kommt im Schnitt mit den wenigsten Boxenstopps aus (Ø ${pitSpecialist[1].toFixed(1)}).`);
+    news.push(`🛞 ${displayName(pitSpecialist[0])} kommt im Schnitt mit den wenigsten Boxenstopps aus (Ø ${pitSpecialist[1].toFixed(1)}).`);
   }
 
   // --- Spekulative Liga-Talk-Schlagzeilen (fixer Themen-Pool, 5 werden einmal
@@ -2021,7 +2034,7 @@ function generateNewsTicker(){
       ? `🎙️ ${eloLeaderName} zeigt aktuell die stärkste Elo-Form der Liga - Zufall oder neue Bestform?`
       : `🎙️ Wer zeigt in den kommenden Rennen die stärkste Form?`,
     worstDnf
-      ? `😱 Kann ${getDriverInfo(worstDnf[0]).human} die Ausfallserie noch stoppen?`
+      ? `😱 Kann ${displayName(worstDnf[0])} die Ausfallserie noch stoppen?`
       : `😅 Bisher läuft's bei allen zuverlässig - bleibt das so?`,
     secondName
       ? `🥈 ${secondName} lauert auf Platz 2 - reicht die Restsaison für den Sprung an die Spitze?`
