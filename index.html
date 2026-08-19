@@ -394,9 +394,34 @@
     .stats-table th { background: #121620; color: var(--m); font-weight: 700; }
     .stats-table th.stats-driver-col, .stats-table td.stats-driver-col { text-align: left; }
 
-    .news-ticker-card { border-left: 4px solid #e10600; }
-    .news-ticker-list { display: flex; flex-direction: column; gap: 8px; }
-    .news-item { background: rgba(255,255,255,0.03); border-radius: 6px; padding: 8px 12px; font-size: 0.85rem; }
+    .news-ticker-card {
+      display: flex;
+      align-items: stretch;
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      backdrop-filter: blur(8px);
+    }
+    .news-ticker-label {
+      flex-shrink: 0;
+      background: #e10600;
+      color: #fff;
+      font-weight: 900;
+      font-size: 0.8rem;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      padding: 0 18px;
+      white-space: nowrap;
+    }
+    .news-ticker-viewport { flex: 1; overflow: hidden; position: relative; display: flex; align-items: center; }
+    .news-ticker-track { display: inline-flex; white-space: nowrap; animation: newsTickerScroll linear infinite; padding-left: 100%; }
+    .news-ticker-track .news-item { display: inline-block; padding: 10px 40px 10px 0; font-size: 0.88rem; font-weight: 600; }
+    @keyframes newsTickerScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    .news-ticker-card:hover .news-ticker-track { animation-play-state: paused; }
+
 
     .fs-table-container {
       flex: 1;
@@ -786,10 +811,13 @@
     </div>
   </div>
 
-  <!-- Breaking News Ticker: automatisch generierte Headlines aus Standings/Elo/Streckenrekorden -->
+  <!-- Breaking News Ticker: läuft wie ein News-Sender-Banner durch, gespeist aus
+       Standings/Elo/Streckenrekorden + ein paar spekulativen Liga-Talk-Themen -->
   <div class="card news-ticker-card" id="newsTickerCard" style="display:none;">
-    <div class="card-title" style="margin-bottom:10px;">📰 Breaking News</div>
-    <div class="news-ticker-list" id="newsTickerList"></div>
+    <div class="news-ticker-label">📰 Breaking News</div>
+    <div class="news-ticker-viewport">
+      <div class="news-ticker-track" id="newsTickerTrack"></div>
+    </div>
   </div>
 
   <!-- Top Area: Kalender, Termin & WM Grid -->
@@ -1734,6 +1762,11 @@ function computeHeadToHead(nameA, nameB){
 
 let rivalryDriverA = null, rivalryDriverB = null;
 
+window.setRivalryDriver = function(which, value){
+  if(which === 'A') rivalryDriverA = value; else rivalryDriverB = value;
+  renderRivalryPane();
+};
+
 function renderRivalryPane(){
   const el = document.getElementById('fsRivalryPane');
   if(!el) return;
@@ -1764,9 +1797,9 @@ function renderRivalryPane(){
 
   el.innerHTML = `
     <div class="rivalry-picker">
-      <select class="pin-input" style="width:auto; margin-bottom:0;" onchange="rivalryDriverA=this.value; renderRivalryPane();">${options(rivalryDriverA)}</select>
+      <select class="pin-input" style="width:auto; margin-bottom:0;" onchange="setRivalryDriver('A', this.value)">${options(rivalryDriverA)}</select>
       <span class="rivalry-vs">VS</span>
-      <select class="pin-input" style="width:auto; margin-bottom:0;" onchange="rivalryDriverB=this.value; renderRivalryPane();">${options(rivalryDriverB)}</select>
+      <select class="pin-input" style="width:auto; margin-bottom:0;" onchange="setRivalryDriver('B', this.value)">${options(rivalryDriverB)}</select>
     </div>
     <div class="rivalry-compare">
       <div class="rivalry-side"><div class="rivalry-name" style="color:${TEAM_COLORS[infoA.team]||'#fff'}">${infoA.human}</div></div>
@@ -1853,32 +1886,44 @@ function renderStatsPane(){
 }
 
 // ---------------------------------------------------------------------
-// BREAKING-NEWS-TICKER: kurze automatisch generierte Headlines, rein aus
-// bereits vorhandenen Daten (Standings, Elo, Streckenrekorde, DNF-Stats) -
-// kein zusätzliches Tracking, wird bei jedem render() neu berechnet.
+// BREAKING-NEWS-TICKER: kurze automatisch generierte Headlines. Zwei Arten:
+// 1) Harte Fakten aus vorhandenen Daten (Standings, Elo, Streckenrekorde, DNFs)
+// 2) Spekulative "Liga-Talk"-Schlagzeilen (Champion-Frage, Konstrukteurs-WM,
+//    "warum gecrasht" etc.) - füllen die Lücke, wenn wenig Fakten vorliegen,
+//    und machen den Ticker abwechslungsreicher.
+// Die Auswahl DER SPEKULATIVEN Themen wird einmal pro Seitenaufruf gewürfelt
+// (speculativeNewsPicks) und danach nicht mehr neu gemischt, sonst würde der
+// Ticker bei jedem Firebase-Update (mehrmals pro Minute) umspringen/flackern.
+// Die eingesetzten Namen/Zahlen darin aktualisieren sich trotzdem live.
 // ---------------------------------------------------------------------
+let speculativeNewsPicks = null;
+
 function generateNewsTicker(){
   const news = [];
   const humans = ALL_DRIVERS.filter(d => d.human);
   if(humans.length === 0) return news;
 
-  // Aktueller Punkte-Spitzenreiter (nur laufende Saison)
+  // --- Harte Fakten ---
   const sortedPts = [...standings.drivers].filter(d => getDriverInfo(d.name).human).sort((a,b) => b.points - a.points);
+  let leaderName = null, secondName = null;
   if(sortedPts.length >= 1 && sortedPts[0].points > 0){
     const leaderInfo = getDriverInfo(sortedPts[0].name);
+    leaderName = leaderInfo.human;
     const gap = sortedPts.length >= 2 ? sortedPts[0].points - sortedPts[1].points : sortedPts[0].points;
+    if(sortedPts.length >= 2) secondName = getDriverInfo(sortedPts[1].name).human;
     if(sortedPts.length >= 2 && gap <= 5){
-      news.push(`🔥 Enges Titelrennen: ${leaderInfo.human} führt nur ${gap} Punkte vor ${getDriverInfo(sortedPts[1].name).human}.`);
+      news.push(`🔥 Enges Titelrennen: ${leaderName} führt nur ${gap} Punkte vor ${secondName}.`);
     } else {
-      news.push(`🏆 ${leaderInfo.human} führt die Fahrerwertung mit ${sortedPts[0].points} Punkten an.`);
+      news.push(`🏆 ${leaderName} führt die Fahrerwertung mit ${sortedPts[0].points} Punkten an.`);
     }
   }
 
-  // Elo-Spitzenreiter & Bestform
+  let eloLeaderName = null;
   if(humans.length >= 2){
     const { ratings, history } = getEloData();
     const sortedElo = [...humans].sort((a,b) => ratings[b.name]-ratings[a.name]);
-    news.push(`⚡ Elo-Spitzenreiter: ${sortedElo[0].human} (${Math.round(ratings[sortedElo[0].name])}).`);
+    eloLeaderName = sortedElo[0].human;
+    news.push(`⚡ Elo-Spitzenreiter: ${eloLeaderName} (${Math.round(ratings[sortedElo[0].name])}).`);
 
     let bestForm = null;
     humans.forEach(d => {
@@ -1890,7 +1935,6 @@ function generateNewsTicker(){
     if(bestForm) news.push(`📈 ${bestForm.name} ist in Bestform: +${Math.round(bestForm.delta)} Elo im letzten Rennen.`);
   }
 
-  // Neuester Streckenrekord
   const records = Object.entries(trackRecordsData || {});
   if(records.length){
     const newest = records.sort((a,b) => (b[1].updatedAt||0) - (a[1].updatedAt||0))[0];
@@ -1898,32 +1942,148 @@ function generateNewsTicker(){
     if(race) news.push(`🏁 Streckenrekord in ${race.country}: ${newest[1].driver} (${fmtLapTimeS(newest[1].time)}).`);
   }
 
-  // Meiste Ausfälle dieser Saison (nur wenn es überhaupt welche gibt)
+  // Konstrukteurs-WM-Spitzenreiter (aus Fahrerpunkten je Team summiert)
+  const teamPts = {};
+  standings.drivers.forEach(d => {
+    const info = getDriverInfo(d.name);
+    if(!info.team) return;
+    teamPts[info.team] = (teamPts[info.team] || 0) + d.points;
+  });
+  const sortedTeams = Object.entries(teamPts).sort((a,b) => b[1]-a[1]);
+  const topTeam = sortedTeams.length && sortedTeams[0][1] > 0 ? sortedTeams[0][0] : null;
+
+  // DNF-Statistik dieser Saison + letzter Ausfall (für die "warum gecrasht"-Frage)
   const dnfCounts = {};
-  Object.values(raceResults).forEach(res => {
+  let lastRaceDnfDriver = null, lastRaceDnfRaceNum = null;
+  const raceNumsDesc = Object.keys(raceResults).map(Number).sort((a,b) => b-a);
+  for(const rn of raceNumsDesc){
+    const res = raceResults[rn];
     humans.forEach(d => {
       const e = res && res[d.name];
       if(e && parsedPos(e) === null && e.pos !== undefined && String(e.pos).trim() !== '') {
-        dnfCounts[d.name] = (dnfCounts[d.name]||0) + 1;
+        dnfCounts[d.name] = (dnfCounts[d.name] || 0) + 1;
+        if(lastRaceDnfDriver === null){ lastRaceDnfDriver = d.human; lastRaceDnfRaceNum = rn; }
       }
     });
-  });
+  }
   const worstDnf = Object.entries(dnfCounts).sort((a,b) => b[1]-a[1])[0];
   if(worstDnf && worstDnf[1] >= 2){
     news.push(`💥 ${getDriverInfo(worstDnf[0]).human} führt die Ausfall-Statistik dieser Saison an: ${worstDnf[1]} Ausfälle.`);
   }
+
+  // Meiste schnellste Rennrunden dieser Saison
+  const flCounts = {};
+  Object.values(raceResults).forEach(res => {
+    humans.forEach(d => {
+      const e = res && res[d.name];
+      if(e && e.fastestLap === true) flCounts[d.name] = (flCounts[d.name] || 0) + 1;
+    });
+  });
+  const flLeader = Object.entries(flCounts).sort((a,b) => b[1]-a[1])[0];
+  if(flLeader && flLeader[1] >= 2){
+    news.push(`⏱️ ${getDriverInfo(flLeader[0]).human} sammelt die meisten schnellsten Rennrunden dieser Saison: ${flLeader[1]}x.`);
+  }
+
+  // Boxenstopp-Sparsamster (aus Telemetrie-Archiv, falls vorhanden)
+  const pitTotals = {};
+  Object.values(telemetryArchiveData || {}).forEach(archive => {
+    const pitStops = archive && archive.pitStops;
+    if(!pitStops) return;
+    Object.keys(pitStops).forEach(ingameName => {
+      const info = getDriverInfoByRacenet(ingameName);
+      if(!info.human) return;
+      if(!pitTotals[info.human]) pitTotals[info.human] = {stops:0, races:0};
+      pitTotals[info.human].stops += pitStops[ingameName] || 0;
+      pitTotals[info.human].races += 1;
+    });
+  });
+  const pitEntries = Object.entries(pitTotals).filter(([,v]) => v.races >= 2);
+  if(pitEntries.length){
+    const pitSpecialist = pitEntries.map(([name,v]) => [name, v.stops/v.races]).sort((a,b) => a[1]-b[1])[0];
+    news.push(`🛞 ${pitSpecialist[0]} kommt im Schnitt mit den wenigsten Boxenstopps aus (Ø ${pitSpecialist[1].toFixed(1)}).`);
+  }
+
+  // --- Spekulative Liga-Talk-Schlagzeilen (fixer Themen-Pool, 5 werden einmal
+  // pro Seitenaufruf zufällig gezogen; jedes datenbasierte Thema hat einen
+  // Fallback-Text für den Fall, dass noch keine passenden Daten vorliegen). ---
+  const dnfRace = lastRaceDnfRaceNum ? RACES.find(r => r.num === lastRaceDnfRaceNum) : null;
+  const pool = [
+    lastRaceDnfDriver
+      ? `🤔 Warum ist ${lastRaceDnfDriver}${dnfRace ? ' in ' + dnfRace.country : ''} ausgeschieden? Die Box-Funk-Aufnahmen schweigen dazu.`
+      : `🤔 Bislang läuft die Saison erstaunlich unfallfrei - wie lange hält das noch?`,
+    leaderName
+      ? `🔮 Wird ${leaderName} Champion Saison ${currentSeasonNum}${secondName ? ', oder schlägt ' + secondName + ' noch zurück?' : '?'}`
+      : `🔮 Wer wird am Ende der Saison ${currentSeasonNum} die Fahrerwertung anführen?`,
+    topTeam
+      ? `🏗️ Konstrukteurs-WM: ${topTeam} liegt aktuell vorn - reicht das bis zum Saisonende?`
+      : `🏗️ Welches Team hat die besten Chancen auf die Konstrukteurs-WM?`,
+    eloLeaderName
+      ? `🎙️ ${eloLeaderName} zeigt aktuell die stärkste Elo-Form der Liga - Zufall oder neue Bestform?`
+      : `🎙️ Wer zeigt in den kommenden Rennen die stärkste Form?`,
+    worstDnf
+      ? `😱 Kann ${getDriverInfo(worstDnf[0]).human} die Ausfallserie noch stoppen?`
+      : `😅 Bisher läuft's bei allen zuverlässig - bleibt das so?`,
+    secondName
+      ? `🥈 ${secondName} lauert auf Platz 2 - reicht die Restsaison für den Sprung an die Spitze?`
+      : `🥈 Wer schnappt sich als Nächstes Platz 2 in der Gesamtwertung?`,
+    `🗣️ Gerüchteküche: Wer wechselt zur nächsten Saison das Team?`,
+    `📊 Wer liefert am nächsten Rennwochenende die überraschendste Quali-Runde?`,
+    `🎧 Boxenfunk-Frage der Woche: Wer riskiert den Undercut?`,
+    `🌧️ Regenrennen voraus - wer meistert die Bedingungen am besten?`,
+    `🔧 Setup-Talk: Wer opfert Topspeed für mehr Kurvengrip?`,
+    `🏎️ Reifenmanagement: Wer schont seine Reifen am geschicktesten?`,
+    `🎯 Wer schnappt sich als Nächstes die Pole Position?`,
+    `🤝 Teamkollegen-Duell: Wer hat intern gerade die Nase vorn?`,
+    `📉 Wer hat aktuell die schwierigste Formkurve zu drehen?`,
+    `🚦 Start-Duelle: Wer gewinnt die meisten Positionen in Runde 1?`,
+    `🧠 Renningenieur-Frage: Welche Strategie geht diesmal auf?`,
+    `🔥 Wer zeigt beim nächsten Rennen die aggressivste Fahrweise?`,
+    `🥇 Reicht die aktuelle Form für den nächsten Sieg?`,
+    `🧩 Wildcard-Frage: Wer überrascht als Nächstes das ganze Feld?`,
+    `🛠️ Boxenstopp-Duell: Wer hat aktuell die schnellste Crew?`,
+    `📅 Noch wie viele Rennen bis zur Entscheidung? Die Spannung bleibt.`,
+    `🎤 Interview-Frage der Woche: Was sagt der Spitzenreiter zum Druck von hinten?`,
+    `🧭 Streckenkenner-Frage: Wer kennt die nächste Strecke am besten?`,
+    `💨 Höchstgeschwindigkeit oder Kurvenspeed - wer setzt worauf?`,
+    `🃏 Safety-Car-Timing: Wer profitiert als Nächstes vom Glück?`,
+    `🏁 Wer holt sich die nächste "Fahrer des Rennens"-Nominierung?`,
+    `🔄 Comeback-Kandidat: Wer dreht als Nächstes eine schwache Serie um?`,
+    `🧊 Nervenstärke gefragt: Wer bleibt unter Druck am cleversten?`,
+    `📈 Wer klettert als Nächstes am meisten Plätze in der Gesamtwertung?`,
+    `🏆 Nur noch wenige Punkte trennen das Mittelfeld - wer nutzt die Chance?`,
+  ];
+
+  if(!speculativeNewsPicks || speculativeNewsPicks.some(i => i >= pool.length)){
+    const indices = pool.map((_, i) => i);
+    for(let i = indices.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+    speculativeNewsPicks = indices.slice(0, 5);
+  }
+  speculativeNewsPicks.forEach(i => news.push(pool[i]));
 
   return news;
 }
 
 function renderNewsTicker(){
   const card = document.getElementById('newsTickerCard');
-  const list = document.getElementById('newsTickerList');
-  if(!card || !list) return;
+  const track = document.getElementById('newsTickerTrack');
+  if(!card || !track) return;
   const news = generateNewsTicker();
   if(!news.length){ card.style.display = 'none'; return; }
-  card.style.display = 'block';
-  list.innerHTML = news.map(n => `<div class="news-item">${n}</div>`).join('');
+  card.style.display = 'flex';
+
+  // Inhalt wird verdoppelt, damit die Endlosschleife nahtlos ist (Animation
+  // läuft von 0% auf -50% = genau eine Kopie weiter, dann Sprung unsichtbar).
+  const itemsHtml = news.map(n => `<span class="news-item">${n}</span>`).join('');
+  track.innerHTML = itemsHtml + itemsHtml;
+
+  // Laufgeschwindigkeit an die Textmenge koppeln, damit sie bei mehr/weniger
+  // News ungefähr konstant bleibt statt bei viel Text zu hetzen.
+  const totalChars = news.reduce((sum, n) => sum + n.length, 0);
+  const duration = Math.max(18, Math.round(totalChars * 0.09));
+  track.style.animationDuration = duration + 's';
 }
 
 function computeEloRatings(){
