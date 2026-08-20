@@ -2129,8 +2129,173 @@ function generateNewsTicker(){
     factsPool.push(`🚀 Aufholjäger des Rennens: ${displayName(bestComeback.name)} gewann${bestComeback.raceLabel ? ' in ' + bestComeback.raceLabel : ''} ${bestComeback.gain} Plätze im Rennverlauf.`);
   }
 
+  // Chronologische Rennnummern DIESER Saison (aufsteigend) - Basis für alle
+  // "Serie"/"Meilenstein"/"letzte X Rennen"-Fakten unten, die sich bewusst
+  // nur auf die laufende Saison beziehen (nicht die Vereinshistorie).
+  const seasonRaceNums = Object.keys(raceResults).map(Number).sort((a,b) => a-b);
+
+  // Meilensteine: erstes Podium der Saison + 50/100/150/200-Punkte-Marke,
+  // beide nur wenn sie GENAU mit dem letzten eingetragenen Rennen fallen.
+  if(seasonRaceNums.length >= 1){
+    const lastRn = seasonRaceNums[seasonRaceNums.length - 1];
+    const priorRaceNums = seasonRaceNums.slice(0, -1);
+
+    ALL_DRIVERS.forEach(d => {
+      const lastPos = parsedPos(raceResults[lastRn] && raceResults[lastRn][d.name]);
+      if(lastPos === null || lastPos > 3) return;
+      const hadEarlierPodium = priorRaceNums.some(rn => {
+        const p = parsedPos(raceResults[rn] && raceResults[rn][d.name]);
+        return p !== null && p <= 3;
+      });
+      if(!hadEarlierPodium) factsPool.push(`🎉 Erstes Podium der Saison für ${displayName(d.name)}!`);
+    });
+
+    ALL_DRIVERS.forEach(d => {
+      let priorPts = 0;
+      priorRaceNums.forEach(rn => { priorPts += F1_POINTS[parsedPos(raceResults[rn] && raceResults[rn][d.name])] || 0; });
+      const totalPts = priorPts + (F1_POINTS[parsedPos(raceResults[lastRn] && raceResults[lastRn][d.name])] || 0);
+      [50, 100, 150, 200].forEach(threshold => {
+        if(priorPts < threshold && totalPts >= threshold){
+          factsPool.push(`🎯 ${displayName(d.name)} knackt die ${threshold}-Punkte-Marke dieser Saison!`);
+        }
+      });
+    });
+  }
+
+  // Sieg-/Podium-Serie: längste aktuell laufende Serie (rückwärts ab dem
+  // letzten Rennen gezählt), pro Schwelle (Sieg bzw. Podium) getrennt.
+  function currentStreak(threshold){
+    let best = null;
+    ALL_DRIVERS.forEach(d => {
+      let streak = 0;
+      for(let i = seasonRaceNums.length - 1; i >= 0; i--){
+        const p = parsedPos(raceResults[seasonRaceNums[i]] && raceResults[seasonRaceNums[i]][d.name]);
+        if(p !== null && p <= threshold) streak++; else break;
+      }
+      if(streak > 0 && (!best || streak > best.length)) best = {name: d.name, length: streak};
+    });
+    return best;
+  }
+  const winStreak = currentStreak(1);
+  if(winStreak && winStreak.length >= 2){
+    factsPool.push(`👑 ${displayName(winStreak.name)} hat die letzten ${winStreak.length} Rennen in Folge gewonnen!`);
+  }
+  const podiumStreak = currentStreak(3);
+  if(podiumStreak && podiumStreak.length >= 2 && podiumStreak.length !== (winStreak?.length || 0)){
+    factsPool.push(`🔥 ${displayName(podiumStreak.name)} steht bei ${podiumStreak.length} Podien in Folge.`);
+  }
+
+  // Zuverlässigkeits-Serie: längste laufende Serie ohne Ausfall (Nicht-Teilnahme
+  // an einem Rennen unterbricht die Serie NICHT, ein echter DNF-Eintrag schon).
+  let reliabilityStreak = null;
+  ALL_DRIVERS.forEach(d => {
+    let streak = 0;
+    for(let i = seasonRaceNums.length - 1; i >= 0; i--){
+      const e = raceResults[seasonRaceNums[i]] && raceResults[seasonRaceNums[i]][d.name];
+      if(!e || e.pos === undefined || String(e.pos).trim() === '') continue;
+      if(parsedPos(e) === null) break; // echter Ausfall -> Serie endet hier
+      streak++;
+    }
+    if(streak >= 3 && (!reliabilityStreak || streak > reliabilityStreak.length)) reliabilityStreak = {name: d.name, length: streak};
+  });
+  if(reliabilityStreak){
+    factsPool.push(`🛡️ ${displayName(reliabilityStreak.name)} ist seit ${reliabilityStreak.length} Rennen in Folge ohne Ausfall im Ziel.`);
+  }
+
+  // Pech-Fahrer: die meisten Zielankünfte knapp AUSSERHALB der Punkteränge (P11+)
+  const noPointsFinishCounts = {};
+  seasonRaceNums.forEach(rn => {
+    ALL_DRIVERS.forEach(d => {
+      const p = parsedPos(raceResults[rn] && raceResults[rn][d.name]);
+      if(p !== null && p > 10) noPointsFinishCounts[d.name] = (noPointsFinishCounts[d.name] || 0) + 1;
+    });
+  });
+  const pechFahrer = Object.entries(noPointsFinishCounts).sort((a,b) => b[1]-a[1])[0];
+  if(pechFahrer && pechFahrer[1] >= 2){
+    factsPool.push(`😤 ${displayName(pechFahrer[0])} kam diese Saison schon ${pechFahrer[1]}x knapp außerhalb der Punkte ins Ziel.`);
+  }
+
+  // Form der letzten 3 Rennen (reiner Punkte-Schnitt, unabhängig von Elo -
+  // kann eine andere Person sein als der Gesamt-Punkteführer).
+  if(seasonRaceNums.length >= 2){
+    const lastThree = seasonRaceNums.slice(-3);
+    const recentPts = {};
+    lastThree.forEach(rn => {
+      ALL_DRIVERS.forEach(d => {
+        recentPts[d.name] = (recentPts[d.name] || 0) + (F1_POINTS[parsedPos(raceResults[rn] && raceResults[rn][d.name])] || 0);
+      });
+    });
+    const bestRecent = Object.entries(recentPts).sort((a,b) => b[1]-a[1])[0];
+    if(bestRecent && bestRecent[1] > 0){
+      const avg = (bestRecent[1] / lastThree.length).toFixed(1);
+      factsPool.push(`📊 Form der Stunde: ${displayName(bestRecent[0])} holte im Schnitt ${avg} Punkte in den letzten ${lastThree.length} Rennen.`);
+    }
+  }
+
+  // Perfektes Wochenende: Pole (kleinster Quali-Gap) + Sieg + schnellste
+  // Rennrunde in einem Rennen vereint.
+  seasonRaceNums.forEach(rn => {
+    const results = raceResults[rn];
+    if(!results) return;
+    const withGap = ALL_DRIVERS.map(d => ({name: d.name, raw: results[d.name]}))
+      .filter(e => e.raw)
+      .map(e => ({...e, qp: parseQualiGap(e.raw.qualGap)}))
+      .filter(e => e.qp.hasData && !e.qp.dnf)
+      .sort((a,b) => a.qp.gap - b.qp.gap);
+    if(!withGap.length) return;
+    const poleEntry = results[withGap[0].name];
+    if(parsedPos(poleEntry) === 1 && poleEntry.fastestLap === true){
+      const race = RACES.find(r => r.num === rn);
+      factsPool.push(`💎 Perfektes Wochenende: ${displayName(withGap[0].name)} holte${race ? ' in ' + race.country : ''} Pole, Sieg und die schnellste Runde in einem.`);
+    }
+  });
+
+  // Team-interne Punktelücke (bei Teams mit 2 gewerteten Fahrern)
+  const teamDriverPts = {};
+  standings.drivers.forEach(d => {
+    const info = getDriverInfo(d.name);
+    if(!info.team) return;
+    (teamDriverPts[info.team] = teamDriverPts[info.team] || []).push({name: d.name, points: d.points});
+  });
+  Object.entries(teamDriverPts).forEach(([team, arr]) => {
+    if(arr.length < 2) return;
+    arr.sort((a,b) => b.points - a.points);
+    const gap = arr[0].points - arr[1].points;
+    if(gap > 0) factsPool.push(`📐 Team-interne Punktelücke bei ${team}: ${displayName(arr[0].name)} liegt ${gap} Punkte vor ${displayName(arr[1].name)}.`);
+  });
+
+  // Liga-weites automatisches Duell: knappstes UND dominantestes Kopf-an-Kopf-
+  // Rennen unter den Menschen, über die gesamte Vereinshistorie (nicht nur
+  // Teamkollegen wie beim Team-Duell unten) - wechselt automatisch durch.
+  if(humans.length >= 2){
+    let closestDuel = null, dominantDuel = null;
+    for(let i = 0; i < humans.length; i++){
+      for(let j = i+1; j < humans.length; j++){
+        const h2h = computeHeadToHead(humans[i].name, humans[j].name);
+        if(h2h.racesTogether < 3) continue;
+        const diff = Math.abs(h2h.aWinsRace - h2h.bWinsRace);
+        const margin = diff / h2h.racesTogether;
+        if(!closestDuel || margin < closestDuel.margin) closestDuel = {a: humans[i].name, b: humans[j].name, h2h, margin};
+        if(diff >= 3 && (!dominantDuel || diff > dominantDuel.diff)) dominantDuel = {a: humans[i].name, b: humans[j].name, h2h, diff};
+      }
+    }
+    if(closestDuel && closestDuel.margin <= 0.2){
+      factsPool.push(`🆚 Knappstes Duell der Liga: ${displayName(closestDuel.a)} vs ${displayName(closestDuel.b)} steht ${closestDuel.h2h.aWinsRace}:${closestDuel.h2h.bWinsRace} nach ${closestDuel.h2h.racesTogether} gemeinsamen Rennen.`);
+    }
+    if(dominantDuel){
+      const leaderIsA = dominantDuel.h2h.aWinsRace > dominantDuel.h2h.bWinsRace;
+      const leadName = leaderIsA ? dominantDuel.a : dominantDuel.b;
+      const trailName = leaderIsA ? dominantDuel.b : dominantDuel.a;
+      const leadWins = Math.max(dominantDuel.h2h.aWinsRace, dominantDuel.h2h.bWinsRace);
+      const trailWins = Math.min(dominantDuel.h2h.aWinsRace, dominantDuel.h2h.bWinsRace);
+      factsPool.push(`📚 Vereinsgeschichte: ${displayName(leadName)} dominiert ${displayName(trailName)} mit ${leadWins}:${trailWins} in der Direktbegegnung.`);
+    }
+  }
+
   // Team-interne Duelle (z.B. wenn 2 Fahrer sich ein Team teilen) - nutzt
-  // dieselbe Head-to-Head-Logik wie der Rivalitäten-Tab.
+  // dieselbe Head-to-Head-Logik wie der Rivalitäten-Tab. Sonderformulierung,
+  // falls ein Mensch gegen seinen KI-Teamkollegen (= gleiches Auto trotz
+  // Handicap-System) die Oberhand behält.
   const teamGroups = {};
   ALL_DRIVERS.forEach(d => { if(!d.team) return; (teamGroups[d.team] = teamGroups[d.team] || []).push(d.name); });
   Object.entries(teamGroups).forEach(([team, names]) => {
@@ -2140,7 +2305,12 @@ function generateNewsTicker(){
       const [leadName, trailName, leadWins, trailWins] = h2h.aWinsRace > h2h.bWinsRace
         ? [names[0], names[1], h2h.aWinsRace, h2h.bWinsRace]
         : [names[1], names[0], h2h.bWinsRace, h2h.aWinsRace];
-      factsPool.push(`🤝 Team-internes Duell bei ${team}: ${displayName(leadName)} liegt gegen ${displayName(trailName)} mit ${leadWins}:${trailWins} vorn.`);
+      const leadInfo = getDriverInfo(leadName), trailInfo = getDriverInfo(trailName);
+      if(leadInfo.human && !trailInfo.human){
+        factsPool.push(`⚖️ Trotz Handicap-System: ${displayName(leadName)} schlägt KI-Teamkollege ${displayName(trailName)} mit ${leadWins}:${trailWins}.`);
+      } else {
+        factsPool.push(`🤝 Team-internes Duell bei ${team}: ${displayName(leadName)} liegt gegen ${displayName(trailName)} mit ${leadWins}:${trailWins} vorn.`);
+      }
     }
   });
 
