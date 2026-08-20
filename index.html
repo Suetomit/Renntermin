@@ -1732,6 +1732,21 @@ function parsedPos(entry){
   return /^\d+$/.test(p) ? parseInt(p) : null;
 }
 
+// Wandelt ein qualGap-Feld in ein einheitliches Ergebnis um. Unterscheidet
+// bewusst zwischen "keine Daten erfasst" (hasData:false, wird neutral/übersprungen
+// gewertet) und "Quali-DNF/DSQ/DNS" (hasData:true, dnf:true - zählt als SCHLECHTESTER
+// Wert, nicht als fehlender Wert). Ohne diese Unterscheidung würde ein Quali-Ausfall
+// bei Vergleichen (Rivalitäten, Elo) fälschlich komplett ignoriert statt als
+// Niederlage gegen jeden mit einer echten Zeit gewertet zu werden.
+function parseQualiGap(raw){
+  const s = raw !== undefined && raw !== null ? String(raw).trim() : '';
+  if(s === '') return {gap: null, dnf: false, hasData: false};
+  if(/^(dnf|dsq|dns)$/i.test(s)) return {gap: null, dnf: true, hasData: true};
+  const g = parseFloat(s.replace(',','.'));
+  if(isNaN(g)) return {gap: null, dnf: false, hasData: false};
+  return {gap: g, dnf: false, hasData: true};
+}
+
 // ---------------------------------------------------------------------
 // RIVALITÄTEN-TRACKER (Head-to-Head über die gesamte Vereinshistorie, alle
 // Saisons zusammen - passend zur "läuft nie zurück"-Philosophie der Elo).
@@ -1758,13 +1773,21 @@ function computeHeadToHead(nameA, nameB){
       bWinsRace++;
     }
 
-    const qaRaw = a.qualGap !== undefined ? String(a.qualGap).trim() : '';
-    const qbRaw = b.qualGap !== undefined ? String(b.qualGap).trim() : '';
-    const qa = qaRaw !== '' && !isNaN(parseFloat(qaRaw.replace(',','.'))) ? parseFloat(qaRaw.replace(',','.')) : null;
-    const qb = qbRaw !== '' && !isNaN(parseFloat(qbRaw.replace(',','.'))) ? parseFloat(qbRaw.replace(',','.')) : null;
-    if(qa !== null && qb !== null){
+    const qa = parseQualiGap(a.qualGap);
+    const qb = parseQualiGap(b.qualGap);
+    if(qa.hasData && qb.hasData){
       qualiCompared++;
-      if(qa < qb) aWinsQuali++; else if(qb < qa) bWinsQuali++;
+      if(qa.dnf && qb.dnf){
+        // beide Quali-DNF -> kein Sieger, zählt nicht als Sieg für irgendwen
+      } else if(qa.dnf){
+        bWinsQuali++;
+      } else if(qb.dnf){
+        aWinsQuali++;
+      } else if(qa.gap < qb.gap){
+        aWinsQuali++;
+      } else if(qb.gap < qa.gap){
+        bWinsQuali++;
+      }
     }
   });
 
@@ -1908,9 +1931,11 @@ function renderStatsPane(){
 // Die eingesetzten Namen/Zahlen darin aktualisieren sich trotzdem live.
 // ---------------------------------------------------------------------
 let speculativeNewsPicks = null;
+let factsNewsPicks = null; // wie speculativeNewsPicks, aber für den Fakten-Pool
 
 function generateNewsTicker(){
   const news = [];
+  const factsPool = [];
   const humans = ALL_DRIVERS.filter(d => d.human);
   if(ALL_DRIVERS.length === 0) return news;
 
@@ -1924,9 +1949,9 @@ function generateNewsTicker(){
     const gap = sortedPts.length >= 2 ? sortedPts[0].points - sortedPts[1].points : sortedPts[0].points;
     if(sortedPts.length >= 2) secondName = displayName(sortedPts[1].name);
     if(sortedPts.length >= 2 && gap <= 5){
-      news.push(`🔥 Enges Titelrennen: ${leaderName} führt nur ${gap} Punkte vor ${secondName}.`);
+      factsPool.push(`🔥 Enges Titelrennen: ${leaderName} führt nur ${gap} Punkte vor ${secondName}.`);
     } else {
-      news.push(`🏆 ${leaderName} führt die Fahrerwertung mit ${sortedPts[0].points} Punkten an.`);
+      factsPool.push(`🏆 ${leaderName} führt die Fahrerwertung mit ${sortedPts[0].points} Punkten an.`);
     }
   }
 
@@ -1941,7 +1966,7 @@ function generateNewsTicker(){
       if(closest === null || gap < closest.gap) closest = {gap, a:sortedPts[i-1], b:sortedPts[i], rank:i+1};
     }
     if(closest && closest.gap <= 3){
-      news.push(`⚔️ Enges Duell um P${closest.rank}: ${displayName(closest.a.name)} vs ${displayName(closest.b.name)} - nur ${closest.gap} Punkte trennen sie.`);
+      factsPool.push(`⚔️ Enges Duell um P${closest.rank}: ${displayName(closest.a.name)} vs ${displayName(closest.b.name)} - nur ${closest.gap} Punkte trennen sie.`);
     }
   }
 
@@ -1950,7 +1975,7 @@ function generateNewsTicker(){
     const { ratings, history } = getEloData();
     const sortedElo = [...humans].sort((a,b) => ratings[b.name]-ratings[a.name]);
     eloLeaderName = sortedElo[0].human;
-    news.push(`⚡ Elo-Spitzenreiter: ${eloLeaderName} (${Math.round(ratings[sortedElo[0].name])}).`);
+    factsPool.push(`⚡ Elo-Spitzenreiter: ${eloLeaderName} (${Math.round(ratings[sortedElo[0].name])}).`);
 
     let bestForm = null, worstForm = null;
     humans.forEach(d => {
@@ -1960,15 +1985,15 @@ function generateNewsTicker(){
       if(delta > 1 && (!bestForm || delta > bestForm.delta)) bestForm = {name:d.human, delta};
       if(delta < -1 && (!worstForm || delta < worstForm.delta)) worstForm = {name:d.human, delta};
     });
-    if(bestForm) news.push(`📈 ${bestForm.name} ist in Bestform: +${Math.round(bestForm.delta)} Elo im letzten Rennen.`);
-    if(worstForm) news.push(`📉 ${worstForm.name} steckt in einer Formkrise: ${Math.round(worstForm.delta)} Elo im letzten Rennen.`);
+    if(bestForm) factsPool.push(`📈 ${bestForm.name} ist in Bestform: +${Math.round(bestForm.delta)} Elo im letzten Rennen.`);
+    if(worstForm) factsPool.push(`📉 ${worstForm.name} steckt in einer Formkrise: ${Math.round(worstForm.delta)} Elo im letzten Rennen.`);
   }
 
   const records = Object.entries(trackRecordsData || {});
   if(records.length){
     const newest = records.sort((a,b) => (b[1].updatedAt||0) - (a[1].updatedAt||0))[0];
     const race = RACES_MASTER.find(r => r.code === newest[0]);
-    if(race) news.push(`🏁 Streckenrekord in ${race.country}: ${newest[1].driver} (${fmtLapTimeS(newest[1].time)}).`);
+    if(race) factsPool.push(`🏁 Streckenrekord in ${race.country}: ${newest[1].driver} (${fmtLapTimeS(newest[1].time)}).`);
   }
 
   // Konstrukteurs-WM-Spitzenreiter (aus Fahrerpunkten je Team summiert)
@@ -1997,7 +2022,7 @@ function generateNewsTicker(){
   }
   const worstDnf = Object.entries(dnfCounts).sort((a,b) => b[1]-a[1])[0];
   if(worstDnf && worstDnf[1] >= 2){
-    news.push(`💥 ${displayName(worstDnf[0])} führt die Ausfall-Statistik dieser Saison an: ${worstDnf[1]} Ausfälle.`);
+    factsPool.push(`💥 ${displayName(worstDnf[0])} führt die Ausfall-Statistik dieser Saison an: ${worstDnf[1]} Ausfälle.`);
   }
 
   // Meiste schnellste Rennrunden dieser Saison - alle Fahrer
@@ -2010,7 +2035,7 @@ function generateNewsTicker(){
   });
   const flLeader = Object.entries(flCounts).sort((a,b) => b[1]-a[1])[0];
   if(flLeader && flLeader[1] >= 2){
-    news.push(`⏱️ ${displayName(flLeader[0])} sammelt die meisten schnellsten Rennrunden dieser Saison: ${flLeader[1]}x.`);
+    factsPool.push(`⏱️ ${displayName(flLeader[0])} sammelt die meisten schnellsten Rennrunden dieser Saison: ${flLeader[1]}x.`);
   }
 
   // Boxenstopp-Sparsamster (aus Telemetrie-Archiv, falls vorhanden) - alle Fahrer,
@@ -2030,7 +2055,7 @@ function generateNewsTicker(){
   const pitEntries = Object.entries(pitTotals).filter(([,v]) => v.races >= 2);
   if(pitEntries.length){
     const pitSpecialist = pitEntries.map(([name,v]) => [name, v.stops/v.races]).sort((a,b) => a[1]-b[1])[0];
-    news.push(`🛞 ${displayName(pitSpecialist[0])} kommt im Schnitt mit den wenigsten Boxenstopps aus (Ø ${pitSpecialist[1].toFixed(1)}).`);
+    factsPool.push(`🛞 ${displayName(pitSpecialist[0])} kommt im Schnitt mit den wenigsten Boxenstopps aus (Ø ${pitSpecialist[1].toFixed(1)}).`);
   }
 
   // Quali-König: bester Ø-Gap zur Pole über die gesamte Vereinshistorie (oft
@@ -2043,19 +2068,17 @@ function generateNewsTicker(){
     ALL_DRIVERS.forEach(d => {
       const e = results[d.name];
       if(!e) return;
-      const raw = e.qualGap !== undefined ? String(e.qualGap).trim() : '';
-      if(raw === '' || /^(dnf|dsq|dns)$/i.test(raw)) return;
-      const g = parseFloat(raw.replace(',','.'));
-      if(isNaN(g)) return;
+      const qp = parseQualiGap(e.qualGap);
+      if(!qp.hasData || qp.dnf) return; // DNF fließt bewusst NICHT in den Ø-Gap ein
       if(!qualiGapSums[d.name]) qualiGapSums[d.name] = {sum:0, count:0};
-      qualiGapSums[d.name].sum += g;
+      qualiGapSums[d.name].sum += qp.gap;
       qualiGapSums[d.name].count++;
     });
   });
   const qualiEntries = Object.entries(qualiGapSums).filter(([,v]) => v.count >= 2);
   if(qualiEntries.length){
     const qualiKing = qualiEntries.map(([name,v]) => [name, v.sum/v.count]).sort((a,b) => a[1]-b[1])[0];
-    news.push(`🎯 Quali-König der Liga: ${displayName(qualiKing[0])} mit im Schnitt nur ${qualiKing[1].toFixed(3)} Sek. Rückstand zur Pole.`);
+    factsPool.push(`🎯 Quali-König der Liga: ${displayName(qualiKing[0])} mit im Schnitt nur ${qualiKing[1].toFixed(3)} Sek. Rückstand zur Pole.`);
   }
 
   // Konstantester Fahrer: kleinste Streuung der Zielankunfts-Platzierungen
@@ -2078,7 +2101,7 @@ function generateNewsTicker(){
     if(!consistencyKing || stdev < consistencyKing.stdev) consistencyKing = {name, stdev};
   });
   if(consistencyKing){
-    news.push(`🧊 Mr. Konstanz: ${displayName(consistencyKing.name)} liefert die verlässlichsten Ergebnisse der Liga ab (Schwankung nur ±${consistencyKing.stdev.toFixed(1)} Plätze).`);
+    factsPool.push(`🧊 Mr. Konstanz: ${displayName(consistencyKing.name)} liefert die verlässlichsten Ergebnisse der Liga ab (Schwankung nur ±${consistencyKing.stdev.toFixed(1)} Plätze).`);
   }
 
   // Aufholjäger: größter Sprung von Quali-Rang zu Rennplatzierung in einem
@@ -2103,7 +2126,7 @@ function generateNewsTicker(){
     });
   });
   if(bestComeback && bestComeback.gain >= 3){
-    news.push(`🚀 Aufholjäger des Rennens: ${displayName(bestComeback.name)} gewann${bestComeback.raceLabel ? ' in ' + bestComeback.raceLabel : ''} ${bestComeback.gain} Plätze im Rennverlauf.`);
+    factsPool.push(`🚀 Aufholjäger des Rennens: ${displayName(bestComeback.name)} gewann${bestComeback.raceLabel ? ' in ' + bestComeback.raceLabel : ''} ${bestComeback.gain} Plätze im Rennverlauf.`);
   }
 
   // Team-interne Duelle (z.B. wenn 2 Fahrer sich ein Team teilen) - nutzt
@@ -2117,9 +2140,23 @@ function generateNewsTicker(){
       const [leadName, trailName, leadWins, trailWins] = h2h.aWinsRace > h2h.bWinsRace
         ? [names[0], names[1], h2h.aWinsRace, h2h.bWinsRace]
         : [names[1], names[0], h2h.bWinsRace, h2h.aWinsRace];
-      news.push(`🤝 Team-internes Duell bei ${team}: ${displayName(leadName)} liegt gegen ${displayName(trailName)} mit ${leadWins}:${trailWins} vorn.`);
+      factsPool.push(`🤝 Team-internes Duell bei ${team}: ${displayName(leadName)} liegt gegen ${displayName(trailName)} mit ${leadWins}:${trailWins} vorn.`);
     }
   });
+
+  // Wie beim spekulativen Pool: nicht ALLE berechenbaren Fakten gleichzeitig
+  // zeigen (sonst dominieren die immer-verfügbaren wie "Team-Duell" den Ticker,
+  // sobald z.B. noch keine Telemetrie-Daten für Boxenstopp-Fakten vorliegen).
+  // Stattdessen wird einmal pro Seitenaufruf eine zufällige Auswahl gezogen.
+  if(!factsNewsPicks || factsNewsPicks.some(i => i >= factsPool.length)){
+    const indices = factsPool.map((_, i) => i);
+    for(let i = indices.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+    factsNewsPicks = indices.slice(0, Math.min(6, factsPool.length));
+  }
+  factsNewsPicks.forEach(i => news.push(factsPool[i]));
 
   // --- Spekulative Liga-Talk-Schlagzeilen (fixer Themen-Pool, 5 werden einmal
   // pro Seitenaufruf zufällig gezogen; jedes datenbasierte Thema hat einen
@@ -2225,18 +2262,9 @@ function computeEloRatings(){
       const p = String(e.raw.pos).trim();
       e.rankVal = /^\d+$/.test(p) ? parseInt(p) : 99; // DNF/DSQ/Text -> ans Ende
 
-      const qRaw = e.raw.qualGap !== undefined && e.raw.qualGap !== null ? String(e.raw.qualGap).trim() : '';
-      if(qRaw === ''){
-        e.qualGap = null;      // kein Wert erfasst -> wird gleich neutral (0.5) gewertet
-        e.qualyDnf = false;
-      } else if(/^(dnf|dsq|dns)$/i.test(qRaw)){
-        e.qualGap = null;
-        e.qualyDnf = true;     // Quali-DNF -> wird gleich als schlechtester Wert (0) gewertet
-      } else {
-        const g = parseFloat(qRaw.replace(',', '.'));
-        e.qualGap = isNaN(g) ? null : g;
-        e.qualyDnf = false;
-      }
+      const qParsed = parseQualiGap(e.raw.qualGap);
+      e.qualGap = qParsed.gap;      // null bei fehlendem Wert ODER Quali-DNF
+      e.qualyDnf = qParsed.dnf;     // true nur bei explizitem DNF/DSQ/DNS (zählt als schlechtester Wert)
     });
 
     const N = entries.length;
