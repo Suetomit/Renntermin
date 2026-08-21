@@ -1715,6 +1715,15 @@ function getDriverInfo(name){return ALL_DRIVERS.find(d=>d.name===name)||{name,te
 // Zeigt bei Fahrer-News einen sinnvollen Namen an: bei Menschen den kurzen
 // Liga-Vornamen (z.B. "Timo"), bei KI-Fahrern den vollen Namen (z.B. "Max Verstappen"),
 // da KI-Fahrer kein "human"-Feld haben.
+// Escaped einen Wert für die sichere Verwendung innerhalb eines HTML-
+// Attributs (value="...", etc.). Wichtig überall dort, wo frei eingetippter
+// Text (Fahrername, Position, Quali-Gap im Admin-Bereich) beim nächsten
+// Render zurück in ein Attribut geschrieben wird - ohne das würde z.B. ein
+// Anführungszeichen im Wert das Attribut/die Eingabemaske zerschießen.
+function escapeAttr(value){
+  return String(value ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 function displayName(driverName){
   const info = getDriverInfo(driverName);
   return info.human || info.name;
@@ -1802,13 +1811,23 @@ function computeHeadToHead(nameA, nameB){
     if(!a || !b) return;
     racesTogether++;
 
-    const posA = parsedPos(a), posB = parsedPos(b);
-    if(posA !== null && posB !== null){
-      if(posA < posB) aWinsRace++; else if(posB < posA) bWinsRace++;
-    } else if(posA !== null && posB === null){
-      aWinsRace++;
-    } else if(posB !== null && posA === null){
-      bWinsRace++;
+    // Rennplatzierung nur vergleichen, wenn für BEIDE tatsächlich ein pos-Feld
+    // gesetzt wurde (auch DNF/DSQ als Text zählt als "gesetzt"). Ist das Feld
+    // schlicht leer (z.B. nur Quali-Zeit erfasst, Rennergebnis noch nicht
+    // eingetragen), darf das NICHT automatisch als Niederlage gewertet werden -
+    // parsedPos() liefert für beide Fälle (leer vs. DNF) sonst gleichermaßen null.
+    const aPosSet = a.pos !== undefined && String(a.pos).trim() !== '';
+    const bPosSet = b.pos !== undefined && String(b.pos).trim() !== '';
+    if(aPosSet && bPosSet){
+      const posA = parsedPos(a), posB = parsedPos(b);
+      if(posA !== null && posB !== null){
+        if(posA < posB) aWinsRace++; else if(posB < posA) bWinsRace++;
+      } else if(posA !== null && posB === null){
+        aWinsRace++;
+      } else if(posB !== null && posA === null){
+        bWinsRace++;
+      }
+      // beide DNF -> kein Sieger
     }
 
     const qa = parseQualiGap(a.qualGap);
@@ -1851,7 +1870,7 @@ function renderRivalryPane(){
   const h2h = computeHeadToHead(rivalryDriverA, rivalryDriverB);
   const eloRatings = getEloData().ratings;
 
-  const options = d => humans.map(h => `<option value="${h.name}" ${d===h.name?'selected':''}>${h.human} (${h.team})</option>`).join('');
+  const options = d => humans.map(h => `<option value="${escapeAttr(h.name)}" ${d===h.name?'selected':''}>${h.human} (${h.team})</option>`).join('');
 
   function barRow(label, aVal, bVal){
     const total = Math.max(aVal + bVal, 1);
@@ -2738,10 +2757,10 @@ function renderRaceResultsEditor() {
     return `<tr>
       <td data-label="Fahrer" style="padding:6px; font-weight:600;">${d.name}</td>
       <td data-label="Platz" style="padding:6px;">
-        <input type="text" id="res_pos_${i}" class="pin-input" style="margin-bottom:0; padding:4px;" value="${driverRes.pos || ''}" placeholder="z.B. 1">
+        <input type="text" id="res_pos_${i}" class="pin-input" style="margin-bottom:0; padding:4px;" value="${escapeAttr(driverRes.pos)}" placeholder="z.B. 1">
       </td>
       <td data-label="Quali-Gap" style="padding:6px;">
-        <input type="text" id="res_qgap_${i}" class="pin-input" style="margin-bottom:0; padding:4px;" value="${driverRes.qualGap ?? ''}" placeholder="z.B. 0.245 oder DNF">
+        <input type="text" id="res_qgap_${i}" class="pin-input" style="margin-bottom:0; padding:4px;" value="${escapeAttr(driverRes.qualGap)}" placeholder="z.B. 0.245 oder DNF">
       </td>
       <td data-label="Schnellste Runde" style="padding:6px; text-align:center;">
         <input type="radio" name="fl_radio_group" id="res_fl_${i}" value="${i}" ${isFl ? 'checked' : ''} style="cursor:pointer; width:16px; height:16px;">
@@ -2807,15 +2826,15 @@ function renderAdminDriverList(){
 
   el.innerHTML = adminDriverDraft.map((d,i) => `
     <tr>
-      <td data-label="Voller Name" style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${d.name||''}" onchange="updateDriverDraft(${i},'name',this.value)"></td>
-      <td data-label="Racenet-Name" style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${d.racenet||''}" onchange="updateDriverDraft(${i},'racenet',this.value)" placeholder="Racenet/Ingame-Name"></td>
+      <td data-label="Voller Name" style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${escapeAttr(d.name)}" onchange="updateDriverDraft(${i},'name',this.value)"></td>
+      <td data-label="Racenet-Name" style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${escapeAttr(d.racenet)}" onchange="updateDriverDraft(${i},'racenet',this.value)" placeholder="Racenet/Ingame-Name"></td>
       <td data-label="Team" style="padding:4px;">
         <select class="pin-input" style="margin-bottom:0;" onchange="updateDriverDraft(${i},'team',this.value)">
           ${Object.keys(TEAM_COLORS).map(t => `<option value="${t}" ${d.team===t?'selected':''}>${t}</option>`).join('')}
         </select>
       </td>
-      <td data-label="Liga-Name" style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${d.human||''}" onchange="updateDriverDraft(${i},'human',this.value||null)" placeholder="leer = KI-Fahrer"></td>
-      <td data-label="Foto-Datei" style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${d.photo||''}" onchange="updateDriverDraft(${i},'photo',this.value)" placeholder="dateiname.png"></td>
+      <td data-label="Liga-Name" style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${escapeAttr(d.human)}" onchange="updateDriverDraft(${i},'human',this.value||null)" placeholder="leer = KI-Fahrer"></td>
+      <td data-label="Foto-Datei" style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${escapeAttr(d.photo)}" onchange="updateDriverDraft(${i},'photo',this.value)" placeholder="dateiname.png"></td>
       <td data-label="" style="padding:4px; text-align:center;"><button class="btn-rm" onclick="removeDriverDraft(${i})">✕ Entfernen</button></td>
     </tr>`).join('');
 }
