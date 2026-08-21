@@ -394,6 +394,44 @@
     .stats-table th { background: #121620; color: var(--m); font-weight: 700; }
     .stats-table th.stats-driver-col, .stats-table td.stats-driver-col { text-align: left; }
 
+    /* Mobile: breite Tabellen (Fahrerverwaltung, Rennergebnisse, Statistiken)
+       werden ab schmalen Screens zu gestapelten Karten statt Tabellen mit
+       Seitwärts-Scroll. Jede <td> braucht ein data-label-Attribut - wird
+       via ::before als Zeilen-Beschriftung eingeblendet. */
+    @media (max-width: 700px) {
+      .responsive-table thead { display: none; }
+      .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td { display: block; width: 100%; }
+      .responsive-table tr {
+        margin-bottom: 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px;
+        background: rgba(255,255,255,0.02);
+      }
+      .responsive-table td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 4px !important;
+        text-align: right !important;
+        border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+      }
+      .responsive-table td:last-child { border-bottom: none !important; }
+      .responsive-table td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        color: var(--m);
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        text-align: left;
+        flex-shrink: 0;
+      }
+      .responsive-table td:empty::before { content: none; }
+      .responsive-table input, .responsive-table select { width: auto; flex: 1; margin-bottom: 0 !important; }
+    }
+
     .news-ticker-card {
       display: flex;
       align-items: stretch;
@@ -417,7 +455,7 @@
       white-space: nowrap;
     }
     .news-ticker-viewport { flex: 1; overflow: hidden; position: relative; display: flex; align-items: center; }
-    .news-ticker-track { display: inline-flex; white-space: nowrap; animation: newsTickerScroll linear infinite; padding-left: 100%; }
+    .news-ticker-track { display: inline-flex; white-space: nowrap; animation: newsTickerScroll 40s linear infinite; padding-left: 100%; }
     .news-ticker-track .news-item { display: inline-block; padding: 10px 40px 10px 0; font-size: 0.88rem; font-weight: 600; }
     @keyframes newsTickerScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
     .news-ticker-card:hover .news-ticker-track { animation-play-state: paused; }
@@ -677,7 +715,7 @@
           <select id="adminRaceSelect" class="pin-input" style="width:auto; margin-bottom:0;" onchange="renderRaceResultsEditor()"></select>
         </div>
         <div class="race-matrix-editor">
-          <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+          <table class="responsive-table" style="width:100%; border-collapse:collapse; font-size:0.8rem;">
             <thead>
               <tr style="background:var(--s3); text-align:left;">
                 <th style="padding:6px;">Fahrer</th>
@@ -700,7 +738,7 @@
           Foto-Dateiname muss zu einer bereits hochgeladenen Bilddatei passen.
         </p>
         <div class="race-matrix-editor">
-          <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+          <table class="responsive-table" style="width:100%; border-collapse:collapse; font-size:0.8rem;">
             <thead>
               <tr style="background:var(--s3); text-align:left;">
                 <th style="padding:6px;">Voller Name</th>
@@ -1892,7 +1930,7 @@ function renderStatsPane(){
 
   el.innerHTML = `
     <p style="color:var(--m); font-size:0.8rem; margin-bottom:14px;">Karrierestatistik über alle Saisons hinweg.</p>
-    <table class="stats-table">
+    <table class="stats-table responsive-table">
       <thead><tr>
         <th class="stats-driver-col">Fahrer</th>
         <th>Starts</th><th>Siege</th><th>Podien</th><th>Bester Platz</th>
@@ -1904,14 +1942,14 @@ function renderStatsPane(){
           const avgPos = s.posCount > 0 ? (s.posSum/s.posCount).toFixed(1) : '-';
           const relColor = reliability >= 80 ? '#52e252' : reliability >= 50 ? '#ffd700' : '#ff5555';
           return `<tr>
-            <td class="stats-driver-col" style="font-weight:700;">${d.human}</td>
-            <td>${s.starts}</td>
-            <td style="color:var(--y); font-weight:700;">${s.wins}</td>
-            <td>${s.podiums}</td>
-            <td>${s.bestPos ?? '-'}</td>
-            <td>${avgPos}</td>
-            <td style="color:${s.dnfs>0?'#ff5555':'inherit'};">${s.dnfs}</td>
-            <td style="color:${relColor}; font-weight:700;">${s.starts>0 ? reliability+'%' : '-'}</td>
+            <td class="stats-driver-col" data-label="Fahrer" style="font-weight:700;">${d.human}</td>
+            <td data-label="Starts">${s.starts}</td>
+            <td data-label="Siege" style="color:var(--y); font-weight:700;">${s.wins}</td>
+            <td data-label="Podien">${s.podiums}</td>
+            <td data-label="Bester Platz">${s.bestPos ?? '-'}</td>
+            <td data-label="Ø Platzierung">${avgPos}</td>
+            <td data-label="Ausfälle" style="color:${s.dnfs>0?'#ff5555':'inherit'};">${s.dnfs}</td>
+            <td data-label="Zuverlässigkeit" style="color:${relColor}; font-weight:700;">${s.starts>0 ? reliability+'%' : '-'}</td>
           </tr>`;
         }).join('')}
       </tbody>
@@ -1932,6 +1970,7 @@ function renderStatsPane(){
 // ---------------------------------------------------------------------
 let speculativeNewsPicks = null;
 let factsNewsPicks = null; // wie speculativeNewsPicks, aber für den Fakten-Pool
+let viviNewsPicks = null; // wie speculativeNewsPicks, aber für Vivis Interview-Pool
 
 function generateNewsTicker(){
   const news = [];
@@ -2388,8 +2427,54 @@ function generateNewsTicker(){
   }
   speculativeNewsPicks.forEach(i => news.push(pool[i]));
 
+  // --- Vivi, die Liga-Reporterin: interviewt Fahrer, Teams und Fans. Rein
+  // fiktive Schnipsel (kein Zitat einer echten Person!), aber mit echten
+  // Fahrer-/Teamnamen aus den Daten, wo verfügbar. Eigener Pool + eigenes,
+  // stabiles Sampling pro Sitzung, analog zu den anderen beiden Pools. ---
+  const randomHuman = humans.length ? humans[Math.floor(Math.random() * humans.length)] : null;
+  const randomHuman2 = humans.length >= 2
+    ? humans.filter(d => d.name !== randomHuman?.name)[Math.floor(Math.random() * Math.max(humans.length - 1, 1))]
+    : null;
+
+  const viviPool = [
+    leaderName
+      ? `🎤 Vivi fragt ${leaderName}: "Wie fühlt sich die Tabellenführung an?" – "Gut, aber es ist noch nichts entschieden!"`
+      : `🎤 Vivi im Fahrerlager: "Wer übernimmt als Nächstes die Tabellenführung?" – die Antworten gehen auseinander.`,
+    randomHuman
+      ? `🎙️ Reporterin Vivi trifft ${randomHuman.human} an der Box: "Was ist Ihr Ziel fürs nächste Rennen?" – "Natürlich das Podium!"`
+      : `🎙️ Vivi ist wieder im Fahrerlager unterwegs und sammelt O-Töne für die nächste Ausgabe.`,
+    topTeam
+      ? `📻 Vivi hakt bei ${topTeam} nach: "Reicht die Form für die Konstrukteurs-WM?" – man gibt sich betont gelassen.`
+      : `📻 Vivi bei den Teams: "Wer traut sich schon jetzt eine Prognose für die Konstrukteurs-WM zu?"`,
+    randomHuman2
+      ? `🎧 Vivi mit dem Mikro bei ${randomHuman2.human}: "Größte Herausforderung dieser Saison?" – "Ganz klar die Konstanz."`
+      : `🎧 Vivi sammelt Stimmen aus der Box - Details gibt's in der nächsten Ausgabe.`,
+    `🎤 Vivi bei den Fans: "Wer wird am Ende oben stehen?" – die Meinungen könnten unterschiedlicher nicht sein.`,
+    `🎙️ Vivi hat sich in der Boxengasse umgehört: Gerüchte über neue Setups machen die Runde.`,
+    worstDnf
+      ? `📻 Vivi konfrontiert ${displayName(worstDnf[0])} mit der Ausfall-Statistik: "Pech oder Fahrfehler?" – "Ein bisschen von beidem, ehrlich gesagt."`
+      : `📻 Vivi fragt in die Box: "Wer bleibt diese Saison am längsten ohne Ausfall?"`,
+    eloLeaderName
+      ? `🎧 Vivi zum Elo-Spitzenreiter ${eloLeaderName}: "Zufall oder harte Arbeit?" – "Definitiv Arbeit am Simulator!"`
+      : `🎧 Vivi fragt die Box: "Wer zeigt als Nächstes eine Serie starker Rennen?"`,
+    `🎤 Vivi mit dem Saison-Rückblick-Teaser: "Es bleibt spannend bis zum letzten Rennen" - so viel verrät sie schon mal.`,
+    `🎙️ Vivi bei den Fans an der Strecke: Die Stimmung ist trotz aller Diskussionen bestens.`,
+  ];
+
+  if(!viviNewsPicks || viviNewsPicks.some(i => i >= viviPool.length)){
+    const indices = viviPool.map((_, i) => i);
+    for(let i = indices.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+    viviNewsPicks = indices.slice(0, 2);
+  }
+  viviNewsPicks.forEach(i => news.push(viviPool[i]));
+
   return news;
 }
+
+let lastNewsSignature = null;
 
 function renderNewsTicker(){
   const card = document.getElementById('newsTickerCard');
@@ -2398,6 +2483,14 @@ function renderNewsTicker(){
   const news = generateNewsTicker();
   if(!news.length){ card.style.display = 'none'; return; }
   card.style.display = 'flex';
+
+  // Nur wenn sich der Inhalt WIRKLICH geändert hat den Track neu aufbauen -
+  // sonst würde jeder Hintergrund-Re-Render (z.B. durch Firebase-Updates,
+  // die mit den News gar nichts zu tun haben) die Lauf-Animation mitten im
+  // Durchlauf zurücksetzen und wie ein harter Sprung an den Anfang wirken.
+  const signature = news.join('|');
+  if(signature === lastNewsSignature) return;
+  lastNewsSignature = signature;
 
   // Inhalt wird verdoppelt, damit die Endlosschleife nahtlos ist (Animation
   // läuft von 0% auf -50% = genau eine Kopie weiter, dann Sprung unsichtbar).
@@ -2643,14 +2736,14 @@ function renderRaceResultsEditor() {
     const isFl = driverRes.fastestLap === true;
 
     return `<tr>
-      <td style="padding:6px; font-weight:600;">${d.name}</td>
-      <td style="padding:6px;">
+      <td data-label="Fahrer" style="padding:6px; font-weight:600;">${d.name}</td>
+      <td data-label="Platz" style="padding:6px;">
         <input type="text" id="res_pos_${i}" class="pin-input" style="margin-bottom:0; padding:4px;" value="${driverRes.pos || ''}" placeholder="z.B. 1">
       </td>
-      <td style="padding:6px;">
+      <td data-label="Quali-Gap" style="padding:6px;">
         <input type="text" id="res_qgap_${i}" class="pin-input" style="margin-bottom:0; padding:4px;" value="${driverRes.qualGap ?? ''}" placeholder="z.B. 0.245 oder DNF">
       </td>
-      <td style="padding:6px; text-align:center;">
+      <td data-label="Schnellste Runde" style="padding:6px; text-align:center;">
         <input type="radio" name="fl_radio_group" id="res_fl_${i}" value="${i}" ${isFl ? 'checked' : ''} style="cursor:pointer; width:16px; height:16px;">
       </td>
     </tr>`;
@@ -2714,16 +2807,16 @@ function renderAdminDriverList(){
 
   el.innerHTML = adminDriverDraft.map((d,i) => `
     <tr>
-      <td style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${d.name||''}" onchange="updateDriverDraft(${i},'name',this.value)"></td>
-      <td style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${d.racenet||''}" onchange="updateDriverDraft(${i},'racenet',this.value)" placeholder="Racenet/Ingame-Name"></td>
-      <td style="padding:4px;">
+      <td data-label="Voller Name" style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${d.name||''}" onchange="updateDriverDraft(${i},'name',this.value)"></td>
+      <td data-label="Racenet-Name" style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${d.racenet||''}" onchange="updateDriverDraft(${i},'racenet',this.value)" placeholder="Racenet/Ingame-Name"></td>
+      <td data-label="Team" style="padding:4px;">
         <select class="pin-input" style="margin-bottom:0;" onchange="updateDriverDraft(${i},'team',this.value)">
           ${Object.keys(TEAM_COLORS).map(t => `<option value="${t}" ${d.team===t?'selected':''}>${t}</option>`).join('')}
         </select>
       </td>
-      <td style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${d.human||''}" onchange="updateDriverDraft(${i},'human',this.value||null)" placeholder="leer = KI-Fahrer"></td>
-      <td style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${d.photo||''}" onchange="updateDriverDraft(${i},'photo',this.value)" placeholder="dateiname.png"></td>
-      <td style="padding:4px; text-align:center;"><button class="btn-rm" onclick="removeDriverDraft(${i})">✕</button></td>
+      <td data-label="Liga-Name" style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${d.human||''}" onchange="updateDriverDraft(${i},'human',this.value||null)" placeholder="leer = KI-Fahrer"></td>
+      <td data-label="Foto-Datei" style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${d.photo||''}" onchange="updateDriverDraft(${i},'photo',this.value)" placeholder="dateiname.png"></td>
+      <td data-label="" style="padding:4px; text-align:center;"><button class="btn-rm" onclick="removeDriverDraft(${i})">✕ Entfernen</button></td>
     </tr>`).join('');
 }
 
