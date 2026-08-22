@@ -1989,6 +1989,7 @@ function renderStatsPane(){
 // ---------------------------------------------------------------------
 let cachedNewsResult = null;
 let cachedNewsResultAt = 0;
+let cachedNewsDataSignature = null;
 
 function generateNewsTicker(){
   const news = [];
@@ -2505,9 +2506,23 @@ function generateNewsTicker(){
     return idx.slice(0, Math.min(n, arr.length)).map(i => arr[i]);
   }
 
-  const NEWS_REFRESH_MS = 5 * 60 * 1000; // alle 5 Minuten neu mischen
+  const NEWS_REFRESH_MS = 5 * 60 * 1000; // spätestens alle 5 Minuten neu mischen
   const now = Date.now();
-  if(!cachedNewsResult || (now - cachedNewsResultAt) > NEWS_REFRESH_MS){
+  // Zusätzlich zur Zeit auch eine leichte "Daten-Signatur" prüfen: sobald sich
+  // die zugrundeliegenden Daten wirklich ändern (z.B. Rennergebnisse laden erst
+  // NACH dem allerersten Render aus Firebase nach), muss SOFORT neu gerechnet
+  // werden - sonst bleibt z.B. "Elo-Spitzenreiter: Timo (1000)" (der reine
+  // Startwert vor dem ersten verrechneten Rennen) bis zu 5 Minuten lang stehen,
+  // obwohl die echten Daten längst da sind.
+  const dataSignature = JSON.stringify({
+    races: Object.keys(raceResults).length,
+    completed: standings.racesCompleted,
+    season: currentSeasonNum,
+    records: Object.keys(trackRecordsData || {}).length,
+    telemetry: Object.keys(telemetryArchiveData || {}).length,
+    roster: ALL_DRIVERS.length,
+  });
+  if(!cachedNewsResult || dataSignature !== cachedNewsDataSignature || (now - cachedNewsResultAt) > NEWS_REFRESH_MS){
     const combined = [
       ...pickRandom(factsPool, 8),
       ...pickRandom(pool, 8),
@@ -2520,6 +2535,7 @@ function generateNewsTicker(){
     }
     cachedNewsResult = combined;
     cachedNewsResultAt = now;
+    cachedNewsDataSignature = dataSignature;
   }
 
   return cachedNewsResult;
