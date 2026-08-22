@@ -455,7 +455,7 @@
       white-space: nowrap;
     }
     .news-ticker-viewport { flex: 1; overflow: hidden; position: relative; display: flex; align-items: center; }
-    .news-ticker-track { display: inline-flex; white-space: nowrap; animation: newsTickerScroll 40s linear infinite; padding-left: 100%; }
+    .news-ticker-track { display: inline-flex; white-space: nowrap; animation: newsTickerScroll 40s linear infinite; }
     .news-ticker-track .news-item { display: inline-block; padding: 10px 40px 10px 0; font-size: 0.88rem; font-weight: 600; }
     @keyframes newsTickerScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
     .news-ticker-card:hover .news-ticker-track { animation-play-state: paused; }
@@ -1987,9 +1987,8 @@ function renderStatsPane(){
 // Ticker bei jedem Firebase-Update (mehrmals pro Minute) umspringen/flackern.
 // Die eingesetzten Namen/Zahlen darin aktualisieren sich trotzdem live.
 // ---------------------------------------------------------------------
-let speculativeNewsPicks = null;
-let factsNewsPicks = null; // wie speculativeNewsPicks, aber für den Fakten-Pool
-let viviNewsPicks = null; // wie speculativeNewsPicks, aber für Vivis Interview-Pool
+let cachedNewsResult = null;
+let cachedNewsResultAt = 0;
 
 function generateNewsTicker(){
   const news = [];
@@ -2372,22 +2371,6 @@ function generateNewsTicker(){
     }
   });
 
-  // Wie beim spekulativen Pool: nicht ALLE berechenbaren Fakten gleichzeitig
-  // zeigen (sonst dominieren die immer-verfügbaren wie "Team-Duell" den Ticker,
-  // sobald z.B. noch keine Telemetrie-Daten für Boxenstopp-Fakten vorliegen).
-  // Stattdessen wird einmal pro Seitenaufruf eine zufällige Auswahl gezogen.
-  if(!factsNewsPicks || factsNewsPicks.some(i => i >= factsPool.length)){
-    const indices = factsPool.map((_, i) => i);
-    for(let i = indices.length - 1; i > 0; i--){
-      const j = Math.floor(Math.random() * (i + 1));
-      [indices[i], indices[j]] = [indices[j], indices[i]];
-    }
-    factsNewsPicks = indices.slice(0, Math.min(6, factsPool.length));
-  }
-  factsNewsPicks.forEach(i => news.push(factsPool[i]));
-
-  // --- Spekulative Liga-Talk-Schlagzeilen (fixer Themen-Pool, 5 werden einmal
-  // pro Seitenaufruf zufällig gezogen; jedes datenbasierte Thema hat einen
   // Fallback-Text für den Fall, dass noch keine passenden Daten vorliegen). ---
   const dnfRace = lastRaceDnfRaceNum ? RACES.find(r => r.num === lastRaceDnfRaceNum) : null;
   const pool = [
@@ -2434,17 +2417,31 @@ function generateNewsTicker(){
     `🧊 Nervenstärke gefragt: Wer bleibt unter Druck am cleversten?`,
     `📈 Wer klettert als Nächstes am meisten Plätze in der Gesamtwertung?`,
     `🏆 Nur noch wenige Punkte trennen das Mittelfeld - wer nutzt die Chance?`,
+    `🔧 Kühlungsprobleme bei Hitze - wer managt sein Auto am besten durchs Rennen?`,
+    `🎲 Reifenwahl am Start: Wer geht das Risiko ein, wer spielt auf Nummer sicher?`,
+    `🛰️ Telemetrie-Analyse: Wer optimiert seine Ideallinie am konsequentesten?`,
+    `🧨 Startaufstellung entscheidet oft schon viel - wer erwischt die beste Position?`,
+    `🌀 DRS-Zonen-Taktik: Wer nutzt den Windschatten am cleversten aus?`,
+    `🧮 Punkte-Rechnerei: Wer braucht noch wie viele Podien für die Traumplatzierung?`,
+    `🏋️ Reifenverschleiß im Blick: Wer schafft die längsten Stints?`,
+    `🎇 Safety-Car-Restart: Wer bleibt in der ersten Kurve cool?`,
+    `📡 Boxenfunk-Leak: Angeblich wird an einer neuen Strategie gefeilt.`,
+    `🧵 Feiner Unterschied: Wer holt die letzten Hundertstel aus dem Auto raus?`,
+    `🌡️ Streckentemperatur steigt - wer hat das bessere Reifenmanagement?`,
+    `🚧 Verkehr in der Quali: Wer erwischt die freie Strecke zur richtigen Zeit?`,
+    `🎬 Highlight-Reel der Woche: Welches Überholmanöver setzt sich durch?`,
+    `🧭 Streckenlayout-Frage: Wem liegt die nächste Strecke traditionell besonders gut?`,
+    `⚙️ Motor-Modi: Wer riskiert früh den Vollgas-Modus fürs Overtake?`,
+    `🥊 Erste-Kurve-Chaos: Wer übersteht den Start am unbeschadetsten?`,
+    `🎯 Longrun-Pace vs. Quali-Pace: Wer ist im Rennen stärker als am Samstag?`,
+    `🧊 Kühler Kopf gefragt: Wer bleibt bei Regen am ruhigsten am Lenkrad?`,
+    `🗺️ Streckenkenntnis zahlt sich aus - wer hat die meisten Runden auf der nächsten Strecke?`,
+    `🎪 Podestshow der Woche: Wer feiert als Nächstes ganz oben?`,
+    `🧱 Aufholjagd von hinten: Wer arbeitet sich am schnellsten durchs Feld?`,
+    `🎈 Leichtgewicht-Setup oder Downforce-Monster - wer trifft die bessere Wahl?`,
+    `🏔️ Höhenluft-Strecken: Wer profitiert vom Motor-Setup am meisten?`,
+    `🕵️ Spionage in der Box: Wer schnappt als Erster das neue Setup der Konkurrenz auf?`,
   ];
-
-  if(!speculativeNewsPicks || speculativeNewsPicks.some(i => i >= pool.length)){
-    const indices = pool.map((_, i) => i);
-    for(let i = indices.length - 1; i > 0; i--){
-      const j = Math.floor(Math.random() * (i + 1));
-      [indices[i], indices[j]] = [indices[j], indices[i]];
-    }
-    speculativeNewsPicks = indices.slice(0, 5);
-  }
-  speculativeNewsPicks.forEach(i => news.push(pool[i]));
 
   // --- Vivi, die Liga-Reporterin: interviewt Fahrer, Teams und Fans. Rein
   // fiktive Schnipsel (kein Zitat einer echten Person!), aber mit echten
@@ -2478,19 +2475,54 @@ function generateNewsTicker(){
       : `🎧 Vivi fragt die Box: "Wer zeigt als Nächstes eine Serie starker Rennen?"`,
     `🎤 Vivi mit dem Saison-Rückblick-Teaser: "Es bleibt spannend bis zum letzten Rennen" - so viel verrät sie schon mal.`,
     `🎙️ Vivi bei den Fans an der Strecke: Die Stimmung ist trotz aller Diskussionen bestens.`,
+    `🎤 Vivi im Fahrerlager: "Was war die größte Überraschung dieser Saison bisher?" – die Antworten sind durchweg vielfältig.`,
+    `📻 Vivi fragt in der Box nach: "Wie wichtig ist Kommunikation zwischen Fahrer und Team?" – "Extrem wichtig, gerade bei Strategieentscheidungen."`,
+    `🎧 Vivi trifft die Mechaniker: "Was ist das Stressigste an einem Boxenstopp?" – "Jede Zehntelsekunde zählt."`,
+    `🎙️ Vivi bei den Fans: "Welches Rennen war bisher euer Highlight der Saison?" – die Meinungen gehen weit auseinander.`,
+    `🎤 Vivi mit dem Mikro in der Boxengasse: "Wie bereitet man sich mental auf ein Rennwochenende vor?" – Routinen scheinen der Schlüssel zu sein.`,
+    `📻 Vivi fragt nach: "Was ist der unterschätzteste Skill im Sim Racing?" – Konstanz wird oft genannt.`,
+    `🎧 Vivi im Talk mit den Teams: "Setzt ihr eher auf Erfahrung oder auf frisches Talent?" – die Meinungen sind gespalten.`,
+    `🎙️ Vivi bei der Curbside-Analyse: "Welche Strecke wird in dieser Saison am meisten unterschätzt?" – heiß diskutiert.`,
+    `🎤 Vivi mit der Blitzumfrage: "Wer überrascht euch bisher am meisten?" – die Antworten variieren von Rennen zu Rennen.`,
+    `📻 Vivi im Interview: "Was war der bisher spannendste Moment der Saison?" – die Meinungen darüber gehen auseinander.`,
+    `🎧 Vivi fragt die Fans: "Reicht die Restsaison noch für eine Überraschung?" – die Hoffnung stirbt zuletzt.`,
+    `🎙️ Vivi bei den Reserve-Fahrern: "Würdet ihr sofort einspringen, wenn's drauf ankommt?" – natürlich, klar!`,
+    `🎤 Vivi hört sich in der Box um: Neue Motivationssprüche vor dem nächsten Rennen machen die Runde.`,
+    `📻 Vivi zieht Bilanz: "Welche Entscheidung hat diese Saison bisher am meisten bewegt?" – die Antworten überraschen.`,
   ];
 
-  if(!viviNewsPicks || viviNewsPicks.some(i => i >= viviPool.length)){
-    const indices = viviPool.map((_, i) => i);
-    for(let i = indices.length - 1; i > 0; i--){
+  // Aus jedem der drei Pools wird eine zufällige Auswahl gezogen (mehr als
+  // bisher, für spürbar mehr Abwechslung) und danach ALLES zusammen gemischt,
+  // damit nicht strukturell immer "Fakten zuerst" kommt. Die komplette Auswahl
+  // wird gecacht und nur alle paar Minuten aufgefrischt (nicht bei jedem
+  // Render), damit die Lauf-Animation nicht ständig neu startet.
+  function pickRandom(arr, n){
+    const idx = arr.map((_, i) => i);
+    for(let i = idx.length - 1; i > 0; i--){
       const j = Math.floor(Math.random() * (i + 1));
-      [indices[i], indices[j]] = [indices[j], indices[i]];
+      [idx[i], idx[j]] = [idx[j], idx[i]];
     }
-    viviNewsPicks = indices.slice(0, 2);
+    return idx.slice(0, Math.min(n, arr.length)).map(i => arr[i]);
   }
-  viviNewsPicks.forEach(i => news.push(viviPool[i]));
 
-  return news;
+  const NEWS_REFRESH_MS = 5 * 60 * 1000; // alle 5 Minuten neu mischen
+  const now = Date.now();
+  if(!cachedNewsResult || (now - cachedNewsResultAt) > NEWS_REFRESH_MS){
+    const combined = [
+      ...pickRandom(factsPool, 8),
+      ...pickRandom(pool, 8),
+      ...pickRandom(viviPool, 3),
+    ];
+    // Reihenfolge der zusammengesetzten Auswahl selbst nochmal mischen
+    for(let i = combined.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [combined[i], combined[j]] = [combined[j], combined[i]];
+    }
+    cachedNewsResult = combined;
+    cachedNewsResultAt = now;
+  }
+
+  return cachedNewsResult;
 }
 
 let lastNewsSignature = null;
