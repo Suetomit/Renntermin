@@ -210,6 +210,15 @@
     .time-row { display: flex; align-items: center; gap: 8px; }
     .time-row input { background: var(--bg); border: 1px solid var(--border); color: #fff; padding: 4px 8px; border-radius: 4px; }
 
+    /* Das Uhr-Icon in <input type="time"> ist standardmäßig dunkel und hebt
+       sich auf unserem dunklen Hintergrund kaum ab - hier aufhellen. */
+    input[type="time"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.85);
+      cursor: pointer;
+      opacity: 0.9;
+    }
+    input[type="time"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+
     /* Standings Table & Tabs */
     .tabs { display: flex; gap: 6px; }
     .tab-btn { padding: 6px 10px; background: var(--s3); border: none; border-radius: 6px; color: var(--m); cursor: pointer; font-weight: 600; font-size: 0.8rem; }
@@ -3098,9 +3107,15 @@ function renderNameButtons(){
 
 window.selectName=function(name){
   currentUser=name;document.getElementById('nameInput').value=name;
-  const existing=S.persons.find(p=>p.name===name);
-  if(existing&&existing.slots.length>0){selectedDates=existing.slots.map(s=>({date:s.date,from:s.from,to:s.to}));showMsg('Eintrag geladen.');}
-  else{selectedDates=[];showMsg('');}
+  // Nur anfassen, wenn der Nutzer noch KEINE eigenen Tage ausgewählt hat -
+  // sonst würde eine Namensauswahl NACH dem Eintippen der Termine alles
+  // wieder löschen (entweder durch den bestehenden Eintrag überschrieben
+  // oder komplett geleert), obwohl noch nichts gespeichert wurde.
+  if(selectedDates.length === 0){
+    const existing=S.persons.find(p=>p.name===name);
+    if(existing&&existing.slots.length>0){selectedDates=existing.slots.map(s=>({date:s.date,from:s.from,to:s.to}));showMsg('Eintrag geladen.');}
+    else{showMsg('');}
+  }
   renderCal();renderSelDates();renderNameButtons();renderPersons();
 };
 
