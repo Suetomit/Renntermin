@@ -29,6 +29,9 @@
       padding: 20px; 
       font-size: 14px; 
     }
+    @media (max-width: 480px) {
+      body { padding: 10px; font-size: 13.5px; }
+    }
     
     .app-container { max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
 
@@ -132,6 +135,12 @@
       cursor: pointer;
       padding: 4px;
     }
+    @media (max-width: 480px) {
+      .reminder-banner { padding: 10px 14px; }
+      .reminder-info { min-width: 0; }
+      .reminder-actions { width: 100%; justify-content: space-between; }
+      .btn-wa { flex: 1; justify-content: center; }
+    }
     .btn-close-banner:hover { color: #fff; }
 
     /* Hero Banner */
@@ -155,6 +164,12 @@
     .hero-title { font-size: 0.75rem; color: var(--m); text-transform: uppercase; letter-spacing: 1px; text-shadow: 0 1px 4px rgba(0,0,0,0.6); }
     .hero-race-name { font-size: 1.3rem; font-weight: 800; color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
     .hero-countdown { font-size: 1.2rem; font-weight: 800; color: var(--y); font-family: monospace; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
+    @media (max-width: 480px) {
+      .hero-banner { padding: 14px 16px; gap: 10px; }
+      .hero-race-name { font-size: 1.05rem; }
+      .hero-countdown { font-size: 1rem; }
+      .go-live-btn { width: 100%; justify-content: center; }
+    }
 
     /* Layout Grids */
     .grid-2col { display: grid; grid-template-columns: 1fr; gap: 20px; }
@@ -175,6 +190,11 @@
       backdrop-filter: blur(10px);
     }
     .card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+    @media (max-width: 480px) {
+      .card-title { flex-wrap: wrap; gap: 8px; }
+      .tab-btn { padding: 5px 8px; font-size: 0.72rem; }
+      .icon-expand-btn { padding: 5px 6px; }
+    }
 
     /* Name Selection & Form with Helmets */
     .name-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 15px; }
@@ -363,6 +383,7 @@
       border-bottom: 2px solid #e10600;
       padding-bottom: 10px;
       margin-bottom: 15px;
+      gap: 10px;
     }
     .fs-title { font-size: 1.5rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
     .btn-fs-close {
@@ -374,8 +395,17 @@
       font-weight: 800;
       cursor: pointer;
       text-transform: uppercase;
+      flex-shrink: 0;
     }
-    .fs-tabs { display: flex; gap: 8px; margin-bottom: 15px; }
+    .fs-tabs { display: flex; gap: 8px; margin-bottom: 15px; overflow-x: auto; }
+    @media (max-width: 480px) {
+      .fs-modal { padding: 12px; }
+      .fs-title { font-size: 1.05rem; letter-spacing: 0.5px; }
+      .btn-fs-close { padding: 7px 12px; font-size: 0.75rem; }
+      .fs-tab-btn { padding: 7px 12px; font-size: 0.78rem; white-space: nowrap; }
+      .admin-content { padding: 12px; }
+      .esc-hint { display: none; }
+    }
     .fs-tab-btn {
       background: rgba(255,255,255,0.04);
       border: 1px solid #2d3548;
@@ -397,6 +427,14 @@
     .rivalry-stat-num { font-weight: 800; font-size: 1.3rem; }
     .rivalry-stat-label { text-align: center; font-size: 0.72rem; color: var(--m); text-transform: uppercase; letter-spacing: 0.5px; }
     .rivalry-bar-wrap { height: 8px; background: var(--s3); border-radius: 4px; overflow: hidden; display: flex; }
+    @media (max-width: 480px) {
+      .rivalry-picker { flex-direction: column; align-items: stretch; gap: 8px; }
+      .rivalry-picker select { width: 100% !important; }
+      .rivalry-vs { text-align: center; }
+      .rivalry-compare { grid-template-columns: 1fr; gap: 6px; }
+      .rivalry-stat-row { grid-template-columns: 1fr; text-align: center; gap: 2px; }
+      .rivalry-stat-row > div:first-child, .rivalry-stat-row > div:last-child { text-align: center !important; }
+    }
 
     .stats-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
     .stats-table th, .stats-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.08); text-align: center; }
@@ -465,6 +503,12 @@
     }
     .news-ticker-viewport { flex: 1; overflow: hidden; position: relative; display: flex; align-items: center; }
     .news-ticker-track { display: inline-flex; white-space: nowrap; animation: newsTickerScroll 40s linear infinite; }
+    @media (max-width: 480px) {
+      .news-ticker-label { padding: 0 10px; font-size: 0.68rem; }
+      .news-ticker-track .news-item { padding: 8px 24px 8px 0; font-size: 0.8rem; }
+      .cal-day { padding: 8px 2px; font-size: 0.78rem; }
+      .cal-header { font-size: 0.68rem; padding: 2px; }
+    }
     .news-ticker-track .news-item { display: inline-block; padding: 10px 40px 10px 0; font-size: 0.88rem; font-weight: 600; }
     @keyframes newsTickerScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
     .news-ticker-card:hover .news-ticker-track { animation-play-state: paused; }
@@ -659,7 +703,7 @@
 <div id="fullscreenStandingsModal" class="fs-modal">
   <div class="fs-header">
     <div class="fs-title">🏁 SAISONERGEBNISSE &amp; F1 RANGLISTE</div>
-    <button class="btn-fs-close" onclick="closeFullscreenStandings()">Schließen (ESC)</button>
+    <button class="btn-fs-close" onclick="closeFullscreenStandings()">Schließen<span class="esc-hint"> (ESC)</span></button>
   </div>
   <div class="fs-tabs">
     <button class="fs-tab-btn active" data-fstab="cross" onclick="switchFsTab('cross')">📊 Kreuztabelle</button>
@@ -682,7 +726,7 @@
       🔴 LIVE-TIMING
       <span class="live-session-badge off" id="liveSessionBadge">Warte auf Daten...</span>
     </div>
-    <button class="btn-fs-close" onclick="closeLiveModal()">Schließen (ESC)</button>
+    <button class="btn-fs-close" onclick="closeLiveModal()">Schließen<span class="esc-hint"> (ESC)</span></button>
   </div>
   <div class="fs-table-container" style="padding:16px;">
     <div id="liveModalContent">
@@ -695,7 +739,7 @@
 <div id="adminModal" class="fs-modal">
   <div class="fs-header">
     <div class="fs-title">🔑 ADMIN-BEREICH</div>
-    <button class="btn-fs-close" onclick="closeAdminModal()">Schließen (ESC)</button>
+    <button class="btn-fs-close" onclick="closeAdminModal()">Schließen<span class="esc-hint"> (ESC)</span></button>
   </div>
 
   <div id="adminPinGate" style="max-width:380px; margin:60px auto; text-align:center;">
