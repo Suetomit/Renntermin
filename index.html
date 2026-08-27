@@ -3107,14 +3107,25 @@ function renderNameButtons(){
 
 window.selectName=function(name){
   currentUser=name;document.getElementById('nameInput').value=name;
-  // Nur anfassen, wenn der Nutzer noch KEINE eigenen Tage ausgewählt hat -
-  // sonst würde eine Namensauswahl NACH dem Eintippen der Termine alles
-  // wieder löschen (entweder durch den bestehenden Eintrag überschrieben
-  // oder komplett geleert), obwohl noch nichts gespeichert wurde.
+  const existing=S.persons.find(p=>p.name===name);
   if(selectedDates.length === 0){
-    const existing=S.persons.find(p=>p.name===name);
+    // Normalfall: Name zuerst gewählt -> bestehenden Eintrag zum Bearbeiten laden.
     if(existing&&existing.slots.length>0){selectedDates=existing.slots.map(s=>({date:s.date,from:s.from,to:s.to}));showMsg('Eintrag geladen.');}
     else{showMsg('');}
+  } else if(existing && existing.slots.length > 0){
+    // Nutzer hat schon Tage ausgewählt, BEVOR er seinen Namen gewählt hat -
+    // bereits gespeicherte Tage, die noch NICHT in der aktuellen Auswahl
+    // stecken, ergänzen (nicht überschreiben!). Sonst würde beim Speichern
+    // die komplette bisherige Terminliste durch die eine neu gewählte
+    // Auswahl ersetzt und somit gelöscht werden.
+    const selectedDateKeys = new Set(selectedDates.map(d => d.date));
+    const merged = existing.slots
+      .filter(s => !selectedDateKeys.has(s.date))
+      .map(s => ({date:s.date, from:s.from, to:s.to}));
+    if(merged.length){
+      selectedDates = [...selectedDates, ...merged].sort((a,b) => a.date.localeCompare(b.date));
+      showMsg('Bestehende Termine ergänzt.');
+    }
   }
   renderCal();renderSelDates();renderNameButtons();renderPersons();
 };
