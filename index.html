@@ -812,6 +812,7 @@
                 <th style="padding:6px;">Racenet/Ingame-Name</th>
                 <th style="padding:6px;">Team</th>
                 <th style="padding:6px;">Liga-Name (Mensch)</th>
+                <th style="padding:6px;">Code (3 Buchst.)</th>
                 <th style="padding:6px;">Foto-Dateiname</th>
                 <th style="padding:6px;"></th>
               </tr>
@@ -1058,27 +1059,44 @@ function helmetImgByTeam(team){
 // das Admin-Panel hinzufügen/entfernen; das Ergebnis wird nach Firebase (driverRoster)
 // geschrieben und überschreibt dann ALL_DRIVERS beim Laden (siehe applyDriverRoster()).
 const ALL_DRIVERS_DEFAULT = [
-  { name:'Timotheus Müller',    racenet:'RealSuetomit',    team:'Visa Cash App RB',       human:'Timo',    photo:'timotheus-mueller-racingbulls.png'      },
-  { name:'Pascale Braasch',     racenet:'lafillederue',    team:'Visa Cash App RB',       human:'Pascale', photo:'pascale-braasch-racingbulls.png'        },
-  { name:'Niklas Schweisfurth', racenet:'niklasschwei',    team:'Aston Martin',           human:'Niklas',  photo:'niklas-schweisfurth-astonmartin.png'    },
-  { name:'Tim Löffler',         racenet:'loeffel00',       team:'Kick Sauber',            human:'Tim',     photo:'tim-loeffler-kicksauber.png'            },
-  { name:'Marcel Walle',        racenet:'Bidox2',          team:'Red Bull',               human:'Marcel',  photo:'marcel-walle-redbull-removebg-preview.png'},
-  { name:'Yannis Herling',      racenet:'HenkelPog',       team:'Alpine',                 human:'Yannis',  photo:'yannis-herling-alpine.png'              },
-  { name:'Eric Walter',         racenet:'PotatokingDE',    team:'Ferrari',                human:'Eric',    photo:'eric-walter-ferrari.png'                },
-  { name:'Philipp Juny',        racenet:'beiunszuhause',   team:'McLaren',                human:'Philipp', photo:'philipp-juny-mclaren.png'               },
-  { name:'Charles Leclerc',     racenet:null,              team:'Ferrari',                human:null,      photo:'charles-leclerc-ferrari.png'            },
-  { name:'Lando Norris',        racenet:null,              team:'McLaren',                human:null,      photo:'lando-norris-mclaren.png'               },
-  { name:'Andrea Kimi Antonelli',racenet:null,             team:'Mercedes-AMG Petronas',  human:null,      photo:'andrea-kimi-antonelli-mercedes.png'     },
-  { name:'Max Verstappen',      racenet:null,              team:'Red Bull',               human:null,      photo:'max-verstappen-red-bull-racing.png'     },
-  { name:'George Russell',      racenet:null,              team:'Mercedes-AMG Petronas',  human:null,      photo:'george-russell-mercedes.png'            },
-  { name:'Alex Albon',          racenet:null,              team:'Williams',               human:null,      photo:'alex-albon-williams.png'                },
-  { name:'Carlos Sainz',        racenet:null,              team:'Williams',               human:null,      photo:'carlos-sainz-williams.png'              },
-  { name:'Pierre Gasly',        racenet:null,              team:'Alpine',                 human:null,      photo:'pierre-gasly-alpine.png'                },
-  { name:'Oliver Bearman',      racenet:null,              team:'Haas',                   human:null,      photo:'oliver-bearman-haas.png'                },
-  { name:'Nico Hulkenberg',     racenet:null,              team:'Kick Sauber',            human:null,      photo:'nico-hulkenberg-kicksauber.png'         },
-  { name:'Esteban Ocon',        racenet:null,              team:'Haas',                   human:null,      photo:'esteban-ocon-haas-f1-team.png'          },
-  { name:'Lance Stroll',        racenet:null,              team:'Aston Martin',           human:null,      photo:'lance-stroll-aston-martin.png'          },
+  { name:'Timotheus Müller',    racenet:'RealSuetomit',    team:'Visa Cash App RB',       human:'Timo',    code:'MUL', photo:'timotheus-mueller-racingbulls.png'      },
+  { name:'Pascale Braasch',     racenet:'lafillederue',    team:'Visa Cash App RB',       human:'Pascale', code:'BRA', photo:'pascale-braasch-racingbulls.png'        },
+  { name:'Niklas Schweisfurth', racenet:'niklasschwei',    team:'Aston Martin',           human:'Niklas',  code:'SCH', photo:'niklas-schweisfurth-astonmartin.png'    },
+  { name:'Tim Löffler',         racenet:'loeffel00',       team:'Kick Sauber',            human:'Tim',     code:'LOF', photo:'tim-loeffler-kicksauber.png'            },
+  { name:'Marcel Walle',        racenet:'Bidox2',          team:'Red Bull',               human:'Marcel',  code:'WAL', photo:'marcel-walle-redbull-removebg-preview.png'},
+  { name:'Yannis Herling',      racenet:'HenkelPog',       team:'Alpine',                 human:'Yannis',  code:'HER', photo:'yannis-herling-alpine.png'              },
+  { name:'Eric Walter',         racenet:'PotatokingDE',    team:'Ferrari',                human:'Eric',    code:'WLT', photo:'eric-walter-ferrari.png'                },
+  { name:'Philipp Juny',        racenet:'beiunszuhause',   team:'McLaren',                human:'Philipp', code:'JUN', photo:'philipp-juny-mclaren.png'               },
+  { name:'Charles Leclerc',     racenet:null,              team:'Ferrari',                human:null,      code:'LEC', photo:'charles-leclerc-ferrari.png'            },
+  { name:'Lando Norris',        racenet:null,              team:'McLaren',                human:null,      code:'NOR', photo:'lando-norris-mclaren.png'               },
+  { name:'Andrea Kimi Antonelli',racenet:null,             team:'Mercedes-AMG Petronas',  human:null,      code:'ANT', photo:'andrea-kimi-antonelli-mercedes.png'     },
+  { name:'Max Verstappen',      racenet:null,              team:'Red Bull',               human:null,      code:'VER', photo:'max-verstappen-red-bull-racing.png'     },
+  { name:'George Russell',      racenet:null,              team:'Mercedes-AMG Petronas',  human:null,      code:'RUS', photo:'george-russell-mercedes.png'            },
+  { name:'Alex Albon',          racenet:null,              team:'Williams',               human:null,      code:'ALB', photo:'alex-albon-williams.png'                },
+  { name:'Carlos Sainz',        racenet:null,              team:'Williams',               human:null,      code:'SAI', photo:'carlos-sainz-williams.png'              },
+  { name:'Pierre Gasly',        racenet:null,              team:'Alpine',                 human:null,      code:'GAS', photo:'pierre-gasly-alpine.png'                },
+  { name:'Oliver Bearman',      racenet:null,              team:'Haas',                   human:null,      code:'BEA', photo:'oliver-bearman-haas.png'                },
+  { name:'Nico Hulkenberg',     racenet:null,              team:'Kick Sauber',            human:null,      code:'HUL', photo:'nico-hulkenberg-kicksauber.png'         },
+  { name:'Esteban Ocon',        racenet:null,              team:'Haas',                   human:null,      code:'OCO', photo:'esteban-ocon-haas-f1-team.png'          },
+  { name:'Lance Stroll',        racenet:null,              team:'Aston Martin',           human:null,      code:'STR', photo:'lance-stroll-aston-martin.png'          },
 ];
+
+// Fällt zurück auf die ersten 3 Buchstaben des Namens, falls für einen (z.B.
+// Fällt zurück auf die ersten 3 Buchstaben des NACHNAMENS, falls für einen
+// (z.B. vom Admin neu hinzugefügten) Fahrer noch kein explizites "code"-Feld
+// gesetzt wurde - analog zur echten F1 (z.B. VER, HAM). Umlaute werden dabei
+// vereinfacht (ü->u, ö->o, ä->a, ß->ss). Kollisionen sind dabei theoretisch
+// möglich (z.B. bei zwei Fahrern mit ähnlichem Nachnamen) - im Admin-Bereich
+// kann der Code jederzeit manuell überschrieben werden, um das zu vermeiden.
+function driverCode(driverInfo){
+  if(driverInfo && driverInfo.code) return driverInfo.code.toUpperCase();
+  const fullName = (driverInfo && driverInfo.name) || '?';
+  const parts = fullName.trim().split(/\s+/);
+  const lastName = parts[parts.length - 1] || fullName;
+  const normalized = lastName
+    .replace(/[üÜ]/g, 'u').replace(/[öÖ]/g, 'o').replace(/[äÄ]/g, 'a').replace(/ß/g, 'ss');
+  return normalized.slice(0,3).toUpperCase();
+}
 
 let ALL_DRIVERS = ALL_DRIVERS_DEFAULT.slice();
 
@@ -1632,6 +1650,15 @@ function renderLiveMapSvg(){
 
   const driversMeta = (liveTimingData && liveTimingData.drivers) || {};
   const playerIdx = liveTimingData.playerCarIndex;
+  const trace = liveTimingData.mapTrace || [];
+
+  // Streckenumriss: Ideallinie des eigenen Autos aus Runde 1, vom
+  // Telemetrie-Skript aufgezeichnet und eingefroren, sobald Runde 2 beginnt.
+  let traceHtml = '';
+  if(trace.length >= 2){
+    const points = trace.map(([x,z]) => { const {sx,sy} = toSvg(x,z); return `${sx.toFixed(1)},${sy.toFixed(1)}`; }).join(' ');
+    traceHtml = `<polyline points="${points}" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+  }
 
   const dots = Object.entries(positions).map(([carIdxStr, pos]) => {
     const { sx, sy } = toSvg(pos.x, pos.z);
@@ -1639,7 +1666,7 @@ function renderLiveMapSvg(){
     const rawName = meta ? meta.name : null;
     const info = rawName ? getDriverInfoByRacenet(rawName) : null;
     const color = (info && TEAM_COLORS[info.team]) || '#888';
-    const shortLabel = info && info.human ? info.human.slice(0,3).toUpperCase() : (meta ? meta.pos : '?');
+    const shortLabel = info ? driverCode(info) : (meta ? meta.pos : '?');
     const isMe = parseInt(carIdxStr) === playerIdx;
     return `<g>
       <circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${isMe ? 8 : 6}" fill="${color}" stroke="${isMe ? '#fff' : 'rgba(255,255,255,0.4)'}" stroke-width="${isMe ? 2.5 : 1}"/>
@@ -1658,10 +1685,14 @@ function renderLiveMapSvg(){
       </div>
       <div class="live-map-svg-wrap">
         <svg viewBox="0 0 ${size} ${size}" width="100%" height="100%">
+          ${traceHtml}
           ${dots}
         </svg>
       </div>
-      <p style="text-align:center; color:var(--m); font-size:0.72rem; margin-top:6px;">Sieht die Karte spiegelverkehrt/gedreht aus? Mit den Buttons oben einmalig korrigieren.</p>
+      <p style="text-align:center; color:var(--m); font-size:0.72rem; margin-top:6px;">
+        ${trace.length >= 2 ? 'Streckenlinie: Ideallinie aus Runde 1 deines eigenen Autos.' : 'Streckenlinie erscheint, sobald du Runde 1 gefahren bist.'}
+        Sieht die Karte spiegelverkehrt/gedreht aus? Mit den Buttons oben einmalig korrigieren.
+      </p>
     </div>`;
 }
 
@@ -3036,6 +3067,7 @@ function renderAdminDriverList(){
         </select>
       </td>
       <td data-label="Liga-Name" style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${escapeAttr(d.human)}" onchange="updateDriverDraft(${i},'human',this.value||null)" placeholder="leer = KI-Fahrer"></td>
+      <td data-label="Code" style="padding:4px;"><input class="pin-input" style="margin-bottom:0; text-transform:uppercase;" maxlength="3" value="${escapeAttr(d.code)}" onchange="updateDriverDraft(${i},'code',this.value.toUpperCase()||null)" placeholder="z.B. TIM"></td>
       <td data-label="Foto-Datei" style="padding:4px;"><input class="pin-input" style="margin-bottom:0;" value="${escapeAttr(d.photo)}" onchange="updateDriverDraft(${i},'photo',this.value)" placeholder="dateiname.png"></td>
       <td data-label="" style="padding:4px; text-align:center;"><button class="btn-rm" onclick="removeDriverDraft(${i})">✕ Entfernen</button></td>
     </tr>`).join('');
