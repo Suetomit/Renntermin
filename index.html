@@ -585,6 +585,20 @@
     .live-panels { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 16px; }
     @media (min-width: 992px) { .live-panels { grid-template-columns: 1fr 1fr; } }
     .live-panel-title { font-weight: 800; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--m); margin-bottom: 8px; }
+
+    .live-map-card { margin-top: 16px; }
+    .live-map-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .live-map-flip-btns { display: flex; gap: 6px; }
+    .live-map-flip-btn {
+      background: var(--s3); border: 1px solid var(--border); color: var(--m);
+      padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 0.72rem; font-weight: 700;
+    }
+    .live-map-flip-btn.active { background: var(--y); color: #000; border-color: var(--y); }
+    .live-map-svg-wrap {
+      background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 10px;
+      aspect-ratio: 1 / 1; max-width: 520px; margin: 0 auto; overflow: hidden;
+    }
+    .live-map-dot-label { font-size: 9px; font-weight: 700; fill: #fff; paint-order: stroke; stroke: #000; stroke-width: 2px; }
     .live-ticker-list { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
     .live-ticker-item { background: rgba(255,255,255,0.03); border-left: 3px solid var(--y); border-radius: 4px; padding: 6px 10px; font-size: 0.82rem; }
     .live-strategy-item { background: rgba(255,255,255,0.03); border-radius: 4px; padding: 8px 10px; font-size: 0.8rem; margin-bottom: 6px; }
@@ -1567,6 +1581,90 @@ function raceArchiveBoxHtml(r){
   return `<div class="archive-box">${recordHtml}${inner || '<div class="archive-empty">Keine Strategiedaten erfasst.</div>'}</div>`;
 }
 
+// ---------------------------------------------------------------------
+// LIVE MAP: zeichnet die Positionen aller Autos (aus /liveTiming/mapPositions,
+// vom Telemetrie-Skript gepusht) als Punkte auf einer Top-Down-Karte. Die
+// Kartengrenzen (mapBounds) wachsen serverseitig live mit den beobachteten
+// Extremwerten mit - kein fertiger Streckenumriss nötig, jede Strecke
+// funktioniert automatisch. Da die Achsen-Ausrichtung (X/Z vom Spiel) nicht
+// ohne eine echte Session verifiziert werden konnte, gibt es zwei Spiegel-
+// Buttons, mit denen man die Karte einmalig passend ausrichten kann - die
+// Wahl wird in localStorage gemerkt.
+function getLiveMapFlipState(){
+  return {
+    x: localStorage.getItem('liveMapFlipX') === '1',
+    y: localStorage.getItem('liveMapFlipY') === '1',
+  };
+}
+
+window.toggleLiveMapFlip = function(axis){
+  const key = axis === 'x' ? 'liveMapFlipX' : 'liveMapFlipY';
+  const current = localStorage.getItem(key) === '1';
+  localStorage.setItem(key, current ? '0' : '1');
+  if(liveModalOpen) renderLiveModal();
+};
+
+function renderLiveMapSvg(){
+  const positions = liveTimingData && liveTimingData.mapPositions;
+  const bounds = liveTimingData && liveTimingData.mapBounds;
+  if(!positions || !bounds || bounds.minX === null || bounds.minX === undefined) return '';
+
+  const carCount = Object.keys(positions).length;
+  if(carCount === 0) return '';
+
+  const flip = getLiveMapFlipState();
+  const pad = 30, size = 500;
+  const spanX = Math.max(bounds.maxX - bounds.minX, 1);
+  const spanZ = Math.max(bounds.maxZ - bounds.minZ, 1);
+  // Gleiche Skalierung für X/Z (kein Verzerren der Streckenform), an der
+  // größeren Ausdehnung ausgerichtet, Karte mittig zentriert.
+  const scale = (size - pad * 2) / Math.max(spanX, spanZ);
+  const offsetX = pad + (size - pad*2 - spanX*scale) / 2;
+  const offsetY = pad + (size - pad*2 - spanZ*scale) / 2;
+
+  const toSvg = (x, z) => {
+    let nx = (x - bounds.minX) * scale;
+    let nz = (z - bounds.minZ) * scale;
+    if(flip.x) nx = (spanX*scale) - nx;
+    if(flip.y) nz = (spanZ*scale) - nz;
+    return { sx: offsetX + nx, sy: offsetY + nz };
+  };
+
+  const driversMeta = (liveTimingData && liveTimingData.drivers) || {};
+  const playerIdx = liveTimingData.playerCarIndex;
+
+  const dots = Object.entries(positions).map(([carIdxStr, pos]) => {
+    const { sx, sy } = toSvg(pos.x, pos.z);
+    const meta = driversMeta[carIdxStr];
+    const rawName = meta ? meta.name : null;
+    const info = rawName ? getDriverInfoByRacenet(rawName) : null;
+    const color = (info && TEAM_COLORS[info.team]) || '#888';
+    const shortLabel = info && info.human ? info.human.slice(0,3).toUpperCase() : (meta ? meta.pos : '?');
+    const isMe = parseInt(carIdxStr) === playerIdx;
+    return `<g>
+      <circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${isMe ? 8 : 6}" fill="${color}" stroke="${isMe ? '#fff' : 'rgba(255,255,255,0.4)'}" stroke-width="${isMe ? 2.5 : 1}"/>
+      <text x="${sx.toFixed(1)}" y="${(sy-10).toFixed(1)}" text-anchor="middle" class="live-map-dot-label">${shortLabel}</text>
+    </g>`;
+  }).join('');
+
+  return `
+    <div class="live-map-card">
+      <div class="live-map-header">
+        <div class="live-panel-title" style="margin-bottom:0;">🗺️ Live Map</div>
+        <div class="live-map-flip-btns">
+          <button class="live-map-flip-btn ${flip.x?'active':''}" onclick="toggleLiveMapFlip('x')" title="Karte horizontal spiegeln, falls sie verkehrt aussieht">⇄ X</button>
+          <button class="live-map-flip-btn ${flip.y?'active':''}" onclick="toggleLiveMapFlip('y')" title="Karte vertikal spiegeln, falls sie verkehrt aussieht">⇅ Y</button>
+        </div>
+      </div>
+      <div class="live-map-svg-wrap">
+        <svg viewBox="0 0 ${size} ${size}" width="100%" height="100%">
+          ${dots}
+        </svg>
+      </div>
+      <p style="text-align:center; color:var(--m); font-size:0.72rem; margin-top:6px;">Sieht die Karte spiegelverkehrt/gedreht aus? Mit den Buttons oben einmalig korrigieren.</p>
+    </div>`;
+}
+
 function renderLiveModal(){
   const content = document.getElementById('liveModalContent');
   const badge = document.getElementById('liveSessionBadge');
@@ -1634,6 +1732,9 @@ function renderLiveModal(){
   } else {
     html += `<div class="live-empty-state">Keine aktive Live-Session gerade - aber es gibt bereits archivierte Renndaten unten.</div>`;
   }
+
+  // --- Live Map (aus Motion-Data-Positionen des Telemetrie-Skripts) ---
+  html += renderLiveMapSvg();
 
   // --- Ticker + Strategie/Archiv nebeneinander ---
   html += `<div class="live-panels">`;
