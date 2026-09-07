@@ -27,5 +27,5 @@ jobs:
           DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
           DISCORD_ANNOUNCE_CHANNEL_ID: ${{ secrets.DISCORD_ANNOUNCE_CHANNEL_ID }}
           DISCORD_VOICE_CHANNEL_ID: ${{ secrets.DISCORD_VOICE_CHANNEL_ID }}
-          PING_EVERYONE: 'false'
+          PING_EVERYONE: 'true'
         run: node discord-event-bot.js
