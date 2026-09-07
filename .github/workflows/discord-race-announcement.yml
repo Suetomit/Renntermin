@@ -1,15 +1,15 @@
-name: Discord Renntermin-Announcer
+name: Discord Eintrage-Erinnerung
 
 on:
   schedule:
-    # Alle 5 Minuten - kürzeres Intervall unterstützt GitHub Actions nicht.
-    # GitHub Actions cron läuft in UTC, das ist hier aber egal, da wir nur
-    # auf Änderungen in Firebase reagieren, nicht auf eine feste Uhrzeit.
-    - cron: '*/5 * * * *'
+    # Täglich um 18:00 UTC (~19-20 Uhr deutsche Zeit, je nach Sommer-/Winterzeit).
+    # Läuft nur, solange noch kein Renntermin bestätigt ist (siehe Skript-Logik) -
+    # danach passiert von selbst nichts mehr, kein Spam.
+    - cron: '0 18 * * *'
   workflow_dispatch: {} # erlaubt manuelles Auslösen über den "Run workflow"-Button zum Testen
 
 jobs:
-  announce:
+  remind:
     runs-on: ubuntu-latest
     steps:
       - name: Repo auschecken
@@ -20,12 +20,10 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Bot-Skript ausführen
+      - name: Reminder-Skript ausführen
         env:
           FIREBASE_DB_URL: ${{ secrets.FIREBASE_DB_URL }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
           DISCORD_ANNOUNCE_CHANNEL_ID: ${{ secrets.DISCORD_ANNOUNCE_CHANNEL_ID }}
-          DISCORD_VOICE_CHANNEL_ID: ${{ secrets.DISCORD_VOICE_CHANNEL_ID }}
-          PING_EVERYONE: 'false'
-        run: node discord-event-bot.js
+          # Optional: WEBSITE_URL: ${{ secrets.WEBSITE_URL }}
+        run: node discord-reminder-bot.js
