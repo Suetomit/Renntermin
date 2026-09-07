@@ -1,0 +1,31 @@
+name: Discord Renntermin-Announcer
+
+on:
+  schedule:
+    # Alle 5 Minuten - kürzeres Intervall unterstützt GitHub Actions nicht.
+    # GitHub Actions cron läuft in UTC, das ist hier aber egal, da wir nur
+    # auf Änderungen in Firebase reagieren, nicht auf eine feste Uhrzeit.
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {} # erlaubt manuelles Auslösen über den "Run workflow"-Button zum Testen
+
+jobs:
+  announce:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repo auschecken
+        uses: actions/checkout@v4
+
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Bot-Skript ausführen
+        env:
+          FIREBASE_DB_URL: ${{ secrets.FIREBASE_DB_URL }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
+          DISCORD_ANNOUNCE_CHANNEL_ID: ${{ secrets.DISCORD_ANNOUNCE_CHANNEL_ID }}
+          DISCORD_VOICE_CHANNEL_ID: ${{ secrets.DISCORD_VOICE_CHANNEL_ID }}
+          PING_EVERYONE: 'false'
+        run: node discord-event-bot.js
