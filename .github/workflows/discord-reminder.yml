@@ -2,14 +2,14 @@ name: Discord Eintrage-Erinnerung
 
 on:
   schedule:
-    # Täglich um 17:43 UTC (~19-20 Uhr deutsche Zeit, je nach Sommer-/Winterzeit).
+    # Täglich um 12:00 UTC (~19-20 Uhr deutsche Zeit, je nach Sommer-/Winterzeit).
     # Bewusst KEINE volle Stunde (z.B. 18:00) - zu diesen Zeitpunkten feuern weltweit
     # extrem viele geplante GitHub-Actions-Jobs gleichzeitig, was laut GitHub zu
     # Verzögerungen von teils mehreren Stunden führen kann. Eine "krumme" Minute
     # reduziert dieses Risiko deutlich (Garantie gibt's bei schedule-Jobs aber nie).
     # Läuft nur, solange noch kein Renntermin bestätigt ist (siehe Skript-Logik) -
     # danach passiert von selbst nichts mehr, kein Spam.
-    - cron: '43 17 * * *'
+    - cron: '00 12 * * *'
   workflow_dispatch: {} # erlaubt manuelles Auslösen über den "Run workflow"-Button zum Testen
 
 jobs:
