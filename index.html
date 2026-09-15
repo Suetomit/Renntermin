@@ -1582,6 +1582,30 @@ function archiveStrategyHtml(archive, itemClass, flClass){
 // Baut die im Rennkalender-Card aufklappbare Rennarchiv-Box für ein
 // absolviertes Rennen. Zeigt einen Hinweistext, solange das Telemetrie-Skript
 // für dieses Rennen noch keine Daten nach Firebase gepusht hat.
+
+// Baut die "Strategie live"-Ansicht WÄHREND des laufenden Rennens - nutzt
+// liveTimingData.drivers[].stints, die das Telemetrie-Skript bei JEDEM
+// Live-Push mitschickt (siehe push_live_state() im Python-Skript). Anders als
+// archiveStrategyHtml() (erst nach der Zielflagge verfügbar) zeigt das schon
+// live, auf welchem Reifen wer gerade steht und welche Stints bisher gefahren
+// wurden - aktualisiert sich also mit jedem Live-Update von selbst.
+function liveStrategyHtml(driversMeta, itemClass){
+  if(!driversMeta) return '';
+  const entries = Object.entries(driversMeta)
+    .filter(([,d]) => d.pos && d.pos > 0)
+    .sort(([,a],[,b]) => a.pos - b.pos);
+  if(!entries.length) return '';
+  return entries.map(([,d]) => {
+    const info = getDriverInfoByRacenet(d.name);
+    const displayName = info.human || d.name;
+    const stints = d.stints || [];
+    const stintStr = stints.length
+      ? stints.map(s => `${s.compound}(${s.start_lap}-${s.end_lap})`).join(' → ')
+      : (d.tyre ? `${d.tyre} (läuft)` : '-');
+    return `<div class="${itemClass}"><strong>${displayName}</strong> - ${d.pitStops ?? 0} Boxenstopp(s)<br><span style="color:var(--m);">${stintStr}</span></div>`;
+  }).join('');
+}
+
 function fmtLapTimeS(seconds){
   if(seconds===null || seconds===undefined) return '-.---';
   const mins = Math.floor(seconds/60);
@@ -1944,8 +1968,14 @@ function renderLiveModal(){
   }
   html += `</div></div>`;
 
-  html += `<div><div class="live-panel-title">🛞 Strategie${archive ? ' (Rennarchiv)' : ''}</div><div>`;
-  if(archive){
+  html += `<div><div class="live-panel-title">🛞 Strategie${sessionActive ? ' (Live)' : archive ? ' (Rennarchiv)' : ''}</div><div>`;
+  if(sessionActive && liveTimingData && liveTimingData.drivers){
+    // Während das Rennen läuft: direkt aus den live gepushten Stint-Daten
+    // rendern (siehe liveStrategyHtml()) statt auf das Archiv zu warten, das
+    // erst bei der Zielflagge geschrieben wird.
+    const liveHtml = liveStrategyHtml(liveTimingData.drivers, 'live-strategy-item');
+    html += liveHtml || `<div class="live-empty-state" style="padding:16px;">Noch keine Reifendaten erfasst.</div>`;
+  } else if(archive){
     html += archiveStrategyHtml(archive, 'live-strategy-item', 'live-strategy-item');
   } else if(liveTimingData && liveTimingData.drivers){
     html += `<div class="live-empty-state" style="padding:16px;">Strategie-Archiv erscheint hier, sobald das Rennen mit der Zielflagge beendet wurde.</div>`;
