@@ -604,7 +604,7 @@
     /* Dauer knapp unter dem Push-Intervall des Telemetrie-Skripts (1s), damit
        die Bewegung fertig ist, bevor das nächste Positions-Update eintrifft -
        das ist der eigentliche Fix gegen springende/ruckelige Punkte. */
-    .live-map-car-dot { transition: transform 0.4s linear; }
+    .live-map-car-dot { transition: transform 0.9s linear; }
     .live-map-highlight-ring { transform-box: fill-box; transform-origin: center; animation: liveMapPulse 1.1s ease-out infinite; }
     @keyframes liveMapPulse {
       0% { transform: scale(1); opacity: 0.9; }
@@ -1582,30 +1582,6 @@ function archiveStrategyHtml(archive, itemClass, flClass){
 // Baut die im Rennkalender-Card aufklappbare Rennarchiv-Box für ein
 // absolviertes Rennen. Zeigt einen Hinweistext, solange das Telemetrie-Skript
 // für dieses Rennen noch keine Daten nach Firebase gepusht hat.
-
-// Baut die "Strategie live"-Ansicht WÄHREND des laufenden Rennens - nutzt
-// liveTimingData.drivers[].stints, die das Telemetrie-Skript bei JEDEM
-// Live-Push mitschickt (siehe push_live_state() im Python-Skript). Anders als
-// archiveStrategyHtml() (erst nach der Zielflagge verfügbar) zeigt das schon
-// live, auf welchem Reifen wer gerade steht und welche Stints bisher gefahren
-// wurden - aktualisiert sich also mit jedem Live-Update von selbst.
-function liveStrategyHtml(driversMeta, itemClass){
-  if(!driversMeta) return '';
-  const entries = Object.entries(driversMeta)
-    .filter(([,d]) => d.pos && d.pos > 0)
-    .sort(([,a],[,b]) => a.pos - b.pos);
-  if(!entries.length) return '';
-  return entries.map(([,d]) => {
-    const info = getDriverInfoByRacenet(d.name);
-    const displayName = info.human || d.name;
-    const stints = d.stints || [];
-    const stintStr = stints.length
-      ? stints.map(s => `${s.compound}(${s.start_lap}-${s.end_lap})`).join(' → ')
-      : (d.tyre ? `${d.tyre} (läuft)` : '-');
-    return `<div class="${itemClass}"><strong>${displayName}</strong> - ${d.pitStops ?? 0} Boxenstopp(s)<br><span style="color:var(--m);">${stintStr}</span></div>`;
-  }).join('');
-}
-
 function fmtLapTimeS(seconds){
   if(seconds===null || seconds===undefined) return '-.---';
   const mins = Math.floor(seconds/60);
@@ -1968,14 +1944,8 @@ function renderLiveModal(){
   }
   html += `</div></div>`;
 
-  html += `<div><div class="live-panel-title">🛞 Strategie${sessionActive ? ' (Live)' : archive ? ' (Rennarchiv)' : ''}</div><div>`;
-  if(sessionActive && liveTimingData && liveTimingData.drivers){
-    // Während das Rennen läuft: direkt aus den live gepushten Stint-Daten
-    // rendern (siehe liveStrategyHtml()) statt auf das Archiv zu warten, das
-    // erst bei der Zielflagge geschrieben wird.
-    const liveHtml = liveStrategyHtml(liveTimingData.drivers, 'live-strategy-item');
-    html += liveHtml || `<div class="live-empty-state" style="padding:16px;">Noch keine Reifendaten erfasst.</div>`;
-  } else if(archive){
+  html += `<div><div class="live-panel-title">🛞 Strategie${archive ? ' (Rennarchiv)' : ''}</div><div>`;
+  if(archive){
     html += archiveStrategyHtml(archive, 'live-strategy-item', 'live-strategy-item');
   } else if(liveTimingData && liveTimingData.drivers){
     html += `<div class="live-empty-state" style="padding:16px;">Strategie-Archiv erscheint hier, sobald das Rennen mit der Zielflagge beendet wurde.</div>`;
@@ -3831,12 +3801,15 @@ window.dismissBanner = function() {
   document.getElementById('reminderBanner').style.display = 'none';
 };
 
-// Zeigt das Podium-GIF des zuletzt gefahrenen Rennens im Header an.
-// Erwartet eine Datei "podium-{code}.gif" (z.B. podium-chn.gif, derselbe
-// Code wie bei RACES[].code) im selben Verzeichnis wie die anderen Bilder.
-// Einfach nach jedem Rennen die neue Datei mit passendem Code hochladen -
-// KEINE Code-Änderung nötig. Über ein Test-Image wird erst geprüft, ob die
-// Datei existiert, damit nie kurz ein kaputtes Bild-Icon aufblitzt.
+// Zeigt das Podium-Bild des zuletzt gefahrenen Rennens im Header an.
+// Erwartet eine Datei "podium-{code}.<ext>" (z.B. podium-chn.gif oder
+// podium-bhr.jpg, derselbe Code wie bei RACES[].code) im selben Verzeichnis
+// wie die anderen Bilder. Einfach nach jedem Rennen die neue Datei mit
+// passendem Code hochladen - KEINE Code-Änderung nötig. Unterstützt sowohl
+// animierte GIFs als auch statische Bilder (jpg/jpeg/png/webp) - die
+// Endungen werden der Reihe nach durchprobiert, bis eine davon existiert.
+const PODIUM_IMG_EXTENSIONS = ['gif', 'jpg', 'jpeg', 'png', 'webp'];
+
 function updateHeaderPodium(){
   const wrap = document.getElementById('headerPodium');
   const img = document.getElementById('headerPodiumImg');
@@ -3847,22 +3820,29 @@ function updateHeaderPodium(){
   if(!doneRaces.length){ wrap.style.display = 'none'; return; }
 
   const last = doneRaces[doneRaces.length - 1]; // zuletzt gefahrenes Rennen
-  const src = `podium-${last.code.toLowerCase()}.gif`;
+  const code = last.code.toLowerCase();
 
-  if(wrap.dataset.loadedSrc === src) return; // schon geladen -> nicht neu triggern (GIF würde sonst neu starten)
+  if(wrap.dataset.loadedCode === code) return; // schon geladen -> nicht neu triggern (GIF würde sonst neu starten)
 
-  const tester = new Image();
-  tester.onload = () => {
-    img.src = src;
-    label.textContent = last.country;
-    wrap.style.display = 'block';
-    wrap.dataset.loadedSrc = src;
+  let i = 0;
+  const tryNextExtension = () => {
+    if(i >= PODIUM_IMG_EXTENSIONS.length){
+      wrap.style.display = 'none';
+      wrap.dataset.loadedCode = '';
+      return;
+    }
+    const src = `podium-${code}.${PODIUM_IMG_EXTENSIONS[i]}`;
+    const tester = new Image();
+    tester.onload = () => {
+      img.src = src;
+      label.textContent = last.country;
+      wrap.style.display = 'block';
+      wrap.dataset.loadedCode = code;
+    };
+    tester.onerror = () => { i++; tryNextExtension(); };
+    tester.src = src;
   };
-  tester.onerror = () => {
-    wrap.style.display = 'none';
-    wrap.dataset.loadedSrc = '';
-  };
-  tester.src = src;
+  tryNextExtension();
 }
 
 function render(){
