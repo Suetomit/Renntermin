@@ -962,6 +962,10 @@
       <div id="selDates"></div>
       <button class="btn" onclick="submitPerson()">Speichern</button>
       <div id="fmsg" style="color:#ff5555; font-size:0.8rem; margin-top:8px;"></div>
+      <button class="btn-copy" style="margin-top:10px; padding:8px;" onclick="declineAll()">🚫 Kann diese Runde an keinem Termin</button>
+      <p style="color:var(--m); font-size:0.72rem; margin-top:8px;">
+        Regel: Können 7 von 8 an einem Tag und du hast nach der Discord-Erinnerung 3 Tage lang weder Termine eingetragen noch abgesagt, wird ohne dich gefahren.
+      </p>
     </div>
 
     <!-- WM Standings Card mit neuem Icon-Button -->
@@ -1225,6 +1229,7 @@ try {
     initRaceResults(db);
     initLiveTiming(db);
     initRaceStatus(db);
+    initDeclined(db);
     initDriverRoster(db);
     initSeasonManagement(db);
     render();renderNameButtons();
@@ -1358,6 +1363,30 @@ async function syncTrackRecords(){
     }
   }
 }
+
+// "Kann diese Runde nicht"-Absagen (Pfad availabilityDeclined/{Name} = Timestamp).
+// Gilt DECLINE_VALID_DAYS Tage - muss zum Wert in discord-reminder-bot.js passen.
+const DECLINE_VALID_DAYS = 14;
+let declinedData = {};
+function hasDeclined(name){
+  const ts = declinedData[name];
+  return !!ts && (Date.now() - ts) < DECLINE_VALID_DAYS * 86400000;
+}
+function initDeclined(database){
+  onValue(ref(database, 'availabilityDeclined'), snap => { declinedData = snap.val() || {}; render(); });
+}
+window.declineAll = async function(){
+  const name = currentUser;
+  if(!name){ showMsg('Bitte zuerst deinen Namen auswählen.'); return; }
+  const existing = S.persons.find(p => p.name === name);
+  if(existing && existing.slots.length){ showMsg('Du hast schon Termine eingetragen - lösche sie zuerst, wenn du absagen willst.'); return; }
+  try{
+    await set(ref(db, 'availabilityDeclined/' + name), Date.now());
+    showMsg('✅ Abgesagt - die anderen wissen Bescheid.');
+  }catch(e){ console.error(e); showMsg('Fehler beim Speichern.'); return; }
+  currentUser = ''; document.getElementById('nameInput').value = '';
+  renderNameButtons();
+};
 
 function fallbackToLocal(){
   document.getElementById('loadingOverlay').style.display='none';
@@ -3488,6 +3517,7 @@ window.submitPerson=async function(){
   if(!selectedDates.length){showMsg('Bitte min. einen Tag wählen.');return;}
   S.persons=S.persons.filter(p=>p.name!==name);
   S.persons.push({name,slots:selectedDates.map(e=>({date:e.date,from:e.from,to:e.to}))});
+  if(db && declinedData[name]){ try{ await set(ref(db, 'availabilityDeclined/' + name), null); }catch(e){ console.error(e); } }
   await saveState();showMsg('');currentUser='';document.getElementById('nameInput').value='';
   selectedDates=[];renderCal();renderSelDates();renderNameButtons();
 };
@@ -3591,7 +3621,7 @@ function renderPersons(){
       if(!p||!p.slots.length){
         return`<div class="driver-tile" style="--dc:${color};opacity:0.5;">
           <div class="dt-head">${helmetImg(name)}<div class="dt-name">${name}</div></div>
-          <div style="font-size:0.75rem; color:var(--m);">Keine Termine</div>
+          ${hasDeclined(name) ? '<div style="font-size:0.75rem; color:#ffa500;">🚫 Kann diese Runde nicht</div>' : '<div style="font-size:0.75rem; color:var(--m);">Keine Termine</div>'}
         </div>`;
       }
       return`<div class="driver-tile" style="--dc:${color}">
@@ -3782,7 +3812,7 @@ function renderReminderBanner() {
   if(!banner || bannerDismissed) return;
 
   const entered = S.persons.map(p => p.name);
-  const missing = DRIVERS.filter(d => !entered.includes(d));
+  const missing = DRIVERS.filter(d => !entered.includes(d) && !hasDeclined(d));
 
   if(missing.length === 0) {
     banner.style.display = 'none';
