@@ -28,7 +28,7 @@ const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const DISCORD_ANNOUNCE_CHANNEL_ID = process.env.DISCORD_ANNOUNCE_CHANNEL_ID;
 const WEBSITE_URL = process.env.WEBSITE_URL || null;
 
-const MIN_DRIVERS = parseInt(process.env.QUORUM_MIN_DRIVERS || '7', 10);
+const MIN_DRIVERS = parseInt(process.env.QUORUM_MIN_DRIVERS || '6', 10);
 const DEADLINE_HOURS = parseInt(process.env.QUORUM_DEADLINE_HOURS || '72', 10);
 const DECLINE_VALID_DAYS = 14;          // muss zur Website passen
 const MIN_RACE_MINUTES = 90;            // gemeinsames Zeitfenster für Auto-Bestätigung
