@@ -46,6 +46,9 @@ const DRIVER_DISCORD_IDS = {
   'Yannis':  '337359211401052161',
   'Eric':    '682018019643621425',
   'Philipp': '709137556410728488',
+  'Vivien': '924661655684677663',
+  'Vivien': '498536155101528084',
+  
 };
 const ALL_DRIVERS = Object.keys(DRIVER_DISCORD_IDS);
 
