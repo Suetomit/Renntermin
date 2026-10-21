@@ -2833,7 +2833,7 @@ function generateNewsTicker(){
     `🕵️ Spionage in der Box: Wer schnappt als Erster das neue Setup der Konkurrenz auf?`,
   ];
 
-  // --- Vivi, die Liga-Reporterin: interviewt Fahrer, Teams und Fans. Rein
+  // --- Lätti, die Liga-Reporterin: interviewt Fahrer, Teams und Fans. Rein
   // fiktive Schnipsel (kein Zitat einer echten Person!), aber mit echten
   // Fahrer-/Teamnamen aus den Daten, wo verfügbar. Eigener Pool + eigenes,
   // stabiles Sampling pro Sitzung, analog zu den anderen beiden Pools. ---
@@ -2842,43 +2842,43 @@ function generateNewsTicker(){
     ? humans.filter(d => d.name !== randomHuman?.name)[Math.floor(Math.random() * Math.max(humans.length - 1, 1))]
     : null;
 
-  const viviPool = [
+  const LättiPool = [
     leaderName
-      ? `🎤 Vivi fragt ${leaderName}: "Wie fühlt sich die Tabellenführung an?" – "Gut, aber es ist noch nichts entschieden!"`
-      : `🎤 Vivi im Fahrerlager: "Wer übernimmt als Nächstes die Tabellenführung?" – die Antworten gehen auseinander.`,
+      ? `🎤 Lätti fragt ${leaderName}: "Wie fühlt sich die Tabellenführung an?" – "Gut, aber es ist noch nichts entschieden!"`
+      : `🎤 Lätti im Fahrerlager: "Wer übernimmt als Nächstes die Tabellenführung?" – die Antworten gehen auseinander.`,
     randomHuman
-      ? `🎙️ Reporterin Vivi trifft ${randomHuman.human} an der Box: "Was ist Ihr Ziel fürs nächste Rennen?" – "Natürlich das Podium!"`
-      : `🎙️ Vivi ist wieder im Fahrerlager unterwegs und sammelt O-Töne für die nächste Ausgabe.`,
+      ? `🎙️ Reporterin Lätti trifft ${randomHuman.human} an der Box: "Was ist Ihr Ziel fürs nächste Rennen?" – "Natürlich das Podium!"`
+      : `🎙️ Lätti ist wieder im Fahrerlager unterwegs und sammelt O-Töne für die nächste Ausgabe.`,
     topTeam
-      ? `📻 Vivi hakt bei ${topTeam} nach: "Reicht die Form für die Konstrukteurs-WM?" – man gibt sich betont gelassen.`
-      : `📻 Vivi bei den Teams: "Wer traut sich schon jetzt eine Prognose für die Konstrukteurs-WM zu?"`,
+      ? `📻 Lätti hakt bei ${topTeam} nach: "Reicht die Form für die Konstrukteurs-WM?" – man gibt sich betont gelassen.`
+      : `📻 Lätti bei den Teams: "Wer traut sich schon jetzt eine Prognose für die Konstrukteurs-WM zu?"`,
     randomHuman2
-      ? `🎧 Vivi mit dem Mikro bei ${randomHuman2.human}: "Größte Herausforderung dieser Saison?" – "Ganz klar die Konstanz."`
-      : `🎧 Vivi sammelt Stimmen aus der Box - Details gibt's in der nächsten Ausgabe.`,
-    `🎤 Vivi bei den Fans: "Wer wird am Ende oben stehen?" – die Meinungen könnten unterschiedlicher nicht sein.`,
-    `🎙️ Vivi hat sich in der Boxengasse umgehört: Gerüchte über neue Setups machen die Runde.`,
+      ? `🎧 Lätti mit dem Mikro bei ${randomHuman2.human}: "Größte Herausforderung dieser Saison?" – "Ganz klar die Konstanz."`
+      : `🎧 Lätti sammelt Stimmen aus der Box - Details gibt's in der nächsten Ausgabe.`,
+    `🎤 Lätti bei den Fans: "Wer wird am Ende oben stehen?" – die Meinungen könnten unterschiedlicher nicht sein.`,
+    `🎙️ Lätti hat sich in der Boxengasse umgehört: Gerüchte über neue Setups machen die Runde.`,
     worstDnf
-      ? `📻 Vivi konfrontiert ${displayName(worstDnf[0])} mit der Ausfall-Statistik: "Pech oder Fahrfehler?" – "Ein bisschen von beidem, ehrlich gesagt."`
-      : `📻 Vivi fragt in die Box: "Wer bleibt diese Saison am längsten ohne Ausfall?"`,
+      ? `📻 Lätti konfrontiert ${displayName(worstDnf[0])} mit der Ausfall-Statistik: "Pech oder Fahrfehler?" – "Ein bisschen von beidem, ehrlich gesagt."`
+      : `📻 Lätti fragt in die Box: "Wer bleibt diese Saison am längsten ohne Ausfall?"`,
     eloLeaderName
-      ? `🎧 Vivi zum Elo-Spitzenreiter ${eloLeaderName}: "Zufall oder harte Arbeit?" – "Definitiv Arbeit am Simulator!"`
-      : `🎧 Vivi fragt die Box: "Wer zeigt als Nächstes eine Serie starker Rennen?"`,
-    `🎤 Vivi mit dem Saison-Rückblick-Teaser: "Es bleibt spannend bis zum letzten Rennen" - so viel verrät sie schon mal.`,
-    `🎙️ Vivi bei den Fans an der Strecke: Die Stimmung ist trotz aller Diskussionen bestens.`,
-    `🎤 Vivi im Fahrerlager: "Was war die größte Überraschung dieser Saison bisher?" – die Antworten sind durchweg vielfältig.`,
-    `📻 Vivi fragt in der Box nach: "Wie wichtig ist Kommunikation zwischen Fahrer und Team?" – "Extrem wichtig, gerade bei Strategieentscheidungen."`,
-    `🎧 Vivi trifft die Mechaniker: "Was ist das Stressigste an einem Boxenstopp?" – "Jede Zehntelsekunde zählt."`,
-    `🎙️ Vivi bei den Fans: "Welches Rennen war bisher euer Highlight der Saison?" – die Meinungen gehen weit auseinander.`,
-    `🎤 Vivi mit dem Mikro in der Boxengasse: "Wie bereitet man sich mental auf ein Rennwochenende vor?" – Routinen scheinen der Schlüssel zu sein.`,
-    `📻 Vivi fragt nach: "Was ist der unterschätzteste Skill im Sim Racing?" – Konstanz wird oft genannt.`,
-    `🎧 Vivi im Talk mit den Teams: "Setzt ihr eher auf Erfahrung oder auf frisches Talent?" – die Meinungen sind gespalten.`,
-    `🎙️ Vivi bei der Curbside-Analyse: "Welche Strecke wird in dieser Saison am meisten unterschätzt?" – heiß diskutiert.`,
-    `🎤 Vivi mit der Blitzumfrage: "Wer überrascht euch bisher am meisten?" – die Antworten variieren von Rennen zu Rennen.`,
-    `📻 Vivi im Interview: "Was war der bisher spannendste Moment der Saison?" – die Meinungen darüber gehen auseinander.`,
-    `🎧 Vivi fragt die Fans: "Reicht die Restsaison noch für eine Überraschung?" – die Hoffnung stirbt zuletzt.`,
-    `🎙️ Vivi bei den Reserve-Fahrern: "Würdet ihr sofort einspringen, wenn's drauf ankommt?" – natürlich, klar!`,
-    `🎤 Vivi hört sich in der Box um: Neue Motivationssprüche vor dem nächsten Rennen machen die Runde.`,
-    `📻 Vivi zieht Bilanz: "Welche Entscheidung hat diese Saison bisher am meisten bewegt?" – die Antworten überraschen.`,
+      ? `🎧 Lätti zum Elo-Spitzenreiter ${eloLeaderName}: "Zufall oder harte Arbeit?" – "Definitiv Arbeit am Simulator!"`
+      : `🎧 Lätti fragt die Box: "Wer zeigt als Nächstes eine Serie starker Rennen?"`,
+    `🎤 Lätti mit dem Saison-Rückblick-Teaser: "Es bleibt spannend bis zum letzten Rennen" - so viel verrät sie schon mal.`,
+    `🎙️ Lätti bei den Fans an der Strecke: Die Stimmung ist trotz aller Diskussionen bestens.`,
+    `🎤 Lätti im Fahrerlager: "Was war die größte Überraschung dieser Saison bisher?" – die Antworten sind durchweg vielfältig.`,
+    `📻 Lätti fragt in der Box nach: "Wie wichtig ist Kommunikation zwischen Fahrer und Team?" – "Extrem wichtig, gerade bei Strategieentscheidungen."`,
+    `🎧 Lätti trifft die Mechaniker: "Was ist das Stressigste an einem Boxenstopp?" – "Jede Zehntelsekunde zählt."`,
+    `🎙️ Lätti bei den Fans: "Welches Rennen war bisher euer Highlight der Saison?" – die Meinungen gehen weit auseinander.`,
+    `🎤 Lätti mit dem Mikro in der Boxengasse: "Wie bereitet man sich mental auf ein Rennwochenende vor?" – Routinen scheinen der Schlüssel zu sein.`,
+    `📻 Lätti fragt nach: "Was ist der unterschätzteste Skill im Sim Racing?" – Konstanz wird oft genannt.`,
+    `🎧 Lätti im Talk mit den Teams: "Setzt ihr eher auf Erfahrung oder auf frisches Talent?" – die Meinungen sind gespalten.`,
+    `🎙️ Lätti bei der Curbside-Analyse: "Welche Strecke wird in dieser Saison am meisten unterschätzt?" – heiß diskutiert.`,
+    `🎤 Lätti mit der Blitzumfrage: "Wer überrascht euch bisher am meisten?" – die Antworten variieren von Rennen zu Rennen.`,
+    `📻 Lätti im Interview: "Was war der bisher spannendste Moment der Saison?" – die Meinungen darüber gehen auseinander.`,
+    `🎧 Lätti fragt die Fans: "Reicht die Restsaison noch für eine Überraschung?" – die Hoffnung stirbt zuletzt.`,
+    `🎙️ Lätti bei den Reserve-Fahrern: "Würdet ihr sofort einspringen, wenn's drauf ankommt?" – natürlich, klar!`,
+    `🎤 Lätti hört sich in der Box um: Neue Motivationssprüche vor dem nächsten Rennen machen die Runde.`,
+    `📻 Lätti zieht Bilanz: "Welche Entscheidung hat diese Saison bisher am meisten bewegt?" – die Antworten überraschen.`,
   ];
 
   // Aus jedem der drei Pools wird eine zufällige Auswahl gezogen (mehr als
@@ -2915,7 +2915,7 @@ function generateNewsTicker(){
     const combined = [
       ...pickRandom(factsPool, 8),
       ...pickRandom(pool, 8),
-      ...pickRandom(viviPool, 3),
+      ...pickRandom(LättiPool, 3),
     ];
     // Reihenfolge der zusammengesetzten Auswahl selbst nochmal mischen
     for(let i = combined.length - 1; i > 0; i--){
