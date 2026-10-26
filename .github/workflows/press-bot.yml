@@ -1,0 +1,29 @@
+name: Lätti Fragen-Bot
+
+on:
+  schedule:
+    # Krummer Minutenwert statt voller Stunde (GitHub Actions hat zur vollen Stunde viel Andrang)
+    - cron: '17 * * * *'
+  workflow_dispatch: {} # manuelles Auslösen zum Testen
+
+jobs:
+  press:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repo auschecken
+        uses: actions/checkout@v4
+
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Presse-Bot ausführen
+        env:
+          FIREBASE_DB_URL: ${{ secrets.FIREBASE_DB_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_ANNOUNCE_CHANNEL_ID: ${{ secrets.DISCORD_ANNOUNCE_CHANNEL_ID }}
+          WEBSITE_URL: ${{ secrets.WEBSITE_URL }}
+        run: node press-bot.js
