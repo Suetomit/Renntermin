@@ -43,21 +43,35 @@ async function fb(method, path, data) {
   return r.json();
 }
 
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
 async function gemini(system, prompt) {
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: system }] },
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.95, maxOutputTokens: 800, responseMimeType: 'application/json' },
-    }),
-  });
-  if (r.status === 429) throw new Error('Gemini-Kontingent aufgebraucht (429)');
-  if (!r.ok) throw new Error(`Gemini ${r.status}: ${(await r.text()).slice(0, 200)}`);
-  const j = await r.json();
-  const txt = (j.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('');
-  return JSON.parse(txt.replace(/```json|```/g, '').trim());
+  const models = [MODEL, process.env.GEMINI_FALLBACK_MODEL || 'gemini-flash-lite-latest'];
+  let busy = false, quota = false;
+  for (const model of models) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: system }] },
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.95, maxOutputTokens: 800, responseMimeType: 'application/json' },
+        }),
+      });
+      if (r.ok) {
+        const j = await r.json();
+        const txt = (j.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('');
+        return JSON.parse(txt.replace(/```json|```/g, '').trim());
+      }
+      if (r.status === 429) { quota = true; break; }
+      if (r.status === 404) break;
+      if (r.status >= 500) { busy = true; await sleep(2000 * (attempt + 1)); continue; }
+      throw new Error(`Gemini ${r.status}: ${(await r.text()).slice(0, 200)}`);
+    }
+  }
+  if (quota && !busy) throw new Error('Gemini-Kontingent aufgebraucht (429)');
+  throw new Error('Gemini überlastet oder nicht erreichbar - beim nächsten Lauf nochmal');
 }
 
 async function getHumans() {
@@ -152,7 +166,7 @@ async function main() {
       for (const [short, full] of Object.entries(humans)) {
         const e = res[full];
         if (!e || !String(e.pos || '').trim()) continue;
-        try { await ask(short, reasonFor(e), raceInfo); } catch (err) { console.warn(`⚠️ ${short}: ${err.message}`); if (/Kontingent/.test(err.message)) { quotaHit = true; break; } }
+        try { await ask(short, reasonFor(e), raceInfo); } catch (err) { console.warn(`⚠️ ${short}: ${err.message}`); if (/Kontingent|überlastet/.test(err.message)) { quotaHit = true; break; } }
       }
       // Bei aufgebrauchtem Gemini-Kontingent beim nächsten Lauf erneut versuchen (offene Fragen werden nicht doppelt gestellt)
       if (!quotaHit) state.lastRaceSig = sig;
