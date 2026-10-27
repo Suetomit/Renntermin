@@ -2930,10 +2930,14 @@ function generateNewsTicker(){
     cachedNewsDataSignature = dataSignature;
   }
 
-  return cachedNewsResult;
+  // Presse-News (aus press-module.js) stehen immer vorne in der Leiste, danach die zufällige Mischung
+  return [...(window.pressNewsTicker || []), ...cachedNewsResult];
 }
 
 let lastNewsSignature = null;
+
+// Presse-Modul meldet neue News -> Ticker sofort neu aufbauen
+window.addEventListener('pressNewsUpdated', () => renderNewsTicker());
 
 function renderNewsTicker(){
   const card = document.getElementById('newsTickerCard');
