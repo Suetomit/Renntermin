@@ -9,7 +9,7 @@ import { getDatabase, ref, onValue, query, limitToLast } from 'https://www.gstat
 // >>> HIER nach dem Worker-Deploy die eigene Worker-URL eintragen (ohne / am Ende) <<<
 const WORKER_URL = 'https://DEIN-WORKER.DEIN-NAME.workers.dev';
 
-let DRIVERS = ['Timo', 'Pascale', 'Niklas', 'Tim', 'Marcel', 'Yannis', 'Eric', 'Philipp' 'Vivien' 'Cedric'];
+let DRIVERS = ['Timo', 'Pascale', 'Niklas', 'Tim', 'Marcel', 'Yannis', 'Eric', 'Philipp', 'Vivien', 'Cedric'];
 const TONE_ICON = { hitzig: '🔥', cool: '😎', boese: '😈', nett: '😊' };
 const SRC_ICON = { interview: '🎙️', story: '✍️', chat: '💬' };
 const SRC_LABEL = { interview: '🎙️ Interview', story: '✍️ Fahrer-Story', chat: '💬 Chat-Zitat' };
