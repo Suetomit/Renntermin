@@ -26,7 +26,7 @@ const TONES = ['hitzig', 'cool', 'boese', 'nett'];
 
 const DEFAULT_HUMANS = {
   Timo: 'Timotheus Müller', Pascale: 'Pascale Braasch', Niklas: 'Niklas Schweisfurth', Tim: 'Tim Löffler',
-  Marcel: 'Marcel Walle', Yannis: 'Yannis Herling', Eric: 'Eric Walter', Philipp: 'Philipp Juny',
+  Marcel: 'Marcel Walle', Yannis: 'Yannis Herling', Eric: 'Eric Walter', Philipp: 'Philipp Juny', Vivien: 'Vivien Nadler', Cedric: 'Cedric Geppert',
 };
 const DISCORD_IDS = {
   Timo: '267013828896751617', Niklas: '434028182031826955', Pascale: '516216838368002069', Tim: '218849735107149824',
