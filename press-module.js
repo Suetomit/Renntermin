@@ -7,10 +7,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getDatabase, ref, onValue, query, limitToLast } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
 // >>> HIER nach dem Worker-Deploy die eigene Worker-URL eintragen (ohne / am Ende) <<<
-const WORKER_URL = 'https://laetti-press.der-alles-schecker.workers.dev/';
+const WORKER_URL = 'https://DEIN-WORKER.DEIN-NAME.workers.dev';
 
-let DRIVERS = ['Timo', 'Pascale', 'Niklas', 'Tim', 'Marcel', 'Yannis', 'Eric', 'Philipp'];
+let DRIVERS = ['Timo', 'Pascale', 'Niklas', 'Tim', 'Marcel', 'Yannis', 'Eric', 'Philipp' 'Vivien' 'Cedric'];
 const TONE_ICON = { hitzig: '🔥', cool: '😎', boese: '😈', nett: '😊' };
+const SRC_ICON = { interview: '🎙️', story: '✍️', chat: '💬' };
+const SRC_LABEL = { interview: '🎙️ Interview', story: '✍️ Fahrer-Story', chat: '💬 Chat-Zitat' };
 const TONE_NAME = { hitzig: 'hitzig', cool: 'cool', boese: 'böse', nett: 'nett' };
 
 const root = document.getElementById('pressModule');
@@ -26,7 +28,7 @@ function init() {
   }, 'press');
   const db = getDatabase(app);
 
-  const S = { tab: 'news', login: null, news: [], questions: {}, profiles: {}, chat: [], pending: '', msg: '' };
+  const S = { tab: 'news', login: null, news: [], questions: {}, profiles: {}, chat: [], pending: '', msg: '', info: '' };
   const drafts = {};
   try { S.login = JSON.parse(localStorage.getItem('pressLogin') || 'null'); } catch (e) { S.login = null; }
 
@@ -37,6 +39,9 @@ function init() {
   // ---------- Firebase-Listener ----------
   onValue(query(ref(db, 'press/news'), limitToLast(20)), s => {
     S.news = Object.entries(s.val() || {}).map(([id, n]) => ({ id, ...n })).sort((a, b) => b.ts - a.ts);
+    // Neueste Presse-News an die Breaking-News-Leiste der Hauptseite übergeben (siehe index: generateNewsTicker)
+    window.pressNewsTicker = S.news.slice(0, 6).map(n => `${SRC_ICON[n.source] || '📰'} ${esc(n.title)}`);
+    window.dispatchEvent(new Event('pressNewsUpdated'));
     render();
   });
   onValue(ref(db, 'driverRoster'), s => {
@@ -62,7 +67,7 @@ function init() {
 
   // ---------- Worker-Aufruf ----------
   async function api(route, payload) {
-    S.msg = ''; S.pending = route; render();
+    S.msg = ''; S.info = ''; S.pending = route; render();
     try {
       const r = await fetch(`${WORKER_URL}/${route}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -89,8 +94,8 @@ function init() {
 
   const newsHtml = () => !S.news.length
     ? '<div style="color:var(--m);font-size:0.85rem;">Noch keine News. Schreib eine Story oder beantworte eine Frage von Lätti!</div>'
-    : S.news.map(n => `<div class="slot-card" style="border-left:3px solid ${n.source === 'interview' ? '#b15eff' : 'var(--y)'};">
-        <div style="font-size:0.68rem;color:var(--m);margin-bottom:3px;">${n.source === 'interview' ? '🎙️ Interview' : '✍️ Fahrer-Story'} · ${esc(n.driver || n.author)} · ${fmtTs(n.ts)}</div>
+    : S.news.map(n => `<div class="slot-card" style="border-left:3px solid ${n.source === 'interview' ? '#b15eff' : n.source === 'chat' ? '#27f4d2' : 'var(--y)'};">
+        <div style="font-size:0.68rem;color:var(--m);margin-bottom:3px;">${SRC_LABEL[n.source] || '📰 News'} · ${esc(n.driver || n.author)} · ${fmtTs(n.ts)}</div>
         <div style="font-weight:800;margin-bottom:4px;">${esc(n.title)}</div>
         <div style="font-size:0.85rem;line-height:1.4;">${esc(n.text)}</div></div>`).join('');
 
@@ -99,7 +104,7 @@ function init() {
   function fragenHtml() {
     const all = Object.entries(S.questions).map(([id, q]) => ({ id, ...q }));
     const mine = S.login ? all.filter(q => q.driver === S.login.name && q.status === 'offen') : [];
-    const done = all.filter(q => q.status === 'beantwortet').sort((a, b) => b.answeredTs - a.answeredTs).slice(0, 12);
+    const done = all.filter(q => S.login && q.driver === S.login.name && q.status === 'beantwortet').sort((a, b) => b.answeredTs - a.answeredTs).slice(0, 12);
     let h = loginHtml();
     if (S.login) {
       h += mine.length ? mine.map(q => `<div class="slot-card" style="border-left:3px solid #27f4d2;">
@@ -109,11 +114,12 @@ function init() {
           <button class="btn" style="margin-top:0;" data-act="answer" data-id="${q.id}" ${S.pending ? 'disabled' : ''}>${S.pending === 'answer' ? 'Lätti wertet aus ...' : 'Antwort abschicken'}</button></div>`).join('')
         : '<div style="color:var(--m);font-size:0.85rem;margin-bottom:10px;">Keine offene Frage für dich - Lätti meldet sich nach dem nächsten Rennen.</div>';
     }
-    h += `<div style="font-weight:700;margin:12px 0 6px;">📋 Letzte Interviews</div>`;
+    if (!S.login) return h + '<div style="color:var(--m);font-size:0.85rem;">Melde dich an, um deine Fragen und Antworten zu sehen. Die Interviews aller Fahrer erscheinen als News.</div>';
+    h += `<div style="font-weight:700;margin:12px 0 6px;">📋 Deine bisherigen Antworten</div>`;
     h += done.length ? done.map(q => `<div class="slot-card">
         <div style="font-size:0.7rem;color:var(--m);">${esc(q.driver)} · ${fmtTs(q.answeredTs)} ${toneChip(q.tone)}</div>
         <div style="font-weight:700;margin:3px 0;">„${esc(q.question)}“</div>
-        <div style="font-size:0.85rem;">${esc(q.answer)}</div></div>`).join('') : '<div style="color:var(--m);font-size:0.85rem;">Noch keine beantworteten Fragen.</div>';
+        <div style="font-size:0.85rem;">${esc(q.answer)}</div></div>`).join('') : '<div style="color:var(--m);font-size:0.85rem;">Du hast noch keine Frage beantwortet.</div>';
     return h;
   }
 
@@ -123,6 +129,7 @@ function init() {
     <button class="btn" data-act="story" ${S.pending ? 'disabled' : ''}>${S.pending === 'story' ? 'Lätti schreibt ...' : 'Story an die Presse schicken'}</button>` : '');
 
   const chatHtml = () => loginHtml() + (S.login ? `
+    <div style="font-size:0.72rem;color:var(--m);margin-bottom:8px;">💡 Lätti kann interessante Aussagen aus dem Chat als News veröffentlichen. Schreib <strong>privat:</strong> an den Anfang einer Nachricht, dann bleibt sie unter euch.</div>
     <div id="pressChatBox" style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:8px;">
       ${S.chat.length ? S.chat.map(m => `<div style="align-self:${m.role === 'user' ? 'flex-end' : 'flex-start'};max-width:85%;background:${m.role === 'user' ? 'rgba(255,215,0,0.12)' : 'var(--s3)'};padding:7px 10px;border-radius:10px;font-size:0.85rem;">
           ${m.role === 'user' ? '' : '<div style="font-size:0.65rem;color:#27f4d2;font-weight:800;">LÄTTI</div>'}${esc(m.text)}</div>`).join('')
@@ -134,17 +141,28 @@ function init() {
       <button class="btn" style="margin-top:0;width:auto;" data-act="chat" ${S.pending ? 'disabled' : ''}>Senden</button>
     </div>` : '');
 
+  const TRAITS = {
+    ehrgeiz: ['🏆', 'Ehrgeiz'], selbstbewusst: ['😏', 'Selbstbewusstsein'], angriff: ['⚔️', 'Angriffslust'], humor: ['😂', 'Humor'],
+    teamgeist: ['🤝', 'Teamgeist'], selbstkritik: ['🪞', 'Selbstkritik'], analytisch: ['🧠', 'Analytik'], emotional: ['🔥', 'Leidenschaft'],
+  };
+
   function profileHtml() {
     const list = Object.entries(S.profiles);
     if (!list.length) return '<div style="color:var(--m);font-size:0.85rem;">Profile entstehen automatisch aus Interviews und Chats mit Lätti.</div>';
-    return list.map(([name, p]) => `<div class="slot-card">
-      <div style="display:flex;justify-content:space-between;"><strong>${esc(name)}</strong><span style="color:var(--y);font-size:0.8rem;">${esc(p.label || '-')}</span></div>
-      ${['hitzig', 'cool', 'boese', 'nett'].map(t => `<div style="display:flex;align-items:center;gap:8px;margin-top:5px;font-size:0.75rem;">
-        <span style="width:64px;">${TONE_ICON[t]} ${TONE_NAME[t]}</span>
-        <div style="flex:1;height:6px;background:var(--bg);border-radius:3px;overflow:hidden;"><div style="width:${Math.round((p.tones?.[t] || 0) * 100)}%;height:100%;background:var(--y);"></div></div>
-        <span style="width:32px;text-align:right;">${Math.round((p.tones?.[t] || 0) * 100)}%</span></div>`).join('')}
-      <div style="margin-top:6px;font-size:0.75rem;color:var(--m);">${(p.traits || []).map(esc).join(' · ') || ''} ${p.count ? `· ${p.count} Auswertung(en)` : ''}</div></div>`).join('')
-      + '<div style="font-size:0.68rem;color:var(--m2);margin-top:6px;">Spaß-Profile, automatisch von einer KI geschätzt - nicht ernst nehmen.</div>';
+    return list.map(([name, p]) => {
+      const sc = p.scores;
+      return `<div class="slot-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><strong>${esc(name)}</strong><span style="color:var(--y);font-size:0.8rem;font-weight:700;">${esc(p.label || '-')}</span></div>
+        ${p.steckbrief ? `<div style="font-size:0.78rem;font-style:italic;color:var(--m);margin:4px 0 6px;">„${esc(p.steckbrief)}“ - Lätti</div>` : ''}
+        ${sc ? Object.entries(TRAITS).map(([k, [icon, label]]) => {
+          const v = Math.round((sc[k] || 0) * 100);
+          return `<div style="display:flex;align-items:center;gap:8px;margin-top:5px;font-size:0.75rem;">
+            <span style="width:128px;white-space:nowrap;">${icon} ${label}</span>
+            <div style="flex:1;height:6px;background:var(--bg);border-radius:3px;overflow:hidden;"><div style="width:${v}%;height:100%;background:var(--y);"></div></div>
+            <span style="width:32px;text-align:right;">${v}%</span></div>`;
+        }).join('') : '<div style="font-size:0.75rem;color:var(--m);margin-top:6px;">Das Charakterprofil wird bei der nächsten Antwort oder nach 4 Chat-Nachrichten neu erstellt.</div>'}
+        <div style="margin-top:6px;font-size:0.75rem;color:var(--m);">${(p.traits || []).map(esc).join(' · ')} ${p.count ? `· ${p.count} Auswertung(en)` : ''}</div></div>`;
+    }).join('') + '<div style="font-size:0.68rem;color:var(--m2);margin-top:6px;">Spaß-Profile, automatisch von einer KI geschätzt - nicht ernst nehmen.</div>';
   }
 
   function render() {
@@ -157,7 +175,7 @@ function init() {
     root.innerHTML = `<div class="card-title"><span>🎙️ Lätti - Presse</span></div>
       <div class="tabs" style="margin-bottom:12px;flex-wrap:wrap;">${tabs.map(([k, l]) =>
         `<button class="tab-btn ${S.tab === k ? 'active' : ''}" data-act="tab" data-tab="${k}">${l}${k === 'fragen' && openMine ? ` (${openMine})` : ''}</button>`).join('')}</div>
-      ${S.msg ? `<div style="color:#ff5555;font-size:0.8rem;margin-bottom:8px;">${esc(S.msg)}</div>` : ''}${body}`;
+      ${S.msg ? `<div style="color:#ff5555;font-size:0.8rem;margin-bottom:8px;">${esc(S.msg)}</div>` : ''}${S.info ? `<div style="color:#27f4d2;font-size:0.8rem;margin-bottom:8px;">${esc(S.info)}</div>` : ''}${body}`;
     const box = document.getElementById('pressChatBox');
     if (box) box.scrollTop = box.scrollHeight;
     if (focus) {
@@ -189,6 +207,7 @@ function init() {
       drafts.chatIn = '';
       const j = await api('chat', { message });
       if (!j) drafts.chatIn = message;
+      else if (j.news) { S.info = `📰 Lätti hat daraus eine News gemacht: „${j.news}“`; render(); }
     } else if (a === 'story') {
       const text = (drafts.storyText || '').trim();
       const j = await api('story', { text });
