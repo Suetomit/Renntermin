@@ -26,11 +26,11 @@ const TONES = ['hitzig', 'cool', 'boese', 'nett'];
 
 const DEFAULT_HUMANS = {
   Timo: 'Timotheus Müller', Pascale: 'Pascale Braasch', Niklas: 'Niklas Schweisfurth', Tim: 'Tim Löffler',
-  Marcel: 'Marcel Walle', Yannis: 'Yannis Herling', Eric: 'Eric Walter', Philipp: 'Philipp Juny', Vivien: 'Vivien Nadler', Cedric: 'Cedric Geppert',
+  Marcel: 'Marcel Walle', Yannis: 'Yannis Herling', Eric: 'Eric Walter', Philipp: 'Philipp Juny',
 };
 const DISCORD_IDS = {
   Timo: '267013828896751617', Niklas: '434028182031826955', Pascale: '516216838368002069', Tim: '218849735107149824',
-  Marcel: '248567421969891330', Yannis: '337359211401052161', Eric: '682018019643621425', Philipp: '709137556410728488', Cedric: '498536155101528084', Vivien: '924661655684677663',
+  Marcel: '248567421969891330', Yannis: '337359211401052161', Eric: '682018019643621425', Philipp: '709137556410728488',
 };
 
 const PERSONA = `Du bist Lätti, Reporterin im Fahrerlager des "Gurkensöhne Cup" (private F1-25-Sim-Liga unter Freunden). ` +
@@ -142,7 +142,7 @@ async function main() {
     const old = Object.values(questions).filter(q => q.driver === driver).sort((a, b) => b.ts - a.ts).slice(0, 5).map(q => q.question);
     const question = await makeQuestion(driver, reason, raceInfo, profile, old);
     if (!question) return;
-    const rec = { driver, question, reason, status: 'offen', ts: Date.now() };
+    const rec = { driver, question, reason, status: 'offen', ts: Date.now(), pinged: false };
     const res = await fb('POST', 'press/questions', rec);
     questions[res.name] = rec;
     openFor.add(driver);
@@ -183,9 +183,13 @@ async function main() {
     }
   }
 
-  if (created.length) {
-    state.lastQuestionTs = Date.now();
-    await pingDiscord(created);
+  if (created.length) state.lastQuestionTs = Date.now();
+
+  // Alle neuen offenen Fragen (auch Gerüchte-Fragen aus dem Chat, die der Worker anlegt) per Discord anpingen
+  const toPing = Object.entries(questions).filter(([, q]) => q.status === 'offen' && q.pinged === false);
+  if (toPing.length) {
+    await pingDiscord([...new Set(toPing.map(([, q]) => q.driver))]);
+    for (const [id, q] of toPing) await fb('PUT', `press/questions/${id}`, { ...q, pinged: true });
   }
   await fb('PUT', 'press/state', state);
   console.log(created.length ? `✅ ${created.length} neue Frage(n) erstellt.` : 'ℹ️ Nichts zu tun.');
