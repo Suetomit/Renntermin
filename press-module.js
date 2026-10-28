@@ -129,7 +129,7 @@ function init() {
     <button class="btn" data-act="story" ${S.pending ? 'disabled' : ''}>${S.pending === 'story' ? 'Lätti schreibt ...' : 'Story an die Presse schicken'}</button>` : '');
 
   const chatHtml = () => loginHtml() + (S.login ? `
-    <div style="font-size:0.72rem;color:var(--m);margin-bottom:8px;">💡 Lätti kann interessante Aussagen aus dem Chat als News veröffentlichen. Schreib <strong>privat:</strong> an den Anfang einer Nachricht, dann bleibt sie unter euch.</div>
+    <div style="font-size:0.72rem;color:var(--m);margin-bottom:8px;">💡 Lätti kann interessante Aussagen als News veröffentlichen und anderen Fahrern Fragen dazu stellen (manchmal mit, manchmal ohne deinen Namen). Schreib <strong>privat:</strong> an den Anfang einer Nachricht, dann bleibt sie unter euch.</div>
     <div id="pressChatBox" style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:8px;">
       ${S.chat.length ? S.chat.map(m => `<div style="align-self:${m.role === 'user' ? 'flex-end' : 'flex-start'};max-width:85%;background:${m.role === 'user' ? 'rgba(255,215,0,0.12)' : 'var(--s3)'};padding:7px 10px;border-radius:10px;font-size:0.85rem;">
           ${m.role === 'user' ? '' : '<div style="font-size:0.65rem;color:#27f4d2;font-weight:800;">LÄTTI</div>'}${esc(m.text)}</div>`).join('')
@@ -207,7 +207,12 @@ function init() {
       drafts.chatIn = '';
       const j = await api('chat', { message });
       if (!j) drafts.chatIn = message;
-      else if (j.news) { S.info = `📰 Lätti hat daraus eine News gemacht: „${j.news}“`; render(); }
+      else {
+        const parts = [];
+        if (j.news) parts.push(`📰 Lätti hat daraus eine News gemacht: „${j.news}“`);
+        if (j.gossip) parts.push(`❓ Lätti stellt ${j.gossip} eine Frage dazu (${j.reveal ? 'mit deinem Namen' : 'anonym'}).`);
+        if (parts.length) { S.info = parts.join(' '); render(); }
+      }
     } else if (a === 'story') {
       const text = (drafts.storyText || '').trim();
       const j = await api('story', { text });
