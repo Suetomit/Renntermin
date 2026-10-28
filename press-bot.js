@@ -26,11 +26,11 @@ const TONES = ['hitzig', 'cool', 'boese', 'nett'];
 
 const DEFAULT_HUMANS = {
   Timo: 'Timotheus Müller', Pascale: 'Pascale Braasch', Niklas: 'Niklas Schweisfurth', Tim: 'Tim Löffler',
-  Marcel: 'Marcel Walle', Yannis: 'Yannis Herling', Eric: 'Eric Walter', Philipp: 'Philipp Juny', Vivien: 'Vivien Nadler', Cedric: 'Cedric Geppert',
+  Marcel: 'Marcel Walle', Yannis: 'Yannis Herling', Eric: 'Eric Walter', Philipp: 'Philipp Juny',
 };
 const DISCORD_IDS = {
   Timo: '267013828896751617', Niklas: '434028182031826955', Pascale: '516216838368002069', Tim: '218849735107149824',
-  Marcel: '248567421969891330', Yannis: '337359211401052161', Eric: '682018019643621425', Philipp: '709137556410728488', Vivien: '924661655684677663', Cedric: '498536155101528084',
+  Marcel: '248567421969891330', Yannis: '337359211401052161', Eric: '682018019643621425', Philipp: '709137556410728488',
 };
 
 const PERSONA = `Du bist Lätti, Reporterin im Fahrerlager des "Gurkensöhne Cup" (private F1-25-Sim-Liga unter Freunden). ` +
@@ -136,13 +136,13 @@ async function main() {
   const openFor = new Set(Object.values(questions).filter(q => q.status === 'offen').map(q => q.driver));
   const created = [];
 
-  async function ask(driver, reason, raceInfo) {
+  async function ask(driver, reason, raceInfo, raceSig) {
     if (openFor.has(driver)) return;
     const profile = await fb('GET', `press/profiles/${driver}`);
     const old = Object.values(questions).filter(q => q.driver === driver).sort((a, b) => b.ts - a.ts).slice(0, 5).map(q => q.question);
     const question = await makeQuestion(driver, reason, raceInfo, profile, old);
     if (!question) return;
-    const rec = { driver, question, reason, status: 'offen', ts: Date.now(), pinged: false };
+    const rec = { driver, question, reason, status: 'offen', ts: Date.now(), pinged: false, ...(raceSig ? { raceSig } : {}) };
     const res = await fb('POST', 'press/questions', rec);
     questions[res.name] = rec;
     openFor.add(driver);
@@ -162,11 +162,27 @@ async function main() {
         const e = res[full]; return e && String(e.pos || '').trim() ? `${short}: ${e.pos}` : null;
       }).filter(Boolean);
       const raceInfo = `Rennen #${latest}. Ergebnisse der Menschen: ${lines.join('; ')}.`;
+      // Neues Rennen: alte, unbeantwortete Rennfragen der Fahrer mit Ergebnis verfallen, damit immer nur die neueste Frage offen ist.
+      // Gerüchte-Fragen aus dem Chat (source: 'chat') bleiben bestehen. Fragen mit derselben raceSig (z.B. aus einem
+      // abgebrochenen Lauf) bleiben ebenfalls, sonst würden sie bei jedem Wiederholungslauf neu erzeugt.
+      const driversWithResult = new Set(Object.entries(humans)
+        .filter(([, full]) => res[full] && String(res[full].pos || '').trim())
+        .map(([short]) => short));
+      for (const [id, q] of Object.entries(questions)) {
+        if (q.status === 'offen' && q.source !== 'chat' && q.raceSig !== sig && driversWithResult.has(q.driver)) {
+          await fb('PUT', `press/questions/${id}`, { ...q, status: 'abgelaufen' });
+          q.status = 'abgelaufen';
+          console.log(`🗑️ Alte Frage an ${q.driver} verfallen (neues Rennen).`);
+        }
+      }
+      openFor.clear();
+      Object.values(questions).filter(q => q.status === 'offen').forEach(q => openFor.add(q.driver));
+
       let quotaHit = false;
       for (const [short, full] of Object.entries(humans)) {
         const e = res[full];
         if (!e || !String(e.pos || '').trim()) continue;
-        try { await ask(short, reasonFor(e), raceInfo); } catch (err) { console.warn(`⚠️ ${short}: ${err.message}`); if (/Kontingent|überlastet/.test(err.message)) { quotaHit = true; break; } }
+        try { await ask(short, reasonFor(e), raceInfo, sig); } catch (err) { console.warn(`⚠️ ${short}: ${err.message}`); if (/Kontingent|überlastet/.test(err.message)) { quotaHit = true; break; } }
       }
       // Bei aufgebrauchtem Gemini-Kontingent beim nächsten Lauf erneut versuchen (offene Fragen werden nicht doppelt gestellt)
       if (!quotaHit) state.lastRaceSig = sig;
