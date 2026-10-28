@@ -137,6 +137,8 @@ async function main() {
   const created = [];
 
   async function ask(driver, reason, raceInfo, raceSig) {
+    // Zu diesem Rennen wurde dem Fahrer schon eine Frage gestellt (auch wenn sie beantwortet ist) -> keine zweite
+    if (raceSig && Object.values(questions).some(q => q.driver === driver && q.raceSig === raceSig)) return;
     if (openFor.has(driver)) return;
     const profile = await fb('GET', `press/profiles/${driver}`);
     const old = Object.values(questions).filter(q => q.driver === driver).sort((a, b) => b.ts - a.ts).slice(0, 5).map(q => q.question);
