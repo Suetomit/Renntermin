@@ -30,15 +30,15 @@ const DEFAULT_HUMANS = {
 };
 const DISCORD_IDS = {
   Timo: '267013828896751617', Niklas: '434028182031826955', Pascale: '516216838368002069', Tim: '218849735107149824',
-  Marcel: '248567421969891330', Yannis: '337359211401052161', Eric: '682018019643621425', Philipp: '709137556410728488', Vivien: '924661655684677663', Cedric: '498536155101528084',
+  Marcel: '248567421969891330', Yannis: '337359211401052161', Eric: '682018019643621425', Philipp: '709137556410728488', Vivien: '924661655684677663', Cedric: '498536155101528084'
 };
 
 const PERSONA = `Du bist Lätti, Reporterin im Fahrerlager des "Gurkensöhne Cup" (private F1-25-Sim-Liga unter Freunden). ` +
   `Du bist neugierig, schlagfertig, frech aber fair und schreibst locker auf Deutsch wie eine echte Motorsport-Reporterin. ` +
   `Du hast ein Gedächtnis und beziehst dich auf frühere Antworten. Erfinde keine Rennfakten, die nicht im Kontext stehen.`;
 
-async function fb(method, path, data) {
-  const r = await fetch(`${FIREBASE_DB_URL}/${path}.json`, { method, body: data === undefined ? undefined : JSON.stringify(data) });
+async function fb(method, path, data, q = '') {
+  const r = await fetch(`${FIREBASE_DB_URL}/${path}.json${q}`, { method, body: data === undefined ? undefined : JSON.stringify(data) });
   if (!r.ok) throw new Error(`Firebase ${method} ${path}: ${r.status}`);
   return r.json();
 }
@@ -93,7 +93,7 @@ function reasonFor(e, allEntries) {
   return `Mittelfeld-Ergebnis (P${num})`;
 }
 
-async function makeQuestion(driver, reason, raceInfo, profile, oldQuestions) {
+async function makeQuestion(driver, reason, raceInfo, profile, oldQuestions, newsLines = []) {
   const memo = profile
     ? `Profil: ${profile.label || '-'}; Merkmale: ${(profile.traits || []).join(', ') || '-'}; frühere Eindrücke: ${(profile.recent || []).slice(0, 4).map(r => r.t).join(' | ') || '-'}`
     : 'Noch kein Profil vorhanden.';
@@ -101,6 +101,7 @@ async function makeQuestion(driver, reason, raceInfo, profile, oldQuestions) {
     PERSONA,
     `Stelle ${driver} EINE Interviewfrage (max. 25 Wörter) zum Anlass: ${reason}.\n${raceInfo}\n${memo}\n` +
     `Beziehe dich wenn passend auf frühere Eindrücke. Diese Fragen wurden schon gestellt, wiederhole sie nicht: ${oldQuestions.join(' | ') || '-'}\n` +
+    `Aktuelle Presse-News der Liga (du kennst sie, spiel gern darauf an, aber wiederhole sie nicht): ${newsLines.join(' | ') || '-'}\n` +
     'Antworte NUR mit JSON: {"question":"..."}'
   );
   return String(out.question || '').trim().slice(0, 300);
@@ -135,6 +136,8 @@ async function main() {
 
   const openFor = new Set(Object.values(questions).filter(q => q.status === 'offen').map(q => q.driver));
   const created = [];
+  const newsObj = await fb('GET', 'press/news', undefined, '?orderBy=%22%24key%22&limitToLast=8');
+  const newsLines = Object.values(newsObj || {}).sort((a, b) => b.ts - a.ts).map(n => `${n.title}: ${String(n.text || '').slice(0, 160)}`);
 
   async function ask(driver, reason, raceInfo, raceSig) {
     // Zu diesem Rennen wurde dem Fahrer schon eine Frage gestellt (auch wenn sie beantwortet ist) -> keine zweite
@@ -142,7 +145,7 @@ async function main() {
     if (openFor.has(driver)) return;
     const profile = await fb('GET', `press/profiles/${driver}`);
     const old = Object.values(questions).filter(q => q.driver === driver).sort((a, b) => b.ts - a.ts).slice(0, 5).map(q => q.question);
-    const question = await makeQuestion(driver, reason, raceInfo, profile, old);
+    const question = await makeQuestion(driver, reason, raceInfo, profile, old, newsLines);
     if (!question) return;
     const rec = { driver, question, reason, status: 'offen', ts: Date.now(), pinged: false, ...(raceSig ? { raceSig } : {}) };
     const res = await fb('POST', 'press/questions', rec);
