@@ -7,7 +7,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getDatabase, ref, onValue, query, limitToLast } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
 // >>> HIER nach dem Worker-Deploy die eigene Worker-URL eintragen (ohne / am Ende) <<<
-const WORKER_URL = 'https://DEIN-WORKER.DEIN-NAME.workers.dev';
+const WORKER_URL = 'https://laetti-press.der-alles-schecker.workers.dev';
 
 let DRIVERS = ['Timo', 'Pascale', 'Niklas', 'Tim', 'Marcel', 'Yannis', 'Eric', 'Philipp', 'Vivien', 'Cedric'];
 const TONE_ICON = { hitzig: '🔥', cool: '😎', boese: '😈', nett: '😊' };
