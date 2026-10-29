@@ -7,12 +7,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getDatabase, ref, onValue, query, limitToLast } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
 // >>> HIER nach dem Worker-Deploy die eigene Worker-URL eintragen (ohne / am Ende) <<<
-const WORKER_URL = 'https://laetti-press.der-alles-schecker.workers.dev';
+const WORKER_URL = 'https://DEIN-WORKER.DEIN-NAME.workers.dev';
 
-let DRIVERS = ['Timo', 'Pascale', 'Niklas', 'Tim', 'Marcel', 'Yannis', 'Eric', 'Philipp', 'Vivien', 'Cedric'];
+let DRIVERS = ['Timo', 'Pascale', 'Niklas', 'Tim', 'Marcel', 'Yannis', 'Eric', 'Philipp'];
 const TONE_ICON = { hitzig: '🔥', cool: '😎', boese: '😈', nett: '😊' };
-const SRC_ICON = { interview: '🎙️', story: '✍️', chat: '💬' };
-const SRC_LABEL = { interview: '🎙️ Interview', story: '✍️ Fahrer-Story', chat: '💬 Chat-Zitat' };
 const TONE_NAME = { hitzig: 'hitzig', cool: 'cool', boese: 'böse', nett: 'nett' };
 
 const root = document.getElementById('pressModule');
@@ -40,7 +38,7 @@ function init() {
   onValue(query(ref(db, 'press/news'), limitToLast(20)), s => {
     S.news = Object.entries(s.val() || {}).map(([id, n]) => ({ id, ...n })).sort((a, b) => b.ts - a.ts);
     // Neueste Presse-News an die Breaking-News-Leiste der Hauptseite übergeben (siehe index: generateNewsTicker)
-    window.pressNewsTicker = S.news.slice(0, 6).map(n => `${SRC_ICON[n.source] || '📰'} ${esc(n.title)}`);
+    window.pressNewsTicker = S.news.slice(0, 6).map(n => `📰 ${esc(n.title)}`);
     window.dispatchEvent(new Event('pressNewsUpdated'));
     render();
   });
@@ -94,8 +92,8 @@ function init() {
 
   const newsHtml = () => !S.news.length
     ? '<div style="color:var(--m);font-size:0.85rem;">Noch keine News. Schreib eine Story oder beantworte eine Frage von Lätti!</div>'
-    : S.news.map(n => `<div class="slot-card" style="border-left:3px solid ${n.source === 'interview' ? '#b15eff' : n.source === 'chat' ? '#27f4d2' : 'var(--y)'};">
-        <div style="font-size:0.68rem;color:var(--m);margin-bottom:3px;">${SRC_LABEL[n.source] || '📰 News'} · ${esc(n.driver || n.author)} · ${fmtTs(n.ts)}</div>
+    : S.news.map(n => `<div class="slot-card" style="border-left:3px solid var(--y);">
+        <div style="font-size:0.68rem;color:var(--m);margin-bottom:3px;">${fmtTs(n.ts)}</div>
         <div style="font-weight:800;margin-bottom:4px;">${esc(n.title)}</div>
         <div style="font-size:0.85rem;line-height:1.4;">${esc(n.text)}</div></div>`).join('');
 
