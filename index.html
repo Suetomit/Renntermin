@@ -9,7 +9,7 @@
 --hd:Bahnschrift,"Roboto Condensed","Arial Narrow",system-ui,sans-serif;--bd:system-ui,-apple-system,"Segoe UI",sans-serif}
 *{box-sizing:border-box;margin:0;padding:0}
 html{background:var(--bg)}
-body{font:15px/1.45 var(--bd);color:var(--tx);background:var(--bg);padding:env(safe-area-inset-top) 0 calc(76px + env(safe-area-inset-bottom))}
+body{min-height:100vh;min-height:100dvh;font:15px/1.45 var(--bd);color:var(--tx);background:var(--bg);padding:env(safe-area-inset-top) 0 calc(76px + env(safe-area-inset-bottom))}
 .top{display:flex;justify-content:space-between;align-items:center;max-width:760px;margin:0 auto;padding:14px 16px}
 .brand{display:flex;align-items:center;gap:10px;font:800 1.2rem var(--hd)}
 .brand img{height:34px}
@@ -83,6 +83,10 @@ select{background:var(--card);color:var(--tx);border:1px solid var(--line);borde
 details.pn{background:var(--s3);border-radius:8px;padding:8px 10px;margin-top:6px;font-size:.85rem}
 details.pn summary{cursor:pointer;color:var(--tx);margin-top:0;font-size:.85rem}
 .tab-btn{white-space:nowrap}
+.dh{display:flex;align-items:center;gap:8px;margin:14px 0 8px}
+.dh>div{flex:1;text-align:center;min-width:0}
+.dh img{width:96px;height:96px;object-fit:contain}
+.dh .vs{flex:0 0 auto;font:800 1.3rem var(--hd);color:var(--gold)}
 .lb{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:50;align-items:center;justify-content:center}
 .lb.on{display:flex}.lb img{max-width:94%;max-height:88%;border-radius:8px}
 .pod{width:100%;border-radius:14px;margin-bottom:14px;display:block}
@@ -458,6 +462,13 @@ function renderRennen() {
   }).join('')}</div>`;
 }
 
+function duelHead(a, c) {
+  const one = n => {
+    const d = roster.find(x => x.name === n) || {}, src = d.photo || (HELM[d.team] ? `helmet_${HELM[d.team]}.png` : '');
+    return `<div>${src ? `<img src="${src}" alt="" onerror="this.remove()">` : ''}<div><b style="color:${TC[d.team] || 'var(--tx)'}">${d.human || d.name || n}</b></div><div class="sub">${d.team || ''}</div></div>`;
+  };
+  return `<div class="dh">${one(a)}<div class="vs">VS</div>${one(c)}</div>`;
+}
 function renderStats() {
   const H = humans(), { E, hist } = elo(); let b = '';
   if (sv === 'elo') {
@@ -477,7 +488,7 @@ function renderStats() {
     const o = h2h(a, c), opt = v => H.map(d => `<option value="${d.name}" ${d.name === v ? 'selected' : ''}>${d.human}</option>`).join('');
     const c1 = TC[(roster.find(d => d.name === a) || {}).team] || '#888', c2 = TC[(roster.find(d => d.name === c) || {}).team] || '#888';
     const rw = (l, x, y) => { const pc = Math.round(x / Math.max(x + y, 1) * 100); return `<div class="row" style="border:0;padding-bottom:2px"><div class="pts" style="width:60px">${x}</div><div class="grow sub" style="text-align:center">${l}</div><div class="pts" style="width:60px;text-align:right">${y}</div></div><div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin-bottom:12px"><div style="width:${pc}%;background:${c1}"></div><div style="width:${100 - pc}%;background:${c2}"></div></div>`; };
-    b = `<div class="card"><div class="pick"><select id="rvA">${opt(a)}</select><select id="rvB">${opt(c)}</select></div>${o.n
+    b = `<div class="card"><div class="pick"><select id="rvA">${opt(a)}</select><select id="rvB">${opt(c)}</select></div>${duelHead(a, c)}${o.n
       ? rw('Rennen vorn', o.ra, o.rb) + rw('Quali vorn', o.qa, o.qb) + rw('Elo', Math.round(E[a]), Math.round(E[c])) + `<div class="sub" style="margin-top:8px">Aus ${o.n} gemeinsamen Rennen, alle Saisons.</div>`
       : '<div class="sub">Noch kein gemeinsames Rennen.</div>'}</div>`;
   }
