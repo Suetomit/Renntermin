@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Gurkensöhne Cup 2026</title>
 <style>
-:root{--bg:#0e1a14;--card:#16271e;--line:#25392d;--tx:#eef2e6;--mu:#93a698;--gold:#ffd23f;--ok:#5ee08a;--bad:#ff7b6b;
+:root{--card-bg:var(--card);--s3:#1f2f26;--border:var(--line);--text:var(--tx);--m:var(--mu);--m2:#6f8275;--y:var(--gold);--bg:#0e1a14;--card:#16271e;--line:#25392d;--tx:#eef2e6;--mu:#93a698;--gold:#ffd23f;--ok:#5ee08a;--bad:#ff7b6b;
 --hd:Bahnschrift,"Roboto Condensed","Arial Narrow",system-ui,sans-serif;--bd:system-ui,-apple-system,"Segoe UI",sans-serif}
 *{box-sizing:border-box;margin:0;padding:0}
 html{background:var(--bg)}
@@ -54,6 +54,12 @@ details summary{cursor:pointer;color:var(--mu);font-size:.85rem;margin-top:8px}
 .tbl td:first-child,.tbl th:first-child{text-align:left}
 .fl{background:#b15eff;color:#fff;border-radius:4px}
 select{background:var(--card);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:8px;font-size:.9rem}
+.pin-input{width:100%;padding:9px;background:var(--bg);border:1px solid var(--line);color:var(--tx);border-radius:8px;font-size:.95rem}
+.card-title{font:800 1.15rem var(--hd);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab-btn,.btn-copy{background:var(--card);border:1px solid var(--line);color:var(--mu);border-radius:8px;padding:6px 10px;font-weight:600;cursor:pointer}
+.tab-btn.active{background:var(--gold);color:#1a1400;border-color:var(--gold)}
+.btn-rm{background:none;border:0;color:var(--bad);cursor:pointer}
 .av{width:34px;height:34px;object-fit:contain;flex-shrink:0}
 .trk{width:100%;max-height:200px;object-fit:contain;border-radius:8px;cursor:zoom-in;margin-bottom:10px;display:block}
 .note{border-left:3px solid var(--line);background:rgba(255,255,255,.04);border-radius:4px;padding:6px 10px;margin-bottom:8px;font-size:.85rem}
@@ -67,7 +73,7 @@ select{background:var(--card);color:var(--tx);border:1px solid var(--line);borde
 .lb.on{display:flex}.lb img{max-width:94%;max-height:88%;border-radius:8px}
 .pod{width:100%;border-radius:14px;margin-bottom:14px;display:block}
 nav{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;gap:4px;background:rgba(14,26,20,.96);border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom));backdrop-filter:blur(8px)}
-nav button{flex:1;max-width:150px;background:none;border:0;color:var(--mu);padding:8px 4px;border-radius:10px;font:700 .8rem var(--bd);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button{flex:1;max-width:150px;background:none;border:0;color:var(--mu);padding:8px 4px;border-radius:10px;font:700 .7rem var(--bd);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
 nav button span{font-size:1.25rem}
 nav button.on{color:var(--gold);background:rgba(255,210,63,.1)}
 button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
@@ -85,6 +91,7 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
   <section class="view" id="v-stats"></section>
   <section class="view" id="v-rennen"></section>
   <section class="view" id="v-live"></section>
+  <section class="view" id="v-presse"><div class="card" id="pressModule"></div></section>
 </main>
 <div class="lb" id="lb" data-a="lbx"><img id="lbi" alt=""></div>
 <nav>
@@ -93,6 +100,7 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
   <button data-a="go" data-v="wertung"><span>🏆</span>Wertung</button>
   <button data-a="go" data-v="stats"><span>📈</span>Stats</button>
   <button data-a="go" data-v="rennen"><span>🏁</span>Rennen</button>
+  <button data-a="go" data-v="presse"><span>🎙️</span>Presse</button>
   <button data-a="go" data-v="live"><span>🔴</span>Live</button>
 </nav>
 
@@ -122,7 +130,7 @@ const DEF = ('Timotheus Müller|Visa Cash App RB|Timo;Pascale Braasch|Visa Cash 
   .split(';').map(s => { const [name, team, human] = s.split('|'); return { name, team, human: human || null }; });
 
 let S = { persons: [], date: null, start: null, end: null };
-let RR = {}, RS = {}, TR = {}, roster = DEF, cal = null, TA = {}, openRace = null, rdFlag = false, DS = {};
+let RR = {}, RS = {}, TR = {}, roster = DEF, cal = null, TA = {}, openRace = null, rdFlag = false, DS = {}, DC = {};
 let view = 'home', me = '', sel = [], tm = {}, wt = 'd', sv = 'elo', msg = '', SA = {}, LT = null, rvA = '', rvB = '';
 
 const toArr = v => v ? (Array.isArray(v) ? v : Object.values(v)) : [];
@@ -247,6 +255,8 @@ async function autoConfirm() {
   }
 }
 
+const hasDeclined = n => { const t = DC[n]; return !!t && Date.now() - t < 14 * 864e5; };
+window.addEventListener('pressNewsUpdated', () => render());
 function applyDesign() {
   const r = document.documentElement.style, b = document.body.style, d = DS || {};
   if (d.accent) r.setProperty('--gold', d.accent); else r.removeProperty('--gold');
@@ -289,7 +299,7 @@ function archiveHtml(r, done) {
 }
 
 function newsList() {
-  const n = [], s = standings(), rs = races();
+  const n = [...(window.pressNewsTicker || [])], s = standings(), rs = races();
   const last = rs.filter(isDone).pop();
   if (last) { const w = winnerOf(last); if (w) n.push(`🏁 ${w} gewinnt den GP von ${last.country}.`); }
   if (s[0] && s[0].pts > 0) {
@@ -303,15 +313,15 @@ function newsList() {
   if (chrono().length && humans().length > 1) { const { E } = elo(), top = [...humans()].sort((a, b) => E[b.name] - E[a.name])[0]; n.push(`⚡ Elo-Spitzenreiter: ${top.human} mit ${Math.round(E[top.name])}.`); }
   const rec = Object.entries(TR).sort((a, b) => (b[1].updatedAt || 0) - (a[1].updatedAt || 0))[0];
   if (rec) { const m = MASTER.find(r => r.code === rec[0]); if (m) n.push(`⏱️ Streckenrekord in ${m.country}: ${rec[1].driver}.`); }
-  const missing = humans().filter(d => !enteredNames().includes(d.human));
+  const missing = humans().filter(d => !enteredNames().includes(d.human) && !hasDeclined(d.human));
   if (missing.length && !S.date) n.push(`⏳ Es fehlen noch Termine von: ${missing.map(nm).join(', ')}.`);
   if (!n.length) n.push('Noch keine News. Sobald das erste Rennen gefahren ist, geht es hier los.');
-  return n.slice(0, 5);
+  return n.slice(0, 6);
 }
 
 function renderHome() {
   const rs = races(), nx = rs.find(r => !isDone(r)), h = humans(), got = enteredNames();
-  const missing = h.filter(d => !got.includes(d.human));
+  const missing = h.filter(d => !got.includes(d.human) && !hasDeclined(d.human));
   const goLive = rdFlag || (LT && LT.sessionActive) || (S.date && Date.now() >= new Date(`${S.date}T${S.start || '14:00'}:00`).getTime());
   const wa = missing.length ? `<a class="btn ghost" style="text-decoration:none;text-align:center" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(`Hallo Jungs! 🏎️ Bitte tragt noch eure Verfügbarkeit für den Gurkensöhne Cup ein:\nEs fehlen noch: ${missing.map(nm).join(', ')}`)}">📲 Per WhatsApp erinnern</a>` : '';
   let hero;
@@ -321,7 +331,7 @@ function renderHome() {
       <h1>GP ${nx.country}</h1><div class="sub">${nx.city}</div>
       ${S.date ? `<div class="when">${fmtLong(S.date)}, ${S.start || '14:00'} bis ${S.end || '18:00'} Uhr</div><div class="cd" id="cd"></div>`
                : `<div class="when">Termin noch offen</div>`}
-      ${S.date ? '' : `<div class="chips">${h.map(d => `<span class="chip ${got.includes(d.human) ? 'ok' : ''}">${got.includes(d.human) ? '✓' : '⏳'} ${d.human}</span>`).join('')}</div>`}
+      ${S.date ? '' : `<div class="chips">${h.map(d => `<span class="chip ${got.includes(d.human) ? 'ok' : ''}">${got.includes(d.human) ? '✓' : hasDeclined(d.human) ? '🚫' : '⏳'} ${d.human}</span>`).join('')}</div>`}
       ${!S.date && missing.length ? `<button class="btn" data-a="go" data-v="termin">Verfügbarkeit eintragen</button>` : ''}
       ${wa}${goLive ? `<button class="btn livebtn" data-a="go" data-v="live">🔴 ${LT && LT.sessionActive ? 'LIVE, jetzt ansehen' : 'Go Live'}</button>` : ''}
     </div>`;
@@ -351,12 +361,14 @@ function renderTermin() {
     ${S.date ? `<div class="card" style="border-color:var(--ok)"><h2>Termin steht</h2><div>${fmtLong(S.date)}, ${S.start || '14:00'} bis ${S.end || '18:00'} Uhr</div></div>` : ''}
     <div class="card"><h2>Verfügbarkeit eintragen</h2>
       <div class="sub" style="margin-bottom:8px">1. Wer bist du?</div>
-      <div class="pick">${h.map(d => `<button class="${me === d.human ? 'on' : ''}" data-a="user" data-v="${d.human}">${enteredNames().includes(d.human) ? '✓ ' : ''}${d.human}</button>`).join('')}</div>
+      <div class="pick">${h.map(d => `<button class="${me === d.human ? 'on' : ''}" data-a="user" data-v="${d.human}">${enteredNames().includes(d.human) ? '✓ ' : hasDeclined(d.human) ? '🚫 ' : ''}${d.human}</button>`).join('')}</div>
       <div class="sub" style="margin-bottom:8px">2. An welchen Tagen kannst du?</div>
       <div class="pick">${days.map(d => `<button class="${sel.includes(d) ? 'on' : ''}" data-a="day" data-v="${d}">${fmtShort(d)}</button>`).join('')}</div>
       <div class="sub" style="margin-bottom:8px">3. Uhrzeit pro Tag</div>
       ${sel.length ? sel.map(d => `<div class="row"><div class="grow"><b>${fmtShort(d)}</b></div><input type="time" class="tmi" data-d="${d}" data-k="from" value="${tm[d].from}"> bis <input type="time" class="tmi" data-d="${d}" data-k="to" value="${tm[d].to}"></div>`).join('') : '<div class="sub">Wähle zuerst Tage aus.</div>'}
-      <button class="btn" data-a="save">Speichern</button><div class="msg">${msg}</div>
+      <button class="btn" data-a="save">Speichern</button>
+      <button class="btn ghost" data-a="decline">🚫 Kann diese Runde an keinem Termin</button>
+      <div class="sub" style="margin-top:8px">Regel: Können 7 von 8 an einem Tag und du hast nach der Discord-Erinnerung 3 Tage lang weder Termine eingetragen noch abgesagt, wird ohne dich gefahren.</div><div class="msg">${msg}</div>
     </div>
     <div class="card"><h2>Beste Tage</h2>
       ${ranked.length ? ranked.slice(0, 3).map(dayRow).join('') : '<div class="sub">Noch keine Einträge.</div>'}
@@ -428,11 +440,19 @@ function render() {
   renderHome(); renderTermin(); renderWertung(); renderStats(); renderRennen(); renderLive();
 }
 
+async function decline() {
+  if (!me) { msg = 'Bitte zuerst deinen Namen wählen.'; return render(); }
+  const ex = S.persons.find(p => p.name === me);
+  if (ex && ex.slots && ex.slots.length) { msg = 'Du hast schon Termine eingetragen. Lösche sie zuerst, wenn du absagen willst.'; return render(); }
+  try { await set(ref(db, 'availabilityDeclined/' + me), Date.now()); msg = '✅ Abgesagt, die anderen wissen Bescheid.'; me = ''; sel = []; tm = {}; }
+  catch (e) { console.error(e); msg = 'Fehler beim Speichern.'; }
+  render();
+}
 async function save() {
   if (!me) { msg = 'Bitte zuerst deinen Namen wählen.'; return render(); }
   if (!sel.length) { msg = 'Bitte mindestens einen Tag wählen.'; return render(); }
   const persons = S.persons.filter(p => p.name !== me).concat({ name: me, slots: sel.map(date => ({ date, from: tm[date].from, to: tm[date].to })) });
-  try { await set(ref(db, 'renntermin/persons'), persons); msg = 'Gespeichert ✓'; }
+  try { await set(ref(db, 'renntermin/persons'), persons); if (DC[me]) await set(ref(db, 'availabilityDeclined/' + me), null); msg = 'Gespeichert ✓'; }
   catch (e) { console.error(e); msg = 'Speichern fehlgeschlagen. Bitte später erneut versuchen.'; }
   render();
 }
@@ -454,6 +474,7 @@ document.addEventListener('click', e => {
   else if (a === 'lb') { document.getElementById('lbi').src = v; document.getElementById('lb').classList.add('on'); return; }
   else if (a === 'lbx') { document.getElementById('lb').classList.remove('on'); return; }
   else if (a === 'save') return save();
+  else if (a === 'decline') return decline();
   render();
 });
 document.addEventListener('change', e => {
@@ -485,9 +506,11 @@ on('raceStatus', v => RS = v || {});
 on('trackRecords', v => TR = v || {});
 on('telemetryArchive', v => { TA = v || {}; syncRecords(); });
 on('siteSettings', v => { DS = v || {}; applyDesign(); });
+on('availabilityDeclined', v => DC = v || {});
 on('driverRoster', v => { const l = toArr(v); roster = l.length ? l : DEF; });
 on('raceCalendarCodes', v => { const l = toArr(v); cal = l.length ? l : null; });
 render();
 </script>
+<script type="module" src="press-module.js"></script>
 </body>
 </html>
