@@ -52,6 +52,12 @@ details summary{cursor:pointer;color:var(--mu);font-size:.85rem;margin-top:8px}
 .tbl th,.tbl td{padding:7px 6px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap}
 .tbl th{color:var(--mu);font-weight:600}
 .tbl td:first-child,.tbl th:first-child{text-align:left}
+.tbl.fix td:first-child,.tbl.fix th:first-child{position:sticky;left:0;z-index:1;background:#16271e;box-shadow:2px 0 4px rgba(0,0,0,.35);max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;margin-bottom:12px}
+.dy{background:var(--card);border:1px solid var(--line);color:var(--tx);border-radius:8px;padding:6px 0;font:600 .9rem var(--bd);cursor:pointer;display:flex;flex-direction:column;align-items:center;min-height:46px}
+.dy small{font-size:.6rem;color:var(--mu);height:.8rem}
+.dy.on{background:var(--gold);color:#1a1400;border-color:var(--gold)}.dy.on small{color:#1a1400}
+.dy:disabled{opacity:.25;cursor:default}
 .fl{background:#b15eff;color:#fff;border-radius:4px}
 select{background:var(--card);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:8px;font-size:.9rem}
 .pin-input{width:100%;padding:9px;background:var(--bg);border:1px solid var(--line);color:var(--tx);border-radius:8px;font-size:.95rem}
@@ -232,7 +238,7 @@ function byIng(n) {
 }
 function crossHtml() {
   const rs = races();
-  return `<table class="tbl"><thead><tr><th>Fahrer</th>${rs.map(r => `<th><img class="flag" src="https://flagcdn.com/w40/${r.cc}.png" alt="${r.code}" title="${r.country}"><div class="sub" style="font-size:.65rem">${r.num}</div></th>`).join('')}<th>Pkt</th></tr></thead><tbody>${standings().map(d =>
+  return `<table class="tbl fix"><thead><tr><th>Fahrer</th>${rs.map(r => `<th><img class="flag" src="https://flagcdn.com/w40/${r.cc}.png" alt="${r.code}" title="${r.country}"><div class="sub" style="font-size:.65rem">${r.num}</div></th>`).join('')}<th>Pkt</th></tr></thead><tbody>${standings().map(d =>
     `<tr><td>${nm(d)}</td>${rs.map(r => { const e = (RR[r.num] || {})[d.name], p = hasPos(e) ? String(e.pos).trim() : '';
       return `<td class="${e && e.fastestLap ? 'fl' : ''}">${p ? (/^\d+$/.test(p) ? p + '.' : p) : '-'}</td>`; }).join('')}<td><b>${d.pts}</b></td></tr>`).join('')}</tbody></table>`;
 }
@@ -255,6 +261,19 @@ async function autoConfirm() {
   }
 }
 
+let cuBusy = false;
+async function cleanupPast() {
+  if (cuBusy) return false;
+  const today = iso(new Date()); let ch = false;
+  const cnt = a => a.reduce((n, p) => n + (p.slots || []).length, 0);
+  const persons = S.persons.map(p => ({ ...p, slots: (p.slots || []).filter(x => x.date >= today) })).filter(p => p.slots.length);
+  cuBusy = true;
+  try {
+    if (cnt(persons) !== cnt(S.persons) || persons.length !== S.persons.length) { await set(ref(db, 'renntermin/persons'), persons.length ? persons : null); ch = true; }
+    if (S.date && S.date < today) { for (const k of ['confirmedDate', 'confirmedStart', 'confirmedEnd']) await set(ref(db, 'renntermin/' + k), null); ch = true; }
+  } catch (e) { console.error(e); }
+  cuBusy = false; return ch;
+}
 const hasDeclined = n => { const t = DC[n]; return !!t && Date.now() - t < 14 * 864e5; };
 window.addEventListener('pressNewsUpdated', () => render());
 function applyDesign() {
@@ -351,7 +370,10 @@ function renderHome() {
 
 function renderTermin() {
   const h = humans(), today = iso(new Date());
-  const days = Array.from({ length: 21 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() + i); return iso(d); });
+  const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+  const mon = new Date(t0); mon.setDate(t0.getDate() - ((t0.getDay() + 6) % 7));
+  const end = new Date(t0); end.setDate(t0.getDate() + 41);
+  const cells = []; for (const d = new Date(mon); d <= end || cells.length % 7; d.setDate(d.getDate() + 1)) cells.push(new Date(d));
   const map = {};
   S.persons.forEach(p => (p.slots || []).forEach(s => { if (s.date >= today) (map[s.date] = map[s.date] || []).push(p.name); }));
   const ranked = Object.entries(map).sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
@@ -363,12 +385,14 @@ function renderTermin() {
       <div class="sub" style="margin-bottom:8px">1. Wer bist du?</div>
       <div class="pick">${h.map(d => `<button class="${me === d.human ? 'on' : ''}" data-a="user" data-v="${d.human}">${enteredNames().includes(d.human) ? '✓ ' : hasDeclined(d.human) ? '🚫 ' : ''}${d.human}</button>`).join('')}</div>
       <div class="sub" style="margin-bottom:8px">2. An welchen Tagen kannst du?</div>
-      <div class="pick">${days.map(d => `<button class="${sel.includes(d) ? 'on' : ''}" data-a="day" data-v="${d}">${fmtShort(d)}</button>`).join('')}</div>
+      <div class="cal">${['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(x => `<div class="sub">${x}</div>`).join('')}${cells.map((d, i) => {
+        const k = iso(d), past = k < today, on = sel.includes(k), lab = d.getDate() === 1 || i === 0 ? d.toLocaleDateString('de-DE', { month: 'short' }) : '';
+        return `<button class="dy${on ? ' on' : ''}" ${past ? 'disabled' : `data-a="day" data-v="${k}"`}><small>${lab}</small>${d.getDate()}</button>`; }).join('')}</div>
       <div class="sub" style="margin-bottom:8px">3. Uhrzeit pro Tag</div>
       ${sel.length ? sel.map(d => `<div class="row"><div class="grow"><b>${fmtShort(d)}</b></div><input type="time" class="tmi" data-d="${d}" data-k="from" value="${tm[d].from}"> bis <input type="time" class="tmi" data-d="${d}" data-k="to" value="${tm[d].to}"></div>`).join('') : '<div class="sub">Wähle zuerst Tage aus.</div>'}
       <button class="btn" data-a="save">Speichern</button>
       <button class="btn ghost" data-a="decline">🚫 Kann diese Runde an keinem Termin</button>
-      <div class="sub" style="margin-top:8px">Regel: Können 6 von 10 an einem Tag und du hast nach der Discord-Erinnerung 3 Tage lang weder Termine eingetragen noch abgesagt, wird ohne dich gefahren.</div><div class="msg">${msg}</div>
+      <div class="sub" style="margin-top:8px">Regel: Können 7 von 8 an einem Tag und du hast nach der Discord-Erinnerung 3 Tage lang weder Termine eingetragen noch abgesagt, wird ohne dich gefahren.</div><div class="msg">${msg}</div>
     </div>
     <div class="card"><h2>Beste Tage</h2>
       ${ranked.length ? ranked.slice(0, 3).map(dayRow).join('') : '<div class="sub">Noch keine Einträge.</div>'}
@@ -497,7 +521,7 @@ const on = (p, f) => onValue(ref(db, p), snap => { f(snap.val()); render(); }, e
 on('renntermin', v => {
   S = { persons: toArr(v && v.persons), date: v && v.confirmedDate, start: v && v.confirmedStart, end: v && v.confirmedEnd };
   const st = document.getElementById('st'); st.textContent = 'Live'; st.classList.add('live');
-  autoConfirm();
+  cleanupPast().then(ch => { if (!ch) autoConfirm(); });
 });
 on('raceResults', v => RR = v || {});
 on('seasons', v => SA = v || {});
