@@ -90,12 +90,15 @@ function init() {
          <input id="pressPin" type="password" class="pin-input" placeholder="Dein persönlicher PIN" value="${esc(drafts.pressPin || '')}">
          <button class="btn" data-act="login">Anmelden</button></div>`;
 
+  const openSet = new Set();
   const newsHtml = () => !S.news.length
     ? '<div style="color:var(--m);font-size:0.85rem;">Noch keine News. Schreib eine Story oder beantworte eine Frage von Lätti!</div>'
-    : S.news.map(n => `<div class="slot-card" style="border-left:3px solid var(--y);">
-        <div style="font-size:0.68rem;color:var(--m);margin-bottom:3px;">${fmtTs(n.ts)}</div>
-        <div style="font-weight:800;margin-bottom:4px;">${esc(n.title)}</div>
-        <div style="font-size:0.85rem;line-height:1.4;">${esc(n.text)}</div></div>`).join('');
+    : (() => {
+      const [f, ...rest] = S.news;
+      return `<div class="slot-card" style="border-left:3px solid var(--y);margin-top:0;"><div style="font-size:0.7rem;color:var(--y);font-weight:800;">Neueste Meldung, ${fmtTs(f.ts)}</div>
+        <div style="font-weight:800;font-size:1.05rem;margin:4px 0;">${esc(f.title)}</div><div style="font-size:0.88rem;line-height:1.45;">${esc(f.text)}</div></div>`
+        + (rest.length ? `<div style="font-size:0.75rem;color:var(--m);margin:12px 0 4px;">Ältere Meldungen, antippen zum Aufklappen</div>` + rest.map(n => `<details class="pn" data-k="n${n.id}" ${openSet.has('n' + n.id) ? 'open' : ''}><summary><span style="color:var(--m);font-size:0.7rem;">${fmtTs(n.ts)}</span> <strong>${esc(n.title)}</strong></summary><div style="font-size:0.85rem;line-height:1.45;margin-top:6px;">${esc(n.text)}</div></details>`).join('') : '');
+    })();
 
   const toneChip = t => { const k = topTone(t); return k ? `<span style="font-size:0.72rem;background:var(--bg);padding:2px 8px;border-radius:10px;">${TONE_ICON[k]} ${TONE_NAME[k]}</span>` : ''; };
 
@@ -149,8 +152,8 @@ function init() {
     if (!list.length) return '<div style="color:var(--m);font-size:0.85rem;">Profile entstehen automatisch aus Interviews und Chats mit Lätti.</div>';
     return list.map(([name, p]) => {
       const sc = p.scores;
-      return `<div class="slot-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><strong>${esc(name)}</strong><span style="color:var(--y);font-size:0.8rem;font-weight:700;">${esc(p.label || '-')}</span></div>
+      return `<details class="pn" data-k="p${esc(name)}" ${openSet.has('p' + name) ? 'open' : ''}>
+        <summary style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><strong>${esc(name)}</strong><span style="color:var(--y);font-size:0.8rem;font-weight:700;">${esc(p.label || '-')}</span></summary>
         ${p.steckbrief ? `<div style="font-size:0.78rem;font-style:italic;color:var(--m);margin:4px 0 6px;">„${esc(p.steckbrief)}“ - Lätti</div>` : ''}
         ${sc ? Object.entries(TRAITS).map(([k, [icon, label]]) => {
           const v = Math.round((sc[k] || 0) * 100);
@@ -159,7 +162,7 @@ function init() {
             <div style="flex:1;height:6px;background:var(--bg);border-radius:3px;overflow:hidden;"><div style="width:${v}%;height:100%;background:var(--y);"></div></div>
             <span style="width:32px;text-align:right;">${v}%</span></div>`;
         }).join('') : '<div style="font-size:0.75rem;color:var(--m);margin-top:6px;">Das Charakterprofil wird bei der nächsten Antwort oder nach 4 Chat-Nachrichten neu erstellt.</div>'}
-        <div style="margin-top:6px;font-size:0.75rem;color:var(--m);">${(p.traits || []).map(esc).join(' · ')} ${p.count ? `· ${p.count} Auswertung(en)` : ''}</div></div>`;
+        <div style="margin-top:6px;font-size:0.75rem;color:var(--m);">${(p.traits || []).map(esc).join(' · ')} ${p.count ? `· ${p.count} Auswertung(en)` : ''}</div></details>`;
     }).join('') + '<div style="font-size:0.68rem;color:var(--m2);margin-top:6px;">Spaß-Profile, automatisch von einer KI geschätzt - nicht ernst nehmen.</div>';
   }
 
@@ -171,7 +174,7 @@ function init() {
     const openMine = S.login ? Object.values(S.questions).filter(q => q.driver === S.login.name && q.status === 'offen').length : 0;
     const body = { news: newsHtml, fragen: fragenHtml, story: storyHtml, chat: chatHtml, profile: profileHtml }[S.tab]();
     root.innerHTML = `<div class="card-title"><span>🎙️ Lätti - Presse</span></div>
-      <div class="tabs" style="margin-bottom:12px;flex-wrap:wrap;">${tabs.map(([k, l]) =>
+      <div class="tabs" style="margin-bottom:12px;flex-wrap:nowrap;overflow-x:auto;">${tabs.map(([k, l]) =>
         `<button class="tab-btn ${S.tab === k ? 'active' : ''}" data-act="tab" data-tab="${k}">${l}${k === 'fragen' && openMine ? ` (${openMine})` : ''}</button>`).join('')}</div>
       ${S.msg ? `<div style="color:#ff5555;font-size:0.8rem;margin-bottom:8px;">${esc(S.msg)}</div>` : ''}${S.info ? `<div style="color:#27f4d2;font-size:0.8rem;margin-bottom:8px;">${esc(S.info)}</div>` : ''}${body}`;
     const box = document.getElementById('pressChatBox');
@@ -184,6 +187,7 @@ function init() {
 
   // ---------- Events ----------
   root.addEventListener('input', e => { if (e.target.id) drafts[e.target.id] = e.target.value; });
+  root.addEventListener('toggle', e => { const d = e.target, k = d.dataset && d.dataset.k; if (k) { if (d.open) openSet.add(k); else openSet.delete(k); } }, true);
   root.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'chatIn') { e.preventDefault(); act('chat'); } });
   root.addEventListener('click', e => {
     const t = e.target.closest('[data-act]');
