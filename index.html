@@ -75,6 +75,14 @@ select{background:var(--card);color:var(--tx);border:1px solid var(--line);borde
 .soft{background:#e8002d}.med{background:#ffd23f;color:#111}.hard{background:#eee;color:#111}.inter{background:#39b54a}.wet{background:#2d7ff9}
 .livebtn{background:#e10600;color:#fff;animation:pl 1.6s infinite}
 @keyframes pl{0%{box-shadow:0 0 0 0 rgba(225,6,0,.6)}70%{box-shadow:0 0 0 12px rgba(225,6,0,0)}100%{box-shadow:0 0 0 0 rgba(225,6,0,0)}}
+.mini{background:var(--card);border:1px solid var(--line);color:var(--mu);border-radius:8px;padding:5px 9px;font:600 .75rem var(--bd);cursor:pointer}
+.mdot{transition:transform .9s linear;cursor:pointer}
+.mlab{font-size:9px;font-weight:700;fill:#fff;paint-order:stroke;stroke:#000;stroke-width:2px}
+.mapw{background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:10px;aspect-ratio:1/1;max-width:520px;margin:0 auto;overflow:hidden}
+.slot-card{background:var(--s3);border-radius:8px;padding:10px;margin-top:10px;font-size:.85rem}
+details.pn{background:var(--s3);border-radius:8px;padding:8px 10px;margin-top:6px;font-size:.85rem}
+details.pn summary{cursor:pointer;color:var(--tx);margin-top:0;font-size:.85rem}
+.tab-btn{white-space:nowrap}
 .lb{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:50;align-items:center;justify-content:center}
 .lb.on{display:flex}.lb img{max-width:94%;max-height:88%;border-radius:8px}
 .pod{width:100%;border-radius:14px;margin-bottom:14px;display:block}
@@ -243,6 +251,7 @@ function crossHtml() {
       return `<td class="${e && e.fastestLap ? 'fl' : ''}">${p ? (/^\d+$/.test(p) ? p + '.' : p) : '-'}</td>`; }).join('')}<td><b>${d.pts}</b></td></tr>`).join('')}</tbody></table>`;
 }
 let acBusy = false;
+const asked = new Set();
 async function autoConfirm() {
   const h = humans(); if (S.date || acBusy || h.length < 2) return;
   const today = iso(new Date()), m = {};
@@ -252,7 +261,8 @@ async function autoConfirm() {
   for (const d of Object.keys(m).sort()) {
     const sl = h.map(x => m[d][x.human]); if (sl.some(x => !x)) continue;
     const a = Math.max(...sl.map(x => mins(x.from))), b = Math.min(...sl.map(x => mins(x.to)));
-    if (b - a >= 90) {
+    const dur = b - a;
+    if (dur >= 90 || (dur >= 80 && !asked.has(d) && (asked.add(d), confirm(`Für den ${fmtShort(d)} gibt es eine Zeitspanne von ${Math.floor(dur / 60)}h ${dur % 60}min (${hhmm(a)} bis ${hhmm(b)} Uhr).\nSoll der Termin bestätigt werden?`)))) {
       acBusy = true;
       try { await set(ref(db, 'renntermin/confirmedDate'), d); await set(ref(db, 'renntermin/confirmedStart'), hhmm(a)); await set(ref(db, 'renntermin/confirmedEnd'), hhmm(b)); }
       catch (e) { console.error(e); }
@@ -317,6 +327,33 @@ function archiveHtml(r, done) {
   }).join('');
 }
 
+const rk = new Map(), rnd = t => { if (!rk.has(t)) rk.set(t, Math.random()); return rk.get(t); };
+function extraNews() {
+  const x = [], ks = Object.keys(RR).map(Number).sort((a, b) => a - b), all = chrono(), H = humans(), s0 = standings()[0];
+  const byName = n => nm(roster.find(d => d.name === n) || { name: n }), top = o => Object.entries(o).sort((a, b) => b[1] - a[1])[0];
+  const streak = th => { let best = null; roster.forEach(d => { let n = 0; for (let i = ks.length - 1; i >= 0; i--) { const p = pp((RR[ks[i]] || {})[d.name]); if (p !== null && p <= th) n++; else break; } if (n > 0 && (!best || n > best.n)) best = { d, n }; }); return best; };
+  const ws = streak(1); if (ws && ws.n >= 2) x.push(`👑 ${nm(ws.d)} hat die letzten ${ws.n} Rennen in Folge gewonnen!`);
+  const ps = streak(3); if (ps && ps.n >= 2 && (!ws || ps.n !== ws.n)) x.push(`🔥 ${nm(ps.d)} steht bei ${ps.n} Podien in Folge.`);
+  const dn = {}, fl = {};
+  ks.forEach(k => roster.forEach(d => { const e = (RR[k] || {})[d.name]; if (hasPos(e) && pp(e) === null) dn[d.name] = (dn[d.name] || 0) + 1; if (e && e.fastestLap === true) fl[d.name] = (fl[d.name] || 0) + 1; }));
+  const dd = top(dn); if (dd && dd[1] >= 2) x.push(`💥 ${byName(dd[0])} führt die Ausfall-Statistik an: ${dd[1]} Ausfälle.`);
+  const ff = top(fl); if (ff && ff[1] >= 2) x.push(`⏱️ ${byName(ff[0])} sammelt die meisten schnellsten Rennrunden: ${ff[1]}x.`);
+  const qs = {}; all.forEach(res => roster.forEach(d => { const q = qg(res && res[d.name]); if (q.h && !q.dnf) (qs[d.name] = qs[d.name] || []).push(q.g); }));
+  const qk = Object.entries(qs).filter(([, a]) => a.length >= 2).map(([n, a]) => [n, a.reduce((t, v) => t + v, 0) / a.length]).sort((a, b) => a[1] - b[1])[0];
+  if (qk) x.push(`🎯 Quali-König: ${byName(qk[0])} mit im Schnitt ${qk[1].toFixed(3)} Sek. Rückstand zur Pole.`);
+  const pl = {}; all.forEach(res => roster.forEach(d => { const p = pp(res && res[d.name]); if (p !== null) (pl[d.name] = pl[d.name] || []).push(p); }));
+  let ck = null; Object.entries(pl).forEach(([n, a]) => { if (a.length < 3) return; const m = a.reduce((t, v) => t + v, 0) / a.length, sd = Math.sqrt(a.reduce((t, v) => t + (v - m) ** 2, 0) / a.length); if (!ck || sd < ck.sd) ck = { n, sd }; });
+  if (ck) x.push(`🧊 Mr. Konstanz: ${byName(ck.n)} (Schwankung nur ±${ck.sd.toFixed(1)} Plätze).`);
+  ks.forEach(k => { const res = RR[k] || {}, g = roster.map(d => ({ d, q: qg(res[d.name]) })).filter(e => e.q.h && !e.q.dnf).sort((a, b) => a.q.g - b.q.g)[0];
+    if (g) { const e = res[g.d.name], r = races().find(r => r.num === k); if (pp(e) === 1 && e.fastestLap === true) x.push(`💎 Perfektes Wochenende: ${nm(g.d)} holte${r ? ' in ' + r.country : ''} Pole, Sieg und schnellste Runde.`); } });
+  if (ks.length) { const last = ks[ks.length - 1]; roster.forEach(d => { const p = pp((RR[last] || {})[d.name]);
+    if (p !== null && p <= 3 && !ks.slice(0, -1).some(k => { const q = pp((RR[k] || {})[d.name]); return q !== null && q <= 3; })) x.push(`🎉 Erstes Podium der Saison für ${nm(d)}!`); }); }
+  const hr = H.length ? H[Math.floor(rnd('hr') * H.length)] : null;
+  x.push(s0 && s0.pts > 0 ? `🎤 Lätti fragt ${nm(s0)}: "Wie fühlt sich die Tabellenführung an?" – "Gut, aber es ist noch nichts entschieden!"` : `🎤 Lätti im Fahrerlager: "Wer übernimmt als Nächstes die Tabellenführung?"`);
+  if (hr) x.push(`🎙️ Reporterin Lätti trifft ${hr.human} an der Box: "Was ist Ihr Ziel fürs nächste Rennen?" – "Natürlich das Podium!"`);
+  x.push(`🎧 Lätti trifft die Mechaniker: "Was ist das Stressigste an einem Boxenstopp?" – "Jede Zehntelsekunde zählt."`);
+  return x;
+}
 function newsList() {
   const n = [...(window.pressNewsTicker || [])], s = standings(), rs = races();
   const last = rs.filter(isDone).pop();
@@ -335,7 +372,7 @@ function newsList() {
   const missing = humans().filter(d => !enteredNames().includes(d.human) && !hasDeclined(d.human));
   if (missing.length && !S.date) n.push(`⏳ Es fehlen noch Termine von: ${missing.map(nm).join(', ')}.`);
   if (!n.length) n.push('Noch keine News. Sobald das erste Rennen gefahren ist, geht es hier los.');
-  return n.slice(0, 6);
+  return n.concat(extraNews().sort((a, b) => rnd(a) - rnd(b))).slice(0, 8);
 }
 
 function renderHome() {
@@ -378,7 +415,7 @@ function renderTermin() {
   S.persons.forEach(p => (p.slots || []).forEach(s => { if (s.date >= today) (map[s.date] = map[s.date] || []).push(p.name); }));
   const ranked = Object.entries(map).sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
   const dayRow = ([d, names]) => `<div class="row"><div class="grow"><b>${fmtShort(d)}</b>
-    <div class="sub">${names.join(', ')}</div></div><div class="pts" style="color:${names.length === h.length ? 'var(--ok)' : 'var(--tx)'}">${names.length}/${h.length}</div></div>`;
+    <div class="sub">${names.join(', ')}</div></div>${me && !names.includes(me) ? `<button class="mini" data-a="copy" data-v="${d}">+ Auch eintragen</button>` : ''}<div class="pts" style="color:${names.length === h.length ? 'var(--ok)' : 'var(--tx)'}">${names.length}/${h.length}</div></div>`;
   document.getElementById('v-termin').innerHTML = `
     ${S.date ? `<div class="card" style="border-color:var(--ok)"><h2>Termin steht</h2><div>${fmtLong(S.date)}, ${S.start || '14:00'} bis ${S.end || '18:00'} Uhr</div></div>` : ''}
     <div class="card"><h2>Verfügbarkeit eintragen</h2>
@@ -392,7 +429,7 @@ function renderTermin() {
       ${sel.length ? sel.map(d => `<div class="row"><div class="grow"><b>${fmtShort(d)}</b></div><input type="time" class="tmi" data-d="${d}" data-k="from" value="${tm[d].from}"> bis <input type="time" class="tmi" data-d="${d}" data-k="to" value="${tm[d].to}"></div>`).join('') : '<div class="sub">Wähle zuerst Tage aus.</div>'}
       <button class="btn" data-a="save">Speichern</button>
       <button class="btn ghost" data-a="decline">🚫 Kann diese Runde an keinem Termin</button>
-      <div class="sub" style="margin-top:8px">Regel: Können 6 von 10 an einem Tag und du hast nach der Discord-Erinnerung 3 Tage lang weder Termine eingetragen noch abgesagt, wird ohne dich gefahren.</div><div class="msg">${msg}</div>
+      <div class="sub" style="margin-top:8px">Regel: Können 7 von 8 an einem Tag und du hast nach der Discord-Erinnerung 3 Tage lang weder Termine eingetragen noch abgesagt, wird ohne dich gefahren.</div><div class="msg">${msg}</div>
     </div>
     <div class="card"><h2>Beste Tage</h2>
       ${ranked.length ? ranked.slice(0, 3).map(dayRow).join('') : '<div class="sub">Noch keine Einträge.</div>'}
@@ -406,7 +443,7 @@ function renderWertung() {
     : teamStandings().map(([t, p]) => ({ n: t, s: '', c: TC[t], p, ph: HELM[t] ? `helmet_${HELM[t]}.png` : '' }));
   document.getElementById('v-wertung').innerHTML = `
     <div class="seg"><button class="${wt === 'd' ? 'on' : ''}" data-a="wt" data-v="d">Fahrer</button><button class="${wt === 'x' ? 'on' : ''}" data-a="wt" data-v="x">Ergebnisse</button><button class="${wt === 't' ? 'on' : ''}" data-a="wt" data-v="t">Teams</button></div>
-    <div class="card" ${wt === 'x' ? 'style="overflow-x:auto"' : ''}>${wt === 'x' ? crossHtml() : list.map((x, i) => `<div class="row"><div class="pos">${i + 1}</div><div class="bar" style="background:${x.c || '#888'}"></div>${x.ph ? `<img class="av" src="${x.ph}" alt="" onerror="this.remove()">` : ''}
+    <div class="card" ${wt === 'x' ? 'style="overflow-x:auto;padding:0"' : ''}>${wt === 'x' ? crossHtml() : list.map((x, i) => `<div class="row"><div class="pos">${i + 1}</div><div class="bar" style="background:${x.c || '#888'}"></div>${x.ph ? `<img class="av" src="${x.ph}" alt="" onerror="this.remove()">` : ''}
       <div class="grow"><b>${x.n}</b>${x.s ? `<div class="sub">${x.s}</div>` : ''}</div><div class="pts">${x.p}</div></div>`).join('')}</div>`;
 }
 
@@ -438,7 +475,8 @@ function renderStats() {
   } else {
     const a = rvA || H[0].name, c = rvB && rvB !== a ? rvB : (H.find(d => d.name !== a) || H[0]).name;
     const o = h2h(a, c), opt = v => H.map(d => `<option value="${d.name}" ${d.name === v ? 'selected' : ''}>${d.human}</option>`).join('');
-    const rw = (l, x, y) => `<div class="row"><div class="pts" style="width:60px">${x}</div><div class="grow sub" style="text-align:center">${l}</div><div class="pts" style="width:60px;text-align:right">${y}</div></div>`;
+    const c1 = TC[(roster.find(d => d.name === a) || {}).team] || '#888', c2 = TC[(roster.find(d => d.name === c) || {}).team] || '#888';
+    const rw = (l, x, y) => { const pc = Math.round(x / Math.max(x + y, 1) * 100); return `<div class="row" style="border:0;padding-bottom:2px"><div class="pts" style="width:60px">${x}</div><div class="grow sub" style="text-align:center">${l}</div><div class="pts" style="width:60px;text-align:right">${y}</div></div><div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin-bottom:12px"><div style="width:${pc}%;background:${c1}"></div><div style="width:${100 - pc}%;background:${c2}"></div></div>`; };
     b = `<div class="card"><div class="pick"><select id="rvA">${opt(a)}</select><select id="rvB">${opt(c)}</select></div>${o.n
       ? rw('Rennen vorn', o.ra, o.rb) + rw('Quali vorn', o.qa, o.qb) + rw('Elo', Math.round(E[a]), Math.round(E[c])) + `<div class="sub" style="margin-top:8px">Aus ${o.n} gemeinsamen Rennen, alle Saisons.</div>`
       : '<div class="sub">Noch kein gemeinsames Rennen.</div>'}</div>`;
@@ -446,16 +484,45 @@ function renderStats() {
   document.getElementById('v-stats').innerHTML = `<div class="seg">${[['elo', 'Elo'], ['car', 'Karriere'], ['duel', 'Duell']].map(([k, l]) => `<button class="${sv === k ? 'on' : ''}" data-a="sv" data-v="${k}">${l}</button>`).join('')}</div>` + b;
 }
 
+const ls = k => { try { return localStorage.getItem(k) === '1'; } catch (e) { return false; } };
+let mapFlip = { x: ls('mfx'), y: ls('mfy') }, mapZ = 1, hiCar = null, mapSig = '';
+const fmtMs = ms => ms > 0 ? (ms >= 60000 ? `${Math.floor(ms / 60000)}:${String(Math.floor(ms % 60000 / 1000)).padStart(2, '0')}` : `${Math.floor(ms / 1000)}`) + '.' + String(ms % 1000).padStart(3, '0') : '-.---';
+function mapProj(B) {
+  const pad = 30, size = 500, sx = Math.max(B.maxX - B.minX, 1), sz = Math.max(B.maxZ - B.minZ, 1), sc = (size - pad * 2) / Math.max(sx, sz);
+  const ox = pad + (size - pad * 2 - sx * sc) / 2, oy = pad + (size - pad * 2 - sz * sc) / 2;
+  return (x, z) => { let a = (x - B.minX) * sc, b = (z - B.minZ) * sc; if (mapFlip.x) a = sx * sc - a; if (mapFlip.y) b = sz * sc - b; return [ox + a, oy + b]; };
+}
+function updateMap() {
+  const c = document.getElementById('lmap'), P = LT && LT.mapPositions, B = LT && LT.mapBounds;
+  if (!P || !B || B.minX == null || !Object.keys(P).length) { c.innerHTML = ''; mapSig = ''; return; }
+  const pt = mapProj(B), tr = LT.mapTrace || [], sig = JSON.stringify([Object.keys(P).sort(), tr.length, B, mapFlip, hiCar, mapZ]);
+  if (sig !== mapSig || !c.firstChild) {
+    mapSig = sig;
+    const line = tr.length > 1 ? `<polyline points="${tr.map(([x, z]) => pt(x, z).map(v => v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>` : '';
+    const dots = Object.entries(P).map(([k, q]) => {
+      const [x, y] = pt(q.x, q.z), m = LT.drivers && LT.drivers[k], i = m && byIng(m.name), col = (i && TC[i.team]) || '#888', me = +k === LT.playerCarIndex;
+      const lab = i ? (i.code || nm(i).slice(0, 3).toUpperCase()) : (m ? m.pos : '?');
+      return `<g id="md${k}" class="mdot" style="transform:translate(${x.toFixed(1)}px,${y.toFixed(1)}px)" data-a="hi" data-v="${k}">${hiCar === +k ? `<circle r="13" fill="none" stroke="${col}" stroke-width="2.5"/>` : ''}<circle r="${me ? 8 : 6}" fill="${col}" stroke="${me ? '#fff' : 'rgba(255,255,255,.4)'}" stroke-width="${me ? 2.5 : 1}"/><text y="-10" text-anchor="middle" class="mlab">${lab}</text></g>`;
+    }).join('');
+    c.innerHTML = `<div class="card"><h2>🗺️ Live Map</h2><div class="pick"><button data-a="mz" data-v="+">＋</button><button data-a="mz" data-v="-">－</button><button data-a="mz" data-v="0">Reset</button><button class="${mapFlip.x ? 'on' : ''}" data-a="mf" data-v="x">⇄ X</button><button class="${mapFlip.y ? 'on' : ''}" data-a="mf" data-v="y">⇅ Y</button>${hiCar !== null ? `<button class="on" data-a="hi" data-v="${hiCar}">✕ Hervorhebung</button>` : ''}</div>
+      <div class="mapw"><svg viewBox="0 0 500 500" width="100%" height="100%"><g transform="translate(250 250) scale(${mapZ}) translate(-250 -250)">${line}${dots}</g></svg></div>
+      <div class="sub" style="margin-top:6px;text-align:center">${tr.length > 1 ? 'Ideallinie aus Runde 1 deines Autos.' : 'Streckenlinie erscheint nach deiner ersten Runde.'} Auf einen Punkt oder Fahrernamen tippen zum Hervorheben. Falls die Karte verkehrt aussieht, ⇄ oder ⇅ nutzen.</div></div>`;
+  } else Object.entries(P).forEach(([k, q]) => { const d = document.getElementById('md' + k); if (d) { const [x, y] = pt(q.x, q.z); d.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`; } });
+}
+function strHtml() { const nx = races().find(r => !isDone(r)); return nx && TA[nx.num] ? `<div class="card"><h2>Strategie (Rennarchiv)</h2>${archiveHtml(nx, true)}</div>` : ''; }
 function renderLive() {
   const el = document.getElementById('v-live');
-  if (!LT || !LT.drivers) { el.innerHTML = '<div class="card"><h2>Live-Timing</h2><div class="sub">Gerade läuft keine Session. Sobald jemand das Telemetrie-Skript startet, erscheint hier alles automatisch.</div></div>'; return; }
-  const ds = Object.values(LT.drivers).filter(d => d.pos > 0).sort((a, b) => a.pos - b.pos);
+  if (!document.getElementById('lt')) el.innerHTML = '<div id="lt"></div><div id="lmap"></div><div id="lstr"></div>';
+  const lt = document.getElementById('lt');
+  if (!LT || !LT.drivers) { lt.innerHTML = '<div class="card"><h2>Live-Timing</h2><div class="sub">Gerade läuft keine Session. Sobald jemand das Telemetrie-Skript startet, erscheint hier alles automatisch.</div></div>'; updateMap(); document.getElementById('lstr').innerHTML = strHtml(); return; }
+  const ds = Object.entries(LT.drivers).filter(([, d]) => d.pos > 0).sort((a, b) => a[1].pos - b[1].pos);
   const tk = [...(LT.ticker || [])].reverse();
-  el.innerHTML = `<div class="card" style="overflow-x:auto"><h2>${LT.sessionActive ? '🔴 Live-Timing' : 'Letzte Session'}</h2>
-    <table class="tbl"><thead><tr><th>Fahrer</th><th>Rd</th><th>Abstand</th><th>Reifen</th><th>Box</th></tr></thead><tbody>${ds.map(d => {
+  lt.innerHTML = `<div class="card" style="overflow-x:auto"><h2>${LT.sessionActive ? '🔴 Live-Timing' : 'Letzte Session'}</h2>
+    <table class="tbl"><thead><tr><th>Fahrer</th><th>Rd</th><th>Abstand</th><th>S1</th><th>S2</th><th>S3</th><th>Reifen</th><th>Box</th></tr></thead><tbody>${ds.map(([k, d]) => {
       const i = byIng(d.name), tag = d.stale ? ' (weg)' : (d.resultStatus === 4 || d.resultStatus === 6) ? ' (OUT)' : d.resultStatus === 5 ? ' (DSQ)' : '';
-      return `<tr><td style="border-left:4px solid ${(i && TC[i.team]) || '#888'}">P${d.pos} <b>${i ? nm(i) : d.name}</b>${tag}</td><td>${d.lap ?? '-'}</td><td>${d.gapMs > 0 ? '+' + (d.gapMs / 1000).toFixed(3) : '-'}</td><td>${d.tyre || '?'}</td><td>${d.pitStops ?? 0}</td></tr>`; }).join('')}</tbody></table></div>
+      return `<tr><td data-a="hi" data-v="${k}" style="cursor:pointer;border-left:4px solid ${(i && TC[i.team]) || '#888'}${hiCar === +k ? ';color:var(--gold)' : ''}">P${d.pos} <b>${i ? nm(i) : d.name}</b>${tag}</td><td>${d.lap ?? '-'}</td><td>${d.gapMs > 0 ? '+' + (d.gapMs / 1000).toFixed(3) : '-'}</td><td>${fmtMs(d.sector1Ms)}</td><td>${fmtMs(d.sector2Ms)}</td><td>${fmtMs(d.sector3Ms)}</td><td>${d.tyre || '?'}</td><td>${d.pitStops ?? 0}</td></tr>`; }).join('')}</tbody></table></div>
     <div class="card"><h2>Ticker</h2>${tk.length ? `<ul class="news">${tk.map(x => `<li>${x}</li>`).join('')}</ul>` : '<div class="sub">Keine Events bisher.</div>'}</div>`;
+  updateMap(); document.getElementById('lstr').innerHTML = strHtml();
 }
 
 function render() {
@@ -464,6 +531,14 @@ function render() {
   renderHome(); renderTermin(); renderWertung(); renderStats(); renderRennen(); renderLive();
 }
 
+async function copyDay(d) {
+  if (!me) { msg = 'Bitte zuerst deinen Namen wählen.'; return render(); }
+  const p = S.persons.find(x => x.name === me), slots = ((p && p.slots) || []).filter(x => x.date !== d).concat({ date: d, from: '14:00', to: '18:00' });
+  const persons = S.persons.filter(x => x.name !== me).concat({ name: me, slots });
+  try { await set(ref(db, 'renntermin/persons'), persons); if (DC[me]) await set(ref(db, 'availabilityDeclined/' + me), null); sel = slots.map(x => x.date).sort(); tm = {}; slots.forEach(x => tm[x.date] = { from: x.from, to: x.to }); msg = 'Eingetragen ✓ (14:00 bis 18:00, die Zeit kannst du oben pro Tag anpassen)'; }
+  catch (e) { console.error(e); msg = 'Fehler beim Speichern.'; }
+  render();
+}
 async function decline() {
   if (!me) { msg = 'Bitte zuerst deinen Namen wählen.'; return render(); }
   const ex = S.persons.find(p => p.name === me);
@@ -499,6 +574,10 @@ document.addEventListener('click', e => {
   else if (a === 'lbx') { document.getElementById('lb').classList.remove('on'); return; }
   else if (a === 'save') return save();
   else if (a === 'decline') return decline();
+  else if (a === 'copy') return copyDay(v);
+  else if (a === 'hi') hiCar = hiCar === +v ? null : +v;
+  else if (a === 'mz') mapZ = v === '0' ? 1 : Math.min(4, Math.max(1, mapZ * (v === '+' ? 1.4 : 1 / 1.4)));
+  else if (a === 'mf') { mapFlip[v] = !mapFlip[v]; try { localStorage.setItem('mf' + v, mapFlip[v] ? '1' : '0'); } catch (e) { /* egal */ } }
   render();
 });
 document.addEventListener('change', e => {
