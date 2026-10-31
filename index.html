@@ -368,7 +368,7 @@ function renderTermin() {
       ${sel.length ? sel.map(d => `<div class="row"><div class="grow"><b>${fmtShort(d)}</b></div><input type="time" class="tmi" data-d="${d}" data-k="from" value="${tm[d].from}"> bis <input type="time" class="tmi" data-d="${d}" data-k="to" value="${tm[d].to}"></div>`).join('') : '<div class="sub">Wähle zuerst Tage aus.</div>'}
       <button class="btn" data-a="save">Speichern</button>
       <button class="btn ghost" data-a="decline">🚫 Kann diese Runde an keinem Termin</button>
-      <div class="sub" style="margin-top:8px">Regel: Können 7 von 8 an einem Tag und du hast nach der Discord-Erinnerung 3 Tage lang weder Termine eingetragen noch abgesagt, wird ohne dich gefahren.</div><div class="msg">${msg}</div>
+      <div class="sub" style="margin-top:8px">Regel: Können 6 von 10 an einem Tag und du hast nach der Discord-Erinnerung 3 Tage lang weder Termine eingetragen noch abgesagt, wird ohne dich gefahren.</div><div class="msg">${msg}</div>
     </div>
     <div class="card"><h2>Beste Tage</h2>
       ${ranked.length ? ranked.slice(0, 3).map(dayRow).join('') : '<div class="sub">Noch keine Einträge.</div>'}
