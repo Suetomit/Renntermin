@@ -51,7 +51,7 @@ details summary{cursor:pointer;color:var(--mu);font-size:.85rem;margin-top:8px}
 .tbl{width:100%;border-collapse:collapse;font-size:.8rem}
 .tbl th,.tbl td{padding:7px 6px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap}
 .tbl th{color:var(--mu);font-weight:600}
-.tbl td:first-child,.tbl th:first-child{text-align:left;position:sticky;left:0;background:var(--card)}
+.tbl td:first-child,.tbl th:first-child{text-align:left}
 .fl{background:#b15eff;color:#fff;border-radius:4px}
 select{background:var(--card);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:8px;font-size:.9rem}
 .av{width:34px;height:34px;object-fit:contain;flex-shrink:0}
@@ -122,7 +122,7 @@ const DEF = ('Timotheus Müller|Visa Cash App RB|Timo;Pascale Braasch|Visa Cash 
   .split(';').map(s => { const [name, team, human] = s.split('|'); return { name, team, human: human || null }; });
 
 let S = { persons: [], date: null, start: null, end: null };
-let RR = {}, RS = {}, TR = {}, roster = DEF, cal = null, TA = {}, openRace = null, rdFlag = false;
+let RR = {}, RS = {}, TR = {}, roster = DEF, cal = null, TA = {}, openRace = null, rdFlag = false, DS = {};
 let view = 'home', me = '', sel = [], tm = {}, wt = 'd', sv = 'elo', msg = '', SA = {}, LT = null, rvA = '', rvB = '';
 
 const toArr = v => v ? (Array.isArray(v) ? v : Object.values(v)) : [];
@@ -224,7 +224,7 @@ function byIng(n) {
 }
 function crossHtml() {
   const rs = races();
-  return `<table class="tbl"><thead><tr><th>Fahrer</th>${rs.map(r => `<th>${r.code}</th>`).join('')}<th>Pkt</th></tr></thead><tbody>${standings().map(d =>
+  return `<table class="tbl"><thead><tr><th>Fahrer</th>${rs.map(r => `<th><img class="flag" src="https://flagcdn.com/w40/${r.cc}.png" alt="${r.code}" title="${r.country}"><div class="sub" style="font-size:.65rem">${r.num}</div></th>`).join('')}<th>Pkt</th></tr></thead><tbody>${standings().map(d =>
     `<tr><td>${nm(d)}</td>${rs.map(r => { const e = (RR[r.num] || {})[d.name], p = hasPos(e) ? String(e.pos).trim() : '';
       return `<td class="${e && e.fastestLap ? 'fl' : ''}">${p ? (/^\d+$/.test(p) ? p + '.' : p) : '-'}</td>`; }).join('')}<td><b>${d.pts}</b></td></tr>`).join('')}</tbody></table>`;
 }
@@ -247,6 +247,16 @@ async function autoConfirm() {
   }
 }
 
+function applyDesign() {
+  const r = document.documentElement.style, b = document.body.style, d = DS || {};
+  if (d.accent) r.setProperty('--gold', d.accent); else r.removeProperty('--gold');
+  r.setProperty('--card', d.bg ? 'rgba(22,39,30,.86)' : '#16271e');
+  if (d.bg) {
+    const a = (d.dim ?? 60) / 100;
+    b.backgroundImage = `linear-gradient(rgba(14,26,20,${a}),rgba(14,26,20,${Math.min(a + .1, 1)})),url("${String(d.bg).replace(/"/g, '%22')}")`;
+    b.backgroundSize = 'cover'; b.backgroundPosition = 'center'; b.backgroundAttachment = 'fixed';
+  } else b.backgroundImage = 'none';
+}
 async function syncRecords() {
   for (const k of Object.keys(TA)) {
     const fl = TA[k] && TA[k].fastestLap; if (!fl || !fl.lap_time_s) continue;
@@ -474,6 +484,7 @@ on('liveTiming', v => LT = v);
 on('raceStatus', v => RS = v || {});
 on('trackRecords', v => TR = v || {});
 on('telemetryArchive', v => { TA = v || {}; syncRecords(); });
+on('siteSettings', v => { DS = v || {}; applyDesign(); });
 on('driverRoster', v => { const l = toArr(v); roster = l.length ? l : DEF; });
 on('raceCalendarCodes', v => { const l = toArr(v); cal = l.length ? l : null; });
 render();
