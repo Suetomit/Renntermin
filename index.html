@@ -243,7 +243,7 @@ function h2h(a, b) {
   return o;
 }
 function byIng(n) {
-  const c = String(n || '').replace(/^\[KI\]\s*/, '').trim().toLowerCase();
+  const c = String(n || '').replace(/^(\[KI\]|_KI_)\s*/, '').trim().toLowerCase();
   return roster.find(d => d.racenet && d.racenet.toLowerCase() === c)
     || roster.find(d => !d.human && d.name.toLowerCase() === c)
     || roster.find(d => !d.human && d.name.toLowerCase().split(' ').pop() === c) || null;
@@ -319,15 +319,16 @@ const spark = h => {
   const pts = h.map((v, i) => `${(2 + i * st).toFixed(1)},${(20 - (v - mn) / r * 18).toFixed(1)}`).join(' ');
   return `<svg width="64" height="22" viewBox="0 0 64 22"><polyline points="${pts}" fill="none" stroke="${h[h.length - 1] >= h[0] ? '#5ee08a' : '#ff7b6b'}" stroke-width="2" stroke-linejoin="round"/></svg>`;
 };
+const dname = n => { const i = byIng(n); return i ? nm(i) : n; };
 function archiveHtml(r, done) {
   const a = TA[r.num], rec = TR[r.code]; let h = '';
-  if (rec) { const cur = a && a.fastestLap && Math.abs(a.fastestLap.lap_time_s - rec.time) < .0005; h += `<div class="note gold">🏆 Streckenrekord: <b>${rec.driver}</b> (${fmtLap(rec.time)})${cur ? ' 🎉 hier aufgestellt!' : ` <span class="sub">(Rennen ${rec.raceNum})</span>`}</div>`; }
+  if (rec) { const cur = a && a.fastestLap && Math.abs(a.fastestLap.lap_time_s - rec.time) < .0005; h += `<div class="note gold">🏆 Streckenrekord: <b>${dname(rec.driver)}</b> (${fmtLap(rec.time)})${cur ? ' 🎉 hier aufgestellt!' : ` <span class="sub">(Rennen ${rec.raceNum})</span>`}</div>`; }
   if (!done) return h;
   if (!a) return h + '<div class="sub">Noch kein Telemetrie-Archiv für dieses Rennen.</div>';
   if (a.fastestLap) { const i = byIng(a.fastestLap.driver); h += `<div class="note purple">⚡ Schnellste Runde: <b>${i ? nm(i) : a.fastestLap.driver}</b> (${fmtLap(a.fastestLap.lap_time_s)})</div>`; }
   return h + Object.keys(a.strategies || {}).map(n => {
     const i = byIng(n), st = a.strategies[n] || [];
-    return `<div class="strat"><b>${i ? nm(i) : n}</b> <span class="sub">${(a.pitStops || {})[n] ?? 0} Boxenstopp(s)</span><div>${st.map(x => `<span class="stint ${String(x.compound).toLowerCase().replace(/ /g, '')}">${x.compound} ${x.start_lap}-${x.end_lap}</span>`).join('') || '<span class="sub">-</span>'}</div></div>`;
+    return `<div class="strat"><b>${i ? nm(i) : n}</b> <span class="sub">${(a.pitStops || {})[n] ?? 0} Boxenstopp(s)</span>${((a.pitStops || {})[n] ?? 0) > 0 && st.length <= (a.pitStops || {})[n] ? ' <span class="sub" style="color:var(--bad)">Strategie unvollständig</span>' : ''}<div>${st.map(x => `<span class="stint ${String(x.compound).toLowerCase().replace(/ /g, '')}">${x.compound} ${x.start_lap}-${x.end_lap}</span>`).join(' <span class="sub">→</span> ') || '<span class="sub">-</span>'}</div></div>`;
   }).join('');
 }
 
@@ -372,7 +373,7 @@ function newsList() {
   if (t[0] && t[0][1] > 0) n.push(`🏗️ Konstrukteurs-WM: ${t[0][0]} liegt vorn mit ${t[0][1]} Punkten.`);
   if (chrono().length && humans().length > 1) { const { E } = elo(), top = [...humans()].sort((a, b) => E[b.name] - E[a.name])[0]; n.push(`⚡ Elo-Spitzenreiter: ${top.human} mit ${Math.round(E[top.name])}.`); }
   const rec = Object.entries(TR).sort((a, b) => (b[1].updatedAt || 0) - (a[1].updatedAt || 0))[0];
-  if (rec) { const m = MASTER.find(r => r.code === rec[0]); if (m) n.push(`⏱️ Streckenrekord in ${m.country}: ${rec[1].driver}.`); }
+  if (rec) { const m = MASTER.find(r => r.code === rec[0]); if (m) n.push(`⏱️ Streckenrekord in ${m.country}: ${dname(rec[1].driver)}.`); }
   const missing = humans().filter(d => !enteredNames().includes(d.human) && !hasDeclined(d.human));
   if (missing.length && !S.date) n.push(`⏳ Es fehlen noch Termine von: ${missing.map(nm).join(', ')}.`);
   if (!n.length) n.push('Noch keine News. Sobald das erste Rennen gefahren ist, geht es hier los.');
