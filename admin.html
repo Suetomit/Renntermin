@@ -152,6 +152,10 @@ function secSea() {
   return `<div class="card"><h2>Saison ${season}</h2><div class="sub">${done} von ${races().length} Rennen mit Ergebnissen.</div>
     <button class="btn red" data-a="newSeason">Saison ${season} beenden und Saison ${season + 1} starten</button>
     <div class="sub" style="margin-top:10px">Ergebnisse, Status und Punktestand werden zurückgesetzt. Elo und Streckenrekorde bleiben erhalten, die alte Saison wird archiviert.</div></div>
+    <div class="card"><h2>Telemetrie-Daten korrigieren</h2>
+      <div class="sub" style="margin-bottom:8px">Falsches Archiv oder falscher Streckenrekord? Das löscht das Telemetrie-Archiv dieses Rennens und den Streckenrekord der Strecke. Rekorde aus anderen Archiven werden danach automatisch neu berechnet.</div>
+      <select id="dsel">${races().map(r => `<option value="${r.num}">#${r.num} ${r.country} (${r.city})</option>`).join('')}</select>
+      <button class="btn red" data-a="resetTel">Archiv und Streckenrekord zurücksetzen</button></div>
     ${arch.length ? `<div class="card"><h2>Archiv</h2>${arch.map(n => `<div class="row">Saison ${n}<span class="sub grow" style="text-align:right">${Object.keys((SA[n] && SA[n].raceResults) || {}).length} Rennen, beendet am ${new Date(SA[n].endedAt).toLocaleDateString('de-DE')}</span></div>`).join('')}</div>` : ''}`;
 }
 
@@ -218,6 +222,11 @@ const A = {
   rst: () => confirm('ALLE Verfügbarkeiten und den Termin zurücksetzen?') && w(() => set(ref(db, 'renntermin'), null), 'Zurückgesetzt ✓'),
   saveDes: () => w(() => set(ref(db, 'siteSettings'), { bg: $('ds_bg').value.trim() || null, dim: +$('ds_dim').value, accent: $('ds_acc').value }), 'Design gespeichert ✓'),
   resetDes: () => w(() => set(ref(db, 'siteSettings'), null), 'Zurückgesetzt ✓'),
+  resetTel: () => {
+    const r = races().find(x => x.num === +$('dsel').value);
+    if (!r || !confirm(`Archiv von Rennen #${r.num} und Streckenrekord ${r.country} (${r.city}) wirklich löschen?`)) return;
+    return w(async () => { await set(ref(db, 'telemetryArchive/' + r.num), null); await set(ref(db, 'trackRecords/' + r.code), null); }, 'Archiv und Streckenrekord zurückgesetzt ✓');
+  },
   newSeason: () => {
     if (!confirm(`Saison ${season} beenden und archivieren? Ergebnisse und Punktestand werden zurückgesetzt, die Elo bleibt.`)) return;
     return w(async () => {
