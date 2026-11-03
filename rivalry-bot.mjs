@@ -1,5 +1,6 @@
 // Rivalitäten-Bot (Gurkensöhne Cup). Läuft per GitHub Actions (siehe rivalry-bot.yml) und erledigt automatisch:
 //  1. beendete Duelle abrechnen (Sieger stiehlt Ansehen), wartende Rivalitäten nachrücken lassen, veraltete verfallen lassen
+//  1b. Anfragen der Presse (press/rivalryRequests, vom Lätti-Worker) in Rivalitäten vom Typ "press" umwandeln
 //  2. neue Rivalitäten anlegen: Teamrivalität, Titelkampf, nahe WM-Punkte (nur mit freien Plätzen, max. 3 aktive je Fahrer)
 //  3. kurze Meldungen nach /rivalryNews schreiben (erscheinen als News auf der Startseite)
 // Die Rechenregeln stammen aus rivalry.js (identisch mit Website und Admin). Elo wird nicht angefasst.
@@ -14,12 +15,12 @@ const F1 = { 1: 25, 2: 18, 3: 15, 4: 12, 5: 10, 6: 8, 7: 6, 8: 4, 9: 2, 10: 1 };
 const COUNTRY = { AUS: 'Australien', CHN: 'China', JPN: 'Japan', BHR: 'Bahrain', SAU: 'Saudi-Arabien', MIA: 'USA', IMO: 'Emilia-Romagna', MCO: 'Monaco', ESP: 'Spanien', CAN: 'Kanada', AUT: 'Österreich', GBR: 'Großbritannien', BEL: 'Belgien', HUN: 'Ungarn', NLD: 'Niederlande', ITA: 'Italien', AZE: 'Aserbaidschan', SGP: 'Singapur', USA: 'USA', MEX: 'Mexiko', BRA: 'Brasilien', VGS: 'USA', QAT: 'Katar', UAE: 'Ver. Arab. Emirate' };
 const LABEL = { press: 'Presse', points: 'WM-Punkte', title: 'Titelkampf', team: 'Teamrivalität' };
 
-// Reine Planung ohne Datenbankzugriff (gut testbar): gibt zu schreibende Rivalitäten und Meldungen zurück.
-export function plan({ RR, RS, TA, roster, cal, RV, season, news }, now = Date.now()) {
+// Reine Planung ohne Datenbankzugriff (gut testbar): gibt zu schreibende Rivalitäten, Meldungen und bearbeitete Presse-Anfragen zurück.
+export function plan({ RR, RS, TA, roster, cal, RV, season, news, reqs }, now = Date.now()) {
   const codes = cal.length ? cal : Object.keys(COUNTRY);
   const races = codes.map((c, i) => ({ num: i + 1, country: COUNTRY[c] || c, done: !!RS[i + 1] }));
   const ctx = { RR, TA, roster, races };
-  const R = JSON.parse(JSON.stringify(RV)), writes = {}, texts = [];
+  const R = JSON.parse(JSON.stringify(RV)), writes = {}, texts = [], reqWrites = {};
   const nm = n => { const d = roster.find(x => x.name === n); return d ? (d.human || d.name) : n; };
   const say = (key, text) => { if (!news[key]) texts.push([key, text]); };
   const startText = rv => `🥊 Neue Rivalität (${LABEL[rv.type] || 'Rivalität'}): ${nm(rv.a)} gegen ${nm(rv.b)}. Drei Rennen, bis zu vier Punkte pro Wochenende.`;
@@ -35,6 +36,22 @@ export function plan({ RR, RS, TA, roster, cal, RV, season, news }, now = Date.n
       } else say(`${id}_end`, `🤝 ${nm(rv.a)} und ${nm(rv.b)} trennen sich im Duell unentschieden (${r.ta}:${r.tb}).`);
     } else if (rv.status === 'expired') say(`${id}_exp`, `⌛ Die Rivalität ${nm(rv.a)} gegen ${nm(rv.b)} ist verfallen, es wurde kein Platz frei.`);
     else if (rv.status === 'active' && before === 'queued') say(`${id}_start`, startText(rv));
+  }
+
+  // 1b. Anfragen der Presse (Gerücht mit genannter Quelle + hitzige Antwort) -> Rivalität vom Typ "press", Regeln wie im Admin (rvAdd)
+  for (const [rid, q] of Object.entries(reqs || {}).sort((x, y) => (x[1].ts || 0) - (y[1].ts || 0))) {
+    if (!q || q.status) continue;
+    const known = n => roster.some(d => d.name === n);
+    if (!known(q.a) || !known(q.b) || q.a === q.b) { reqWrites[rid] = { ...q, status: 'skipped', note: 'unbekannter Fahrer' }; continue; }
+    const dup = Object.values(R).some(r => ((r.a === q.a && r.b === q.b) || (r.a === q.b && r.b === q.a)) && ['active', 'queued'].includes(r.status));
+    if (dup) { reqWrites[rid] = { ...q, status: 'skipped', note: 'läuft bereits' }; continue; }
+    const queued = RL.activeCount(ctx, R, q.a) >= 3 || RL.activeCount(ctx, R, q.b) >= 3;
+    const nx = races.find(r => !r.done), startRace = nx ? nx.num : races.length + 1;
+    const id = `press${rid}`;
+    const rv = { a: q.a, b: q.b, type: 'press', status: queued ? 'queued' : 'active', startRace, createdAt: now, season, auto: true, ...(queued ? { queueRace: startRace } : {}) };
+    R[id] = writes[id] = rv;
+    reqWrites[rid] = { ...q, status: 'done', rivalry: id };
+    if (!queued) say(`${id}_start`, startText(rv)); // wartende Rivalitäten werden beim Nachrücken (Schritt 1) angekündigt
   }
 
   // 2. neue Rivalitäten (nur solange noch ein Rennen offen ist)
@@ -63,7 +80,7 @@ export function plan({ RR, RS, TA, roster, cal, RV, season, news }, now = Date.n
       R[id] = writes[id] = rv; made++; say(`${id}_start`, startText(rv));
     }
   }
-  return { writes, texts };
+  return { writes, texts, reqWrites };
 }
 
 async function main() {
@@ -71,14 +88,15 @@ async function main() {
   admin.initializeApp({ credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)), databaseURL: DB_URL });
   const db = admin.database(), get = async p => (await db.ref(p).once('value')).val();
   const toArr = v => v ? (Array.isArray(v) ? v : Object.values(v)).filter(x => x != null) : [];
-  const [RR, RS, TA, rosterRaw, calRaw, RV, season, news] = await Promise.all(['raceResults', 'raceStatus', 'telemetryArchive', 'driverRoster', 'raceCalendarCodes', 'rivalries', 'currentSeason', 'rivalryNews'].map(get));
+  const [RR, RS, TA, rosterRaw, calRaw, RV, season, news, reqs] = await Promise.all(['raceResults', 'raceStatus', 'telemetryArchive', 'driverRoster', 'raceCalendarCodes', 'rivalries', 'currentSeason', 'rivalryNews', 'press/rivalryRequests'].map(get));
   const roster = toArr(rosterRaw);
   if (!roster.length) { console.log('Kein driverRoster in Firebase gespeichert, nichts zu tun.'); return; }
-  const { writes, texts } = plan({ RR: RR || {}, RS: RS || {}, TA: TA || {}, roster, cal: toArr(calRaw), RV: RV || {}, season: season || 1, news: news || {} });
-  console.log(`Rivalitäten geändert/neu: ${Object.keys(writes).length}, neue Meldungen: ${texts.length}`);
-  if (process.env.DRY_RUN) { console.log(JSON.stringify({ writes, texts }, null, 1)); return; }
+  const { writes, texts, reqWrites } = plan({ RR: RR || {}, RS: RS || {}, TA: TA || {}, roster, cal: toArr(calRaw), RV: RV || {}, season: season || 1, news: news || {}, reqs: reqs || {} });
+  console.log(`Rivalitäten geändert/neu: ${Object.keys(writes).length}, neue Meldungen: ${texts.length}, Presse-Anfragen bearbeitet: ${Object.keys(reqWrites).length}`);
+  if (process.env.DRY_RUN) { console.log(JSON.stringify({ writes, texts, reqWrites }, null, 1)); return; }
   for (const [id, rv] of Object.entries(writes)) await db.ref('rivalries/' + id).set(rv);
   for (const [key, text] of texts) await db.ref('rivalryNews/' + key).set({ ts: Date.now(), text });
+  for (const [rid, q] of Object.entries(reqWrites)) await db.ref('press/rivalryRequests/' + rid).set(q);
   console.log('Fertig.');
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main().catch(e => { console.error(e); process.exit(1); });
