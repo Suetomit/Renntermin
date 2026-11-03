@@ -99,4 +99,4 @@ async function main() {
   for (const [rid, q] of Object.entries(reqWrites)) await db.ref('press/rivalryRequests/' + rid).set(q);
   console.log('Fertig.');
 }
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main().catch(e => { console.error(e); process.exit(1); });
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
