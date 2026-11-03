@@ -6,8 +6,10 @@
  *
  * Auslöser:
  *  1. Neues Rennergebnis (raceResults) -> je Mensch mit Ergebnis eine Frage zum Anlass (Sieg, Podium, Ausfall, ...)
- *  2. Flaute: seit 7 Tagen keine Frage -> eine allgemeine Frage an einen zufälligen Fahrer
+ *  2. Rivalitäten (rivalries) -> Duell beendet: Sieger und Verlierer bekommen eine Frage; neue Rivalität: der erste Mensch bekommt eine Frage
+ *  3. Flaute: seit 7 Tagen keine Frage -> eine allgemeine Frage an einen zufälligen Fahrer
  * Regeln: max. 1 offene Frage pro Fahrer, offene Fragen laufen nach 5 Tagen ab.
+ * Alle Fragen kennen die laufenden Rivalitäten des Fahrers und die letzten Rivalitäts-Meldungen (rivalryNews).
  *
  * Env: FIREBASE_DB_URL, GEMINI_API_KEY (Pflicht); GEMINI_MODEL, DISCORD_BOT_TOKEN,
  *      DISCORD_ANNOUNCE_CHANNEL_ID, WEBSITE_URL (optional)
@@ -23,6 +25,8 @@ const DAY = 86400000;
 const EXPIRE_MS = 5 * DAY;
 const IDLE_MS = 7 * DAY;
 const TONES = ['hitzig', 'cool', 'boese', 'nett'];
+const RTYPE = { press: 'Presse', points: 'WM-Punkte', title: 'Titelkampf', team: 'Teamrivalität' };
+const MAX_RIV_PER_RUN = 3; // höchstens so viele Rivalitäten pro Lauf abfragen (schont das Gemini-Kontingent)
 
 const DEFAULT_HUMANS = {
   Timo: 'Timotheus Müller', Pascale: 'Pascale Braasch', Niklas: 'Niklas Schweisfurth', Tim: 'Tim Löffler',
@@ -93,7 +97,7 @@ function reasonFor(e, allEntries) {
   return `Mittelfeld-Ergebnis (P${num})`;
 }
 
-async function makeQuestion(driver, reason, raceInfo, profile, oldQuestions, newsLines = []) {
+async function makeQuestion(driver, reason, raceInfo, profile, oldQuestions, newsLines = [], rivalLine = '') {
   const memo = profile
     ? `Profil: ${profile.label || '-'}; Merkmale: ${(profile.traits || []).join(', ') || '-'}; frühere Eindrücke: ${(profile.recent || []).slice(0, 4).map(r => r.t).join(' | ') || '-'}`
     : 'Noch kein Profil vorhanden.';
@@ -102,6 +106,7 @@ async function makeQuestion(driver, reason, raceInfo, profile, oldQuestions, new
     `Stelle ${driver} EINE Interviewfrage (max. 25 Wörter) zum Anlass: ${reason}.\n${raceInfo}\n${memo}\n` +
     `Beziehe dich wenn passend auf frühere Eindrücke. Diese Fragen wurden schon gestellt, wiederhole sie nicht: ${oldQuestions.join(' | ') || '-'}\n` +
     `Aktuelle Presse-News der Liga (du kennst sie, spiel gern darauf an, aber wiederhole sie nicht): ${newsLines.join(' | ') || '-'}\n` +
+    `Laufende Rivalitäten dieses Fahrers (Drei-Rennen-Duelle um Ansehen; spiel darauf an, wenn es passt, erfinde aber keinen Spielstand): ${rivalLine || '-'}\n` +
     'Antworte NUR mit JSON: {"question":"..."}'
   );
   return String(out.question || '').trim().slice(0, 300);
@@ -120,8 +125,9 @@ async function pingDiscord(drivers) {
 
 async function main() {
   const now = Date.now();
-  const [state0, questions0, results, season, humans] = await Promise.all([
+  const [state0, questions0, results, season, humans, rivs0, rnews0] = await Promise.all([
     fb('GET', 'press/state'), fb('GET', 'press/questions'), fb('GET', 'raceResults'), fb('GET', 'currentSeason'), getHumans(),
+    fb('GET', 'rivalries'), fb('GET', 'rivalryNews'),
   ]);
   const state = state0 || {};
   const questions = questions0 || {};
@@ -139,13 +145,25 @@ async function main() {
   const newsObj = await fb('GET', 'press/news', undefined, '?orderBy=%22%24key%22&limitToLast=8');
   const newsLines = Object.values(newsObj || {}).sort((a, b) => b.ts - a.ts).map(n => `${n.title}: ${String(n.text || '').slice(0, 160)}`);
 
+  // Rivalitäten: Kontext für alle Fragen
+  const rivals = rivs0 || {};
+  Object.values(rnews0 || {}).filter(n => n && n.text).sort((a, b) => b.ts - a.ts).slice(0, 4).forEach(n => newsLines.push(n.text));
+  const shortOf = full => Object.keys(humans).find(k => humans[k] === full) || null;
+  const label = full => shortOf(full) || full;
+  function rivalryLine(short) {
+    const full = humans[short];
+    return Object.values(rivals)
+      .filter(r => r && r.status === 'active' && (r.a === full || r.b === full))
+      .map(r => `${RTYPE[r.type] || 'Rivalität'} gegen ${label(r.a === full ? r.b : r.a)}`).join('; ');
+  }
+
   async function ask(driver, reason, raceInfo, raceSig) {
     // Zu diesem Rennen wurde dem Fahrer schon eine Frage gestellt (auch wenn sie beantwortet ist) -> keine zweite
     if (raceSig && Object.values(questions).some(q => q.driver === driver && q.raceSig === raceSig)) return;
     if (openFor.has(driver)) return;
     const profile = await fb('GET', `press/profiles/${driver}`);
     const old = Object.values(questions).filter(q => q.driver === driver).sort((a, b) => b.ts - a.ts).slice(0, 5).map(q => q.question);
-    const question = await makeQuestion(driver, reason, raceInfo, profile, old, newsLines);
+    const question = await makeQuestion(driver, reason, raceInfo, profile, old, newsLines, rivalryLine(driver));
     if (!question) return;
     const rec = { driver, question, reason, status: 'offen', ts: Date.now(), pinged: false, ...(raceSig ? { raceSig } : {}) };
     const res = await fb('POST', 'press/questions', rec);
@@ -191,6 +209,60 @@ async function main() {
       }
       // Bei aufgebrauchtem Gemini-Kontingent beim nächsten Lauf erneut versuchen (offene Fragen werden nicht doppelt gestellt)
       if (!quotaHit) state.lastRaceSig = sig;
+    }
+  }
+
+  // 2b) Auslöser: Rivalitäten (Duell beendet -> Sieger und Verlierer; neue Rivalität -> erster Mensch)
+  if (!state.rivalryInit) {
+    // Erster Lauf nach dem Einbau: bestehende Rivalitäten gelten als bekannt, sonst würden alle auf einmal abgefragt
+    // (rivalryInit ist nötig, weil Firebase leere Objekte nicht speichert)
+    state.rivalryInit = true;
+    state.rivalryAsked = {};
+    for (const id of Object.keys(rivals)) { state.rivalryAsked[id + '_start'] = true; state.rivalryAsked[id + '_end'] = true; }
+    console.log('ℹ️ Bestehende Rivalitäten als bekannt markiert.');
+  } else {
+    state.rivalryAsked = state.rivalryAsked || {};
+    let n = 0, stop = false;
+    for (const [id, r] of Object.entries(rivals)) {
+      if (n >= MAX_RIV_PER_RUN || stop) break;
+      if (!r) continue;
+      let key = null; const jobs = [];
+      if (r.status === 'finished' && r.result && !state.rivalryAsked[id + '_end']) {
+        key = id + '_end';
+        const res = r.result;
+        for (const full of [r.a, r.b]) {
+          const s = shortOf(full); if (!s) continue; // KI-Fahrer werden nicht befragt
+          const other = label(full === r.a ? r.b : r.a);
+          const score = full === r.a ? `${res.ta}:${res.tb}` : `${res.tb}:${res.ta}`;
+          const reason = !res.winner
+            ? `Duell gegen ${other} unentschieden beendet (${score})`
+            : res.winner === full
+              ? `Duell gegen ${other} gewonnen (${score}${res.ko ? ', per Knockout' : ''}), stiehlt ${res.amount} Ansehen`
+              : `Duell gegen ${other} verloren (${score}${res.ko ? ', per Knockout' : ''}), verliert ${res.amount} Ansehen`;
+          jobs.push([s, reason]);
+        }
+      } else if (r.status === 'active' && !state.rivalryAsked[id + '_start'] && now - (r.createdAt || 0) < 3 * DAY) {
+        key = id + '_start';
+        const full = shortOf(r.a) ? r.a : r.b, s = shortOf(full);
+        if (s) jobs.push([s, `neue Rivalität (${RTYPE[r.type] || 'Rivalität'}) gegen ${label(full === r.a ? r.b : r.a)}`]);
+      }
+      if (!key) continue;
+      const sigOf = s => `rv:${key}:${s}`;
+      const before = created.length;
+      for (const [s, reason] of jobs) {
+        try { await ask(s, reason, 'Es geht um das Duell in der Rivalitäts-Wertung der Liga.', sigOf(s)); }
+        catch (err) { console.warn(`⚠️ Rivalität ${id} (${s}): ${err.message}`); if (/Kontingent|überlastet/.test(err.message)) { stop = true; break; } }
+      }
+      if (created.length > before) n++;
+      if (stop) break; // Limit erreicht: später nochmal, nichts als erledigt markieren
+      const settled = jobs.every(([s]) => Object.values(questions).some(q => q.raceSig === sigOf(s)));
+      if (!jobs.length || settled) state.rivalryAsked[key] = true;
+      else {
+        // Fahrer hatte noch eine offene Frage -> beim nächsten Lauf nochmal, nach 5 Tagen aufgeben
+        state.rivalrySeen = state.rivalrySeen || {};
+        state.rivalrySeen[key] = state.rivalrySeen[key] || now;
+        if (now - state.rivalrySeen[key] > EXPIRE_MS) state.rivalryAsked[key] = true;
+      }
     }
   }
 
