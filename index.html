@@ -125,6 +125,7 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getDatabase, ref, onValue, set } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import * as RL from './rivalry.js';
 
 const app = initializeApp({
   apiKey: "AIzaSyDDfD7PAl2RoeeSvzp6KnLHw1-ojEeYLaA",
@@ -148,7 +149,7 @@ const DEF = ('Timotheus Müller|Visa Cash App RB|Timo;Pascale Braasch|Visa Cash 
   .split(';').map(s => { const [name, team, human] = s.split('|'); return { name, team, human: human || null }; });
 
 let S = { persons: [], date: null, start: null, end: null };
-let RR = {}, RS = {}, TR = {}, roster = DEF, cal = null, TA = {}, openRace = null, rdFlag = false, DS = {}, DC = {};
+let RR = {}, RS = {}, TR = {}, roster = DEF, cal = null, TA = {}, openRace = null, rdFlag = false, DS = {}, DC = {}, RV = {}, RN = {};
 let view = 'home', me = '', sel = [], tm = {}, wt = 'd', sv = 'elo', msg = '', SA = {}, LT = null, rvA = '', rvB = '';
 
 const toArr = v => v ? (Array.isArray(v) ? v : Object.values(v)) : [];
@@ -360,7 +361,7 @@ function extraNews() {
   return x;
 }
 function newsList() {
-  const n = [...(window.pressNewsTicker || [])], s = standings(), rs = races();
+  const n = [...(window.pressNewsTicker || []), ...Object.values(RN).sort((a, b) => b.ts - a.ts).slice(0, 2).map(x => x.text)], s = standings(), rs = races();
   const last = rs.filter(isDone).pop();
   if (last) { const w = winnerOf(last); if (w) n.push(`🏁 ${w} gewinnt den GP von ${last.country}.`); }
   if (s[0] && s[0].pts > 0) {
@@ -434,7 +435,7 @@ function renderTermin() {
       ${sel.length ? sel.map(d => `<div class="row"><div class="grow"><b>${fmtShort(d)}</b></div><input type="time" class="tmi" data-d="${d}" data-k="from" value="${tm[d].from}"> bis <input type="time" class="tmi" data-d="${d}" data-k="to" value="${tm[d].to}"></div>`).join('') : '<div class="sub">Wähle zuerst Tage aus.</div>'}
       <button class="btn" data-a="save">Speichern</button>
       <button class="btn ghost" data-a="decline">🚫 Kann diese Runde an keinem Termin</button>
-      <div class="sub" style="margin-top:8px">Regel: Können 6 von 10 an einem Tag und du hast nach der Discord-Erinnerung 3 Tage lang weder Termine eingetragen noch abgesagt, wird ohne dich gefahren.</div><div class="msg">${msg}</div>
+      <div class="sub" style="margin-top:8px">Regel: Können 7 von 8 an einem Tag und du hast nach der Discord-Erinnerung 3 Tage lang weder Termine eingetragen noch abgesagt, wird ohne dich gefahren.</div><div class="msg">${msg}</div>
     </div>
     <div class="card"><h2>Beste Tage</h2>
       ${ranked.length ? ranked.slice(0, 3).map(dayRow).join('') : '<div class="sub">Noch keine Einträge.</div>'}
@@ -463,6 +464,28 @@ function renderRennen() {
   }).join('')}</div>`;
 }
 
+const RTYPE = { press: 'Presse', points: 'WM-Punkte', title: 'Titelkampf', team: 'Teamrivalität' };
+const rctx = () => ({ RR, TA, roster, races: races().map(r => ({ num: r.num, country: r.country, done: isDone(r) })) });
+function rivHtml() {
+  const c = rctx(), full = n => roster.find(d => d.name === n) || { name: n }, col = n => TC[full(n).team] || '#888';
+  const items = Object.values(RV).map(rv => ({ rv, v: ['ended', 'expired', 'queued'].includes(rv.status) ? null : RL.rvView(c, rv) }));
+  const card = ({ rv, v }) => {
+    const st = !v ? ({ expired: 'Verfallen, kein Platz frei geworden', queued: 'Wartet auf freien Platz, verfällt nach 2 Rennen' }[rv.status] || 'Beendet') : v.done ? 'Entschieden' : 'Aktiv';
+    const ta = v ? v.ta : 0, tb = v ? v.tb : 0, pc = Math.round(ta / Math.max(ta + tb, 1) * 100);
+    return `<div class="card"><div class="row" style="border:0;padding-top:0"><div class="grow"><b style="color:${col(rv.a)}">${nm(full(rv.a))}</b> gegen <b style="color:${col(rv.b)}">${nm(full(rv.b))}</b>
+      <div class="sub">${RTYPE[rv.type] || 'Rivalität'}, ${st}${v && v.rows ? `, ${v.rows.length} von 3 Rennen` : ''}</div></div><div class="pts">${ta}:${tb}</div></div>
+      <div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin:6px 0"><div style="width:${pc}%;background:${col(rv.a)}"></div><div style="width:${100 - pc}%;background:${col(rv.b)}"></div></div>
+      ${v && v.done ? (v.winner ? `<div class="note gold">🥊 ${nm(full(v.winner))} gewinnt${v.ko ? ' per Knockout' : ''} und stiehlt ${v.amount} Ansehen.</div>` : '<div class="note">Unentschieden, kein Ansehen wechselt.</div>') : ''}
+      ${v && v.rows && v.rows.length ? `<details><summary>Rennen im Detail</summary>${v.rows.map(r => `<div class="strat"><b>${r.country}</b> ${r.ta}:${r.tb}<div class="sub">Quali ${r.a[0]}:${r.b[0]}, schnellste Runde ${r.a[1]}:${r.b[1]}, straffrei ${r.a[2]}:${r.b[2]}, Ziel ${r.a[3]}:${r.b[3]}</div></div>`).join('')}</details>` : ''}</div>`;
+  };
+  const A = RL.ansehenMap(c, RV), wins = {};
+  items.forEach(({ v }) => { if (v && v.done && v.winner) wins[v.winner] = (wins[v.winner] || 0) + 1; });
+  const rank = [...roster].sort((x, y) => A[y.name] - A[x.name]);
+  return (items.length ? items.map(card).join('') : '<div class="card"><div class="sub">Noch keine Rivalitäten. Der Admin legt sie an oder die Presse stößt sie an.</div></div>')
+    + `<div class="card"><h2>Ansehen</h2>${rank.map((d, i) => { const dv = A[d.name] - 100;
+      return `<div class="row"><div class="pos">${i + 1}</div><div class="bar" style="background:${TC[d.team] || '#888'}"></div>${av(d)}<div class="grow"><b>${nm(d)}</b>${wins[d.name] ? ` <span title="Rivalitätssiege">🥊×${wins[d.name]}</span>` : ''}<div class="sub">${d.human ? d.team : 'KI, ' + d.team}</div></div>
+        <div class="sub" style="color:${dv > 0 ? 'var(--ok)' : dv < 0 ? 'var(--bad)' : 'var(--mu)'}">${dv ? (dv > 0 ? '+' : '') + dv : ''}</div><div class="pts" style="width:48px">${A[d.name]}</div></div>`; }).join('')}</div>`;
+}
 function duelHead(a, c) {
   const one = n => {
     const d = roster.find(x => x.name === n) || {}, src = d.photo || (HELM[d.team] ? `helmet_${HELM[d.team]}.png` : '');
@@ -472,7 +495,8 @@ function duelHead(a, c) {
 }
 function renderStats() {
   const H = humans(), { E, hist } = elo(); let b = '';
-  if (sv === 'elo') {
+  if (sv === 'riv') { b = rivHtml(); }
+  else if (sv === 'elo') {
     b = `<div class="card">${[...H].sort((x, y) => E[y.name] - E[x.name]).map((d, i) => {
       const h = hist[d.name], dl = h.length > 1 ? h[h.length - 1] - h[h.length - 2] : 0;
       return `<div class="row"><div class="pos">${i + 1}</div><div class="bar" style="background:${TC[d.team] || '#888'}"></div>${av(d)}
@@ -493,7 +517,7 @@ function renderStats() {
       ? rw('Rennen vorn', o.ra, o.rb) + rw('Quali vorn', o.qa, o.qb) + rw('Elo', Math.round(E[a]), Math.round(E[c])) + `<div class="sub" style="margin-top:8px">Aus ${o.n} gemeinsamen Rennen, alle Saisons.</div>`
       : '<div class="sub">Noch kein gemeinsames Rennen.</div>'}</div>`;
   }
-  document.getElementById('v-stats').innerHTML = `<div class="seg">${[['elo', 'Elo'], ['car', 'Karriere'], ['duel', 'Duell']].map(([k, l]) => `<button class="${sv === k ? 'on' : ''}" data-a="sv" data-v="${k}">${l}</button>`).join('')}</div>` + b;
+  document.getElementById('v-stats').innerHTML = `<div class="seg">${[['elo', 'Elo'], ['car', 'Karriere'], ['duel', 'Duell'], ['riv', 'Rivalen']].map(([k, l]) => `<button class="${sv === k ? 'on' : ''}" data-a="sv" data-v="${k}">${l}</button>`).join('')}</div>` + b;
 }
 
 const ls = k => { try { return localStorage.getItem(k) === '1'; } catch (e) { return false; } };
@@ -622,6 +646,8 @@ on('trackRecords', v => TR = v || {});
 on('telemetryArchive', v => { TA = v || {}; syncRecords(); });
 on('siteSettings', v => { DS = v || {}; applyDesign(); });
 on('availabilityDeclined', v => DC = v || {});
+on('rivalries', v => RV = v || {});
+on('rivalryNews', v => RN = v || {});
 on('driverRoster', v => { const l = toArr(v); roster = l.length ? l : DEF; });
 on('raceCalendarCodes', v => { const l = toArr(v); cal = l.length ? l : null; });
 render();
