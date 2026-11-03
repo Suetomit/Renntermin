@@ -1,14 +1,15 @@
 // Rivalitäten-Bot (Gurkensöhne Cup). Läuft per GitHub Actions (siehe rivalry-bot.yml) und erledigt automatisch:
 //  1. beendete Duelle abrechnen (Sieger stiehlt Ansehen), wartende Rivalitäten nachrücken lassen, veraltete verfallen lassen
 //  1b. Anfragen der Presse (press/rivalryRequests, vom Lätti-Worker) in Rivalitäten vom Typ "press" umwandeln
-//  2. neue Rivalitäten anlegen: Teamrivalität, Titelkampf, nahe WM-Punkte (nur mit freien Plätzen, max. 3 aktive je Fahrer)
+//  2. neue Rivalitäten anlegen: Titelkampf, nahe WM-Punkte, Teamrivalität (auch KI gegen KI, damit das Ansehen aller Fahrer in Bewegung bleibt;
+//     nur mit freien Plätzen, max. 3 aktive je Fahrer)
 //  3. kurze Meldungen nach /rivalryNews schreiben (erscheinen als News auf der Startseite)
 // Die Rechenregeln stammen aus rivalry.js (identisch mit Website und Admin). Elo wird nicht angefasst.
 import * as RL from './rivalry.mjs';
 import { fileURLToPath } from 'url';
 
 const DB_URL = 'https://gurkensohne-cup-default-rtdb.europe-west1.firebasedatabase.app';
-const MAX_NEW_PER_RUN = 2;   // höchstens so viele neue Rivalitäten pro Durchlauf
+const MAX_NEW_PER_RUN = 4;   // höchstens so viele neue Rivalitäten pro Durchlauf
 const CLOSE_POINTS = 3;      // "nahe WM-Punkte": höchstens so viele Punkte Abstand
 const TITLE_GAP = 12;        // Titelkampf: Abstand P1 zu P2 höchstens so groß
 const F1 = { 1: 25, 2: 18, 3: 15, 4: 12, 5: 10, 6: 8, 7: 6, 8: 4, 9: 2, 10: 1 };
@@ -62,15 +63,19 @@ export function plan({ RR, RS, TA, roster, cal, RV, season, news, reqs }, now = 
     const table = [...roster].sort((a, b) => pts[b.name] - pts[a.name] || a.name.localeCompare(b.name));
     const doneCount = races.filter(r => r.done).length, cands = [], human = n => !!(roster.find(x => x.name === n) || {}).human;
     const byTeam = {}; roster.forEach(d => (byTeam[d.team] = byTeam[d.team] || []).push(d));
-    Object.values(byTeam).forEach(m => { for (let i = 0; i < m.length; i++) for (let j = i + 1; j < m.length; j++) if (m[i].human || m[j].human) cands.push([m[i].name, m[j].name, 'team']); });
+    Object.values(byTeam).forEach(m => { for (let i = 0; i < m.length; i++) for (let j = i + 1; j < m.length; j++) cands.push([m[i].name, m[j].name, 'team']); });
     if (doneCount >= 1) {
       for (let i = 0; i < table.length - 1; i++) {
         const a = table[i].name, b = table[i + 1].name, gap = pts[a] - pts[b];
-        if (!pts[a] || !(human(a) || human(b))) continue;
+        if (!pts[a]) continue;
         if (i === 0 && gap <= TITLE_GAP) cands.push([a, b, 'title']);
         else if (gap <= CLOSE_POINTS) cands.push([a, b, 'points']);
       }
     }
+    // Reihenfolge: Titelkampf, dann nahe Punkte, dann Teamduelle; innerhalb eines Typs zuerst Paare mit einem Menschen,
+    // damit die 3 Plätze der Menschen nicht von weniger wichtigen Duellen belegt werden (KI gegen KI belegt keine Menschen-Plätze).
+    const prio = { title: 0, points: 1, team: 2 }, hum = c => (human(c[0]) || human(c[1]) ? 0 : 1);
+    cands.sort((x, y) => prio[x[2]] - prio[y[2]] || hum(x) - hum(y));
     const taken = (a, b) => Object.values(R).some(r => ((r.a === a && r.b === b) || (r.a === b && r.b === a)) && (['active', 'queued'].includes(r.status) || (r.season ?? season) === season));
     let made = 0;
     for (const [a, b, type] of cands) {
