@@ -13,7 +13,7 @@ html{background:var(--bg)}
 body{min-height:100vh;min-height:100dvh;font:15px/1.45 var(--bd);color:var(--tx);background:var(--bg);padding:env(safe-area-inset-top) 0 calc(76px + env(safe-area-inset-bottom))}
 .top{display:flex;justify-content:space-between;align-items:center;max-width:760px;margin:0 auto;padding:14px 16px}
 .brand{display:flex;align-items:center;gap:10px;font:800 1.2rem var(--hd)}
-.brand img{height:34px}
+.brand img{width:32px;height:32px;object-fit:contain;flex-shrink:0}
 .st{font-size:.8rem;color:var(--mu)}.st:before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#e8a33d;margin-right:6px}
 .st.live:before{background:var(--ok)}
 main{max-width:760px;margin:0 auto;padding:0 16px}
@@ -40,15 +40,15 @@ h2{font:800 1.15rem var(--hd);margin-bottom:10px}
 .bar{width:4px;height:30px;border-radius:2px;flex-shrink:0}
 .grow{flex:1;min-width:0}
 .pts{font:800 1.1rem var(--hd);text-align:right}
-.seg{display:flex;gap:6px;margin-bottom:12px}
-.seg button,.pick button{background:var(--card);border:1px solid var(--line);color:var(--mu);border-radius:10px;padding:8px 14px;font:600 .88rem var(--bd);cursor:pointer}
+.seg{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:2px}
+.seg button,.pick button{background:var(--card);border:1px solid var(--line);color:var(--mu);border-radius:10px;padding:8px 14px;font:600 .88rem var(--bd);cursor:pointer;white-space:nowrap}
 .seg button.on,.pick button.on{background:var(--gold);color:#1a1400;border-color:var(--gold)}
 .pick{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
 input[type=time]{background:var(--bg);border:1px solid var(--line);color:var(--tx);border-radius:8px;padding:8px;font-size:1rem}
 input[type=time]::-webkit-calendar-picker-indicator{filter:invert(.85)}
 .msg{margin-top:8px;font-size:.85rem;color:var(--gold);min-height:1.2em}
 details summary{cursor:pointer;color:var(--mu);font-size:.85rem;margin-top:8px}
-.flag{width:22px;height:15px;border-radius:2px;object-fit:cover}
+.flag{width:22px;height:15px;border-radius:2px;object-fit:cover;flex-shrink:0}
 .tbl{width:100%;border-collapse:collapse;font-size:.8rem}
 .tbl th,.tbl td{padding:7px 6px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap}
 .tbl th{color:var(--mu);font-weight:600}
