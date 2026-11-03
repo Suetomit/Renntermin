@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Gurkensöhne Cup 2026</title>
-<link rel="icon" type="image/png" href="favicon.png">
+<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6AAAACXBIWXMAAAsTAAALEwEAmpwYAAAgAElEQVR4nOy9a68kSZbfd9V7m+yqriqq6s6u25tNdvd0D+4ZkkcSRUqW5M5hA6QjEAMhAAIIP8m/8E8Q8oMHPwkghwEBAgiwEAMBAkggD0mSHM5sNru7d0891d1Vlb1VuauuquxM5v2Q2Wq1VV2n3Mxc9lR23e59lT2Xf/M38H39a67r/s0M/8vW+8WvW/XjY/8f77uC/v4v/7h7/1wAAAABJRU5ErkJggg==">
 <style>
 :root{--card-bg:var(--card);--s3:#1f2f26;--border:var(--line);--text:var(--tx);--m:var(--mu);--m2:#6f8275;--y:var(--gold);--bg:#0e1a14;--card:#16271e;--line:#25392d;--tx:#eef2e6;--mu:#93a698;--gold:#ffd23f;--ok:#5ee08a;--bad:#ff7b6b;
 --hd:Bahnschrift,"Roboto Condensed","Arial Narrow",system-ui,sans-serif;--bd:system-ui,-apple-system,"Segoe UI",sans-serif}
@@ -13,7 +13,7 @@ html{background:var(--bg)}
 body{min-height:100vh;min-height:100dvh;font:15px/1.45 var(--bd);color:var(--tx);background:var(--bg);padding:env(safe-area-inset-top) 0 calc(76px + env(safe-area-inset-bottom))}
 .top{display:flex;justify-content:space-between;align-items:center;max-width:760px;margin:0 auto;padding:14px 16px}
 .brand{display:flex;align-items:center;gap:10px;font:800 1.2rem var(--hd)}
-.brand img{width:32px;height:32px;object-fit:contain;flex-shrink:0}
+.brand img{height:36px;width:auto;object-fit:contain;flex-shrink:0}
 .st{font-size:.8rem;color:var(--mu)}.st:before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#e8a33d;margin-right:6px}
 .st.live:before{background:var(--ok)}
 main{max-width:760px;margin:0 auto;padding:0 16px}
@@ -557,7 +557,7 @@ function renderLive() {
   lt.innerHTML = `<div class="card" style="overflow-x:auto"><h2>${LT.sessionActive ? '🔴 Live-Timing' : 'Letzte Session'}</h2>
     <table class="tbl"><thead><tr><th>Fahrer</th><th>Rd</th><th>Abstand</th><th>S1</th><th>S2</th><th>S3</th><th>Reifen</th><th>Box</th></tr></thead><tbody>${ds.map(([k, d]) => {
       const i = byIng(d.name), tag = d.stale ? ' (weg)' : (d.resultStatus === 4 || d.resultStatus === 6) ? ' (OUT)' : d.resultStatus === 5 ? ' (DSQ)' : '';
-      return `<tr><td data-a="hi" data-v="${k}" style="cursor:pointer;border-left:4px solid ${(i && TC[i.team]) || '#888'}${hiCar === +k ? ';color:var(--gold)' : ''}">P${d.pos} <b>${i ? nm(i) : d.name}</b>${tag}</td><td>${d.lap ?? '-'}</td><td>${d.gapMs > 0 ? '+' + (d.gapMs / 1000).toFixed(3) : '-'}</td><td>${fmtMs(d.sector1Ms)}</td><td>${fmtMs(d.sector2Ms)}</td><td>${fmtMs(d.sector3Ms)}</td><td>${d.tyre || '?'}</td><td>${d.pitStops ?? 0}</td></tr>`; }).join('')}</tbody></table></div>
+      return `<tr><td data-a="hi" data-v="${k}" style="cursor:pointer;border-left:4px solid ${(i && TC[i.team]) || '#888'}${hiCar === +k ? ';color:var(--gold)' : ''}">P${d.pos} <b>${i ? nm(i) : d.name}</b>${tag}</td><td>${d.lap ?? '-'}</td><td>${d.gapMs > 0 ? '+' + (d.gapMs / 1000).toFixed(3) : '-'}</td><td>${fmtMs(d.sector1Ms)}</td><td>${fmtMs(d.sector2Ms)}</td><td>${fmtMs(d.sector3Ms)}</td><td>${d.tyre || '?'}</td><td>${d.pitStops ?? 0}</td></tr>`; }).join('')}</table></div>
     <div class="card"><h2>Ticker</h2>${tk.length ? `<ul class="news">${tk.map(x => `<li>${x}</li>`).join('')}</ul>` : '<div class="sub">Keine Events bisher.</div>'}</div>`;
   updateMap(); document.getElementById('lstr').innerHTML = strHtml();
 }
