@@ -205,7 +205,7 @@ function render() {
       <button class="btn" data-a="in">Anmelden</button><div class="msg">${msg}</div></div>`;
     return;
   }
-  a.innerHTML = `<div class="top"><span>⚙️ Admin</span><span><a href="index_v2.html">zur Seite</a><button class="lnk" data-a="out">Abmelden</button></span></div>
+  a.innerHTML = `<div class="top"><span>⚙️ Admin</span><span><a href="index.html">zur Seite</a><button class="lnk" data-a="out">Abmelden</button></span></div>
     <div class="seg">${TABS.map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" data-a="tab" data-v="${k}">${l}</button>`).join('')}</div>
     ${SEC[tab]()}<div class="msg">${msg}</div>`;
 }
