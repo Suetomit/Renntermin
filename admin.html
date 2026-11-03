@@ -40,6 +40,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getDatabase, ref, onValue, set } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import * as RL from './rivalry.js';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
 const fb = initializeApp({
@@ -63,7 +64,7 @@ const esc = v => String(v ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').
 const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const fmt = s => new Date(s + 'T00:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
 
-let U = null, tab = 'res', rn = 1, S = { persons: [] }, RR = {}, RS = {}, SA = {}, roster = null, cal = null, season = 1, DS = {};
+let U = null, tab = 'res', rn = 1, S = { persons: [] }, RR = {}, RS = {}, SA = {}, roster = null, cal = null, season = 1, DS = {}, RV = {}, TA = {};
 let rd = null, cd = null, pickD = '', ts = '14:00', te = '18:00', msg = '', started = false;
 
 const races = () => (cal || MASTER.map(m => m.code)).map((c, i) => ({ ...MASTER.find(m => m.code === c), num: i + 1 })).filter(r => r.code);
@@ -77,8 +78,11 @@ function start() {
   on('seasons', v => SA = v || {});
   on('currentSeason', v => season = v || 1);
   on('siteSettings', v => DS = v || {});
+  on('rivalries', v => RV = v || {});
+  on('telemetryArchive', v => TA = v || {});
   on('driverRoster', v => { const l = toArr(v); roster = l.length ? l : null; rd = null; });
   on('raceCalendarCodes', v => { const l = toArr(v); cal = l.length ? l : null; cd = null; });
+  setTimeout(() => settle().catch(console.error), 2500);
 }
 // Nicht neu zeichnen, während gerade getippt wird (sonst gehen Eingaben verloren)
 function paint() { const a = document.activeElement; if (a && /INPUT|SELECT/.test(a.tagName) && U) return; render(); }
@@ -159,6 +163,24 @@ function secSea() {
     ${arch.length ? `<div class="card"><h2>Archiv</h2>${arch.map(n => `<div class="row">Saison ${n}<span class="sub grow" style="text-align:right">${Object.keys((SA[n] && SA[n].raceResults) || {}).length} Rennen, beendet am ${new Date(SA[n].endedAt).toLocaleDateString('de-DE')}</span></div>`).join('')}</div>` : ''}`;
 }
 
+const rctx = () => ({ RR, TA, roster: roster || DEF, races: races().map(r => ({ num: r.num, country: r.country, done: !!RS[r.num] })) });
+async function settle() {
+  const upd = RL.planSettle(rctx(), RV);
+  for (const [id, rv] of Object.entries(upd)) { await set(ref(db, 'rivalries/' + id), rv); RV[id] = rv; }
+}
+function secRiv() {
+  const L = roster || DEF, c = rctx(), lab = n => esc((L.find(d => d.name === n) || {}).human || n);
+  const opt = '<option value="">Fahrer wählen</option>' + L.map(d => `<option value="${esc(d.name)}">${esc(d.human || d.name)}</option>`).join('');
+  return `<div class="card"><h2>Neue Rivalität</h2><div class="g2"><select id="rv_a">${opt}</select><select id="rv_b">${opt}</select></div>
+    <select id="rv_t"><option value="press">Presse</option><option value="points">Nahe WM-Punkte</option><option value="title">Meisterschaftskampf</option><option value="team">Teamrivalität</option></select>
+    <button class="btn" data-a="rvAdd">Rivalität anlegen</button>
+    <div class="sub" style="margin-top:8px">Maximal 3 aktive Rivalitäten pro Fahrer, weitere warten automatisch und verfallen, wenn nach 2 Rennen kein Platz frei wurde. Die Auswertung (3 Rennen, Knockout ab 5 Punkten Vorsprung nach 2 Rennen) läuft automatisch.</div></div>
+    ${Object.entries(RV).map(([id, rv]) => { const v = ['ended', 'expired', 'queued'].includes(rv.status) ? null : RL.rvView(c, rv);
+      return `<div class="card"><div><b>${lab(rv.a)}</b> gegen <b>${lab(rv.b)}</b></div><div class="sub">${rv.type}, ${!v ? ({ expired: 'verfallen', queued: 'wartet auf freien Platz', ended: 'beendet' }[rv.status] || 'beendet') : v.done ? 'entschieden' : 'aktiv'}${v ? `, ${v.ta}:${v.tb}` : ''}, Start ab Rennen ${rv.startRace}</div>
+      <div style="margin-top:8px">${['ended', 'expired'].includes(rv.status) || rv.result ? '' : `<button class="mini" data-a="rvEnd" data-v="${id}">Ohne Wertung beenden</button> `}<button class="del" data-a="rvDel" data-v="${id}">Löschen</button></div></div>`; }).join('')}
+    <div class="card"><button class="btn ghost" data-a="rvSettle">Entschiedene Rivalitäten abrechnen</button>
+    <button class="btn red" data-a="rvTeam">Team-Shuffle: alle Team-Rivalitäten beenden</button></div>`;
+}
 function secDes() {
   const d = DS || {};
   return `<div class="card"><h2>Design der Seite</h2>
@@ -172,8 +194,8 @@ function secDes() {
     <button class="btn ghost" data-a="resetDes">Auf Standard zurücksetzen</button>
     <div class="sub" style="margin-top:10px">Wirkt sofort auf index_v2.html, ein Neuladen der Seite reicht.</div></div>`;
 }
-const SEC = { res: secRes, cal: secCal, drv: secDrv, term: secTerm, sea: secSea, des: secDes };
-const TABS = [['res', '🏁 Ergebnisse'], ['cal', '🗓️ Kalender'], ['drv', '🏎️ Fahrer'], ['term', '📅 Termin'], ['sea', '🏆 Saison'], ['des', '🎨 Design']];
+const SEC = { res: secRes, cal: secCal, drv: secDrv, term: secTerm, sea: secSea, riv: secRiv, des: secDes };
+const TABS = [['res', '🏁 Ergebnisse'], ['cal', '🗓️ Kalender'], ['drv', '🏎️ Fahrer'], ['term', '📅 Termin'], ['sea', '🏆 Saison'], ['riv', '🥊 Rivalen'], ['des', '🎨 Design']];
 
 function render() {
   const a = $('app');
@@ -222,6 +244,17 @@ const A = {
   rst: () => confirm('ALLE Verfügbarkeiten und den Termin zurücksetzen?') && w(() => set(ref(db, 'renntermin'), null), 'Zurückgesetzt ✓'),
   saveDes: () => w(() => set(ref(db, 'siteSettings'), { bg: $('ds_bg').value.trim() || null, dim: +$('ds_dim').value, accent: $('ds_acc').value }), 'Design gespeichert ✓'),
   resetDes: () => w(() => set(ref(db, 'siteSettings'), null), 'Zurückgesetzt ✓'),
+  rvAdd: () => {
+    const a = $('rv_a').value, b = $('rv_b').value, t = $('rv_t').value, c = rctx();
+    if (!a || !b || a === b) { msg = 'Bitte zwei verschiedene Fahrer wählen.'; return; }
+    if (Object.values(RV).some(r => !['ended', 'expired'].includes(r.status) && !r.result && ((r.a === a && r.b === b) || (r.a === b && r.b === a)) && !RL.rvView(c, r).done)) { msg = 'Diese Rivalität läuft bereits.'; return; }
+    const q = RL.activeCount(c, RV, a) >= 3 || RL.activeCount(c, RV, b) >= 3, nx = races().find(r => !RS[r.num]);
+    return w(() => set(ref(db, 'rivalries/r' + Date.now()), { a, b, type: t, status: q ? 'queued' : 'active', startRace: nx ? nx.num : races().length + 1, createdAt: Date.now(), ...(q ? { queueRace: nx ? nx.num : races().length + 1 } : {}) }), q ? 'Angelegt, wartet auf einen freien Platz ✓' : 'Rivalität angelegt ✓');
+  },
+  rvEnd: t => confirm('Rivalität ohne Wertung beenden?') && w(() => set(ref(db, 'rivalries/' + t.dataset.v + '/status'), 'ended'), 'Beendet ✓'),
+  rvDel: t => confirm('Rivalität wirklich löschen?') && w(() => set(ref(db, 'rivalries/' + t.dataset.v), null), 'Gelöscht ✓'),
+  rvSettle: () => w(settle, 'Abgerechnet ✓'),
+  rvTeam: () => confirm('Alle laufenden Team-Rivalitäten beenden?') && w(async () => { await settle(); for (const [id, rv] of Object.entries(RV)) if (rv.type === 'team' && !rv.result && !['ended', 'expired'].includes(rv.status)) { await set(ref(db, 'rivalries/' + id + '/status'), 'ended'); RV[id] = { ...rv, status: 'ended' }; } }, 'Team-Rivalitäten beendet ✓'),
   resetTel: () => {
     const r = races().find(x => x.num === +$('dsel').value);
     if (!r || !confirm(`Archiv von Rennen #${r.num} und Streckenrekord ${r.country} (${r.city}) wirklich löschen?`)) return;
@@ -230,6 +263,8 @@ const A = {
   newSeason: () => {
     if (!confirm(`Saison ${season} beenden und archivieren? Ergebnisse und Punktestand werden zurückgesetzt, die Elo bleibt.`)) return;
     return w(async () => {
+      await settle();
+      for (const [id, rv] of Object.entries(RV)) if (!rv.result && !['ended', 'expired'].includes(rv.status)) await set(ref(db, 'rivalries/' + id + '/status'), 'ended');
       await set(ref(db, 'seasons/' + season), { raceResults: RR, calendarCodes: cal || MASTER.map(m => m.code), endedAt: Date.now() });
       await set(ref(db, 'currentSeason'), season + 1);
       for (const p of ['raceResults', 'raceStatus', 'currentRaceNumber', 'standings']) await set(ref(db, p), null);
