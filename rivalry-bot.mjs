@@ -26,6 +26,14 @@ export function plan({ RR, RS, TA, roster, cal, RV, season, news, reqs }, now = 
   const say = (key, text) => { if (!news[key]) texts.push([key, text]); };
   const startText = rv => `🥊 Neue Rivalität (${LABEL[rv.type] || 'Rivalität'}): ${nm(rv.a)} gegen ${nm(rv.b)}. Drei Rennen, bis zu vier Punkte pro Wochenende.`;
 
+  // 0. Ersetzte/ausgeschiedene Fahrer (im Admin "Keine Rivalitäten" angehakt oder nicht mehr im Roster): ihre laufenden und wartenden
+  //    Rivalitäten ohne Wertung beenden (Ansehen ändert sich dabei nicht). Schon entschiedene Duelle werden normal abgerechnet.
+  const out = n => { const d = roster.find(x => x.name === n); return !d || !!d.noRivalry; };
+  for (const [id, rv] of Object.entries(R)) {
+    if (!['active', 'queued'].includes(rv.status) || rv.result || RL.evalRv(ctx, rv).done) continue;
+    if (out(rv.a) || out(rv.b)) R[id] = writes[id] = { ...rv, status: 'ended' };
+  }
+
   // 1. abrechnen, nachrücken, verfallen
   for (const [id, rv] of Object.entries(RL.planSettle(ctx, R))) {
     const before = R[id].status; R[id] = writes[id] = rv;
@@ -42,8 +50,7 @@ export function plan({ RR, RS, TA, roster, cal, RV, season, news, reqs }, now = 
   // 1b. Anfragen der Presse (Gerücht mit genannter Quelle + hitzige Antwort) -> Rivalität vom Typ "press", Regeln wie im Admin (rvAdd)
   for (const [rid, q] of Object.entries(reqs || {}).sort((x, y) => (x[1].ts || 0) - (y[1].ts || 0))) {
     if (!q || q.status) continue;
-    const known = n => roster.some(d => d.name === n);
-    if (!known(q.a) || !known(q.b) || q.a === q.b) { reqWrites[rid] = { ...q, status: 'skipped', note: 'unbekannter Fahrer' }; continue; }
+    if (out(q.a) || out(q.b) || q.a === q.b) { reqWrites[rid] = { ...q, status: 'skipped', note: 'unbekannter Fahrer' }; continue; }
     const dup = Object.values(R).some(r => ((r.a === q.a && r.b === q.b) || (r.a === q.b && r.b === q.a)) && ['active', 'queued'].includes(r.status));
     if (dup) { reqWrites[rid] = { ...q, status: 'skipped', note: 'läuft bereits' }; continue; }
     const queued = RL.activeCount(ctx, R, q.a) >= 3 || RL.activeCount(ctx, R, q.b) >= 3;
@@ -60,9 +67,10 @@ export function plan({ RR, RS, TA, roster, cal, RV, season, news, reqs }, now = 
   if (open) {
     const pts = {}; roster.forEach(d => pts[d.name] = 0);
     Object.values(RR).forEach(r => Object.entries(r || {}).forEach(([n, e]) => { const p = RL.pp(e); if (F1[p] && n in pts) pts[n] += F1[p]; }));
-    const table = [...roster].sort((a, b) => pts[b.name] - pts[a.name] || a.name.localeCompare(b.name));
+    const usable = roster.filter(d => !d.noRivalry); // ersetzte Fahrer werden übersprungen
+    const table = [...usable].sort((a, b) => pts[b.name] - pts[a.name] || a.name.localeCompare(b.name));
     const doneCount = races.filter(r => r.done).length, cands = [], human = n => !!(roster.find(x => x.name === n) || {}).human;
-    const byTeam = {}; roster.forEach(d => (byTeam[d.team] = byTeam[d.team] || []).push(d));
+    const byTeam = {}; usable.forEach(d => (byTeam[d.team] = byTeam[d.team] || []).push(d));
     Object.values(byTeam).forEach(m => { for (let i = 0; i < m.length; i++) for (let j = i + 1; j < m.length; j++) cands.push([m[i].name, m[j].name, 'team']); });
     if (doneCount >= 1) {
       for (let i = 0; i < table.length - 1; i++) {
