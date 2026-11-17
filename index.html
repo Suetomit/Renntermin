@@ -484,16 +484,18 @@ function rivHtml() {
   const byDrv = all.filter(({ rv }) => !rf.d || rv.a === rf.d || rv.b === rf.d);
   const items = byDrv.filter(({ rv, cat }) => (rf.st === 'all' || cat === rf.st) && (rf.ty === 'all' || rv.type === rf.ty));
 
-  const chip = (k, v, l) => `<button class="${rf[k] === v ? 'on' : ''}" data-a="rf" data-k="${k}" data-v="${v}">${l}</button>`;
   const cnt = s => byDrv.filter(x => x.cat === s).length;
   const opt = d => `<option value="${d.name}" ${rf.d === d.name ? 'selected' : ''}>${nm(d)}</option>`;
-  const filter = `<div class="card"><h2>Filter</h2>
-    <select id="rfD" style="width:100%;margin-bottom:10px"><option value="">Alle Fahrer</option>
+  const sopt = (v, l, cur) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${l}</option>`;
+  const sel = 'style="min-width:0;width:100%;padding:6px;font-size:.8rem"';
+  const active = rf.d || rf.st !== 'all' || rf.ty !== 'all';
+  const filter = `<div style="display:grid;grid-template-columns:1.2fr 1fr 1fr${active ? ' auto' : ''};gap:6px;align-items:center;margin-bottom:12px">
+    <select id="rfD" ${sel} aria-label="Fahrer"><option value="">Alle Fahrer</option>
       <optgroup label="Liga">${roster.filter(d => d.human).map(opt).join('')}</optgroup>
       <optgroup label="KI-Fahrer">${roster.filter(d => !d.human).map(opt).join('')}</optgroup></select>
-    <div class="seg">${chip('st', 'all', `Alle (${byDrv.length})`)}${Object.entries(RCAT).map(([k, l]) => chip('st', k, `${l} (${cnt(k)})`)).join('')}</div>
-    <div class="seg" style="margin-bottom:0">${chip('ty', 'all', 'Alle Typen')}${Object.entries(RTYPE).map(([k, l]) => chip('ty', k, l)).join('')}</div>
-    <div class="sub" style="margin-top:8px">${items.length} von ${all.length} Rivalitäten${rf.d || rf.st !== 'all' || rf.ty !== 'all' ? ` <button class="mini" data-a="rfr">Filter zurücksetzen</button>` : ''}</div></div>`;
+    <select id="rfS" ${sel} aria-label="Status">${sopt('all', `Alle (${byDrv.length})`, rf.st)}${Object.entries(RCAT).map(([k, l]) => sopt(k, `${l} (${cnt(k)})`, rf.st)).join('')}</select>
+    <select id="rfT" ${sel} aria-label="Typ">${sopt('all', 'Alle Typen', rf.ty)}${Object.entries(RTYPE).map(([k, l]) => sopt(k, l, rf.ty)).join('')}</select>
+    ${active ? '<button class="mini" data-a="rfr" aria-label="Filter zurücksetzen">✕</button>' : ''}</div>`;
 
   const side = (n, align, win, lose) => {
     const d = full(n), p = pic(d);
@@ -666,6 +668,8 @@ document.addEventListener('change', e => {
   if (t.id === 'rvA') { rvA = t.value; render(); }
   if (t.id === 'rvB') { rvB = t.value; render(); }
   if (t.id === 'rfD') { rf.d = t.value; render(); }
+  if (t.id === 'rfS') { rf.st = t.value; render(); }
+  if (t.id === 'rfT') { rf.ty = t.value; render(); }
 });
 
 setInterval(() => {
