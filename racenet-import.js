@@ -26,6 +26,12 @@ const parse = txt => {
   return L.slice(1).map(l => { const c = l.split(','), o = {}; H.forEach((h, i) => o[h] = (c[i] || '').trim()); return o; });
 };
 
+// Zuordnung Racenet-Name -> Fahrer: erst das Feld "Racenet-Name" (racenetName), sonst wie auf der Website (Ingame-Name, KI-Name).
+const findDriver = (roster, n, RL) => {
+  const c = String(n || '').trim().toLowerCase();
+  return roster.find(d => d.racenetName && String(d.racenetName).trim().toLowerCase() === c) || RL.byIng(roster, n);
+};
+
 // Reine Auswertung eines Rennens (ohne Datenbankzugriff, damit sie sich testen lässt).
 export function analyseBatch(b, C, RL) {
   const A = { laps: {}, pens: {}, humans: [], dnfs: [], unknown: [], zero: [], noQuali: [], fastest: null, warn: [], diffs: [], results: {}, changes: 0 };
@@ -40,14 +46,15 @@ export function analyseBatch(b, C, RL) {
   if (lastFin > firstDnf) A.warn.push('DNF-Erkennung unsicher (Platzierungen und Rennzeiten passen nicht zusammen). Bitte Ergebnisse prüfen.');
   let best = null, flag = null; const seen = [];
   rows.forEach(r => {
-    const d = RL.byIng(C.roster, r.PlayerName), t = lap3(r.FastestLap), ai = r.IsAi === 'True';
+    const d = findDriver(C.roster, r.PlayerName, RL), t = lap3(r.FastestLap), ai = r.IsAi === 'True';
     if (!d) { A.unknown.push(r.PlayerName); return; }
-    const key = safe((ai ? '_KI_ ' : '') + r.PlayerName); // gleiche Schreibweise wie das Telemetrie-Skript
+    const nm = ai ? r.PlayerName : (d.racenet || r.PlayerName); // Menschen unter ihrem Ingame-Namen speichern, damit Website und Rivalität sie wie bisher finden
+    const key = safe((ai ? '_KI_ ' : '') + nm); // gleiche Schreibweise wie das Telemetrie-Skript
     A.pens[key] = +r.Penalty > 0 ? 1 : 0;
     const dnf = isDnf(r), q = ql[r.PlayerName], e = cur[d.name] || {};
     if (t > 0) {
       A.laps[key] = t;
-      const rec = { t, d, name: ai ? '[KI] ' + r.PlayerName : r.PlayerName };
+      const rec = { t, d, name: ai ? '[KI] ' + nm : nm };
       if (!best || t < best.t) best = rec;
       if (r.HasFastestLap === 'True') flag = rec;
       if (d.human) A.humans.push(`${d.human} ${fmtLap(t)}`);
@@ -97,9 +104,10 @@ export function setupRacenet({ db, ref, set, RL, ctx, render }) {
   async function load(files) {
     const g = {};
     for (const f of files) {
-      const m = /event_(\d+)/.exec(f.name), id = m ? m[1] : f.name, isQ = /qualifying/i.test(f.name);
-      const rows = parse(await f.text());
+      const m = /event_(\d+)/.exec(f.name), rows = parse(await f.text());
       if (!rows.length) continue;
+      // Qualifying/Ergebnis an den Spalten erkennen (nicht am Dateinamen), Gruppierung per Event-Nr. oder Streckenname
+      const isQ = 'QualifyingTime' in rows[0], id = m ? m[1] : (rows[0].TrackName || f.name);
       const o = g[id] = g[id] || { id, track: '', res: [], qual: [] };
       o.track = rows[0].TrackName || o.track;
       if (isQ) o.qual = rows.filter(r => r.PlayerName);
@@ -114,6 +122,7 @@ export function setupRacenet({ db, ref, set, RL, ctx, render }) {
   async function importAll() {
     const todo = B.filter(b => b.num);
     if (!todo.length || busy) return;
+    if (todo.some(b => an(b).unknown.length)) { note = 'Import gestoppt: Im Fahrer-Tab fehlen Racenet-Namen (siehe rote Hinweise). Sonst wäre die schnellste Runde falsch.'; render(); return; }
     const nCh = todo.reduce((t, b) => t + an(b).changes, 0);
     if (!confirm(`${todo.length} Rennen importieren?\nBestzeiten und schnellste Runde im Archiv werden ersetzt.` + (applyRes ? `\n${nCh} Einträge in den Rennergebnissen werden geändert (Platz, Quali, ⚡).` : ''))) return;
     busy = true; note = ''; render();
@@ -153,7 +162,7 @@ export function setupRacenet({ db, ref, set, RL, ctx, render }) {
       ${A.dnfs.length ? `<div class="sub" style="margin-top:6px">DNF laut Racenet: ${esc(A.dnfs.join(', '))}</div>` : ''}
       ${A.noQuali.length ? bad('Keine Quali-Zeit bei Racenet (Abstand bleibt wie eingetragen): ' + esc(A.noQuali.join(', '))) : ''}
       ${A.zero.length ? bad('Ohne Zeit (nicht importiert): ' + esc(A.zero.join(', '))) : ''}
-      ${A.unknown.length ? bad('Nicht im Fahrer-Tab gefunden (Racenet-Name ergänzen): ' + esc(A.unknown.join(', '))) : ''}
+      ${A.unknown.length ? bad('Nicht im Fahrer-Tab gefunden (dort das Feld Racenet-Name ausfüllen): ' + esc(A.unknown.join(', '))) : ''}
       ${A.warn.map(bad).join('')}
       ${A.diffs.length ? `<div style="margin-top:8px"><b style="color:var(--gold)">${A.changes} Einträge weichen von deinen Ergebnissen ab:</b>${A.diffs.map(x => `<div class="sub">${esc(x)}</div>`).join('')}</div>` : ''}</div>`;
   }
