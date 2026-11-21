@@ -104,7 +104,7 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
   <div class="st" id="st">Verbinde…</div>
 </header>
 <main>
-  <section class="view on" id="v-home"></section>
+  <section class="view on" id="v-home"><div class="card" id="gardenModule"></div><div id="homeMain"></div></section>
   <section class="view" id="v-termin"></section>
   <section class="view" id="v-wertung"></section>
   <section class="view" id="v-stats"></section>
@@ -404,7 +404,7 @@ function renderHome() {
   const ld = rs.filter(isDone).pop();
   const pod = ld ? `<img class="pod" src="podium-${ld.code.toLowerCase()}.gif" alt="Podium ${ld.country}" data-c="${ld.code.toLowerCase()}" onerror="const e=['jpg','jpeg','png','webp'],i=+(this.dataset.i||0);if(i<e.length){this.dataset.i=i+1;this.src='podium-'+this.dataset.c+'.'+e[i]}else this.remove()">` : '';
   const top = standings().slice(0, 5);
-  document.getElementById('v-home').innerHTML = hero + pod + `
+  document.getElementById('homeMain').innerHTML = hero + pod + `
     <div class="card"><h2>Neueste News</h2><ul class="news">${newsList().map(x => `<li>${x}</li>`).join('')}</ul></div>
     <div class="card"><h2>Fahrerwertung, Top 5</h2>
       ${top.map((d, i) => `<div class="row"><div class="pos">${i + 1}</div><div class="bar" style="background:${TC[d.team] || '#888'}"></div>${av(d)}
@@ -702,5 +702,6 @@ on('raceCalendarCodes', v => { const l = toArr(v); cal = l.length ? l : null; })
 render();
 </script>
 <script type="module" src="press-module.js"></script>
+<script type="module" src="garden-module.js"></script>
 </body>
 </html>
