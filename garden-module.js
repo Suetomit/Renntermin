@@ -26,6 +26,67 @@ const esc = v => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').re
 const readLogin = () => { try { return JSON.parse(localStorage.getItem('pressLogin') || 'null'); } catch (e) { return null; } };
 const seenGossip = () => { try { return localStorage.getItem('gardenGossipSeen'); } catch (e) { return null; } };
 
+
+// ---------- Sammelkarten: Konstanten und Stil ----------
+const TC = { 'Ferrari': '#e8002d', 'McLaren': '#ff8000', 'Red Bull': '#3671c6', 'Mercedes-AMG Petronas': '#27f4d2', 'Aston Martin': '#358c75', 'Alpine': '#ff87bc', 'Williams': '#64c4ff', 'Visa Cash App RB': '#6692ff', 'Kick Sauber': '#52e252', 'Haas': '#b6babd' };
+const HELM = { 'McLaren': 'mclaren', 'Mercedes-AMG Petronas': 'mercedes', 'Ferrari': 'ferrari', 'Red Bull': 'redbull', 'Aston Martin': 'astonmartin', 'Williams': 'williams', 'Alpine': 'alpine', 'Haas': 'haas', 'Visa Cash App RB': 'racingbulls', 'Kick Sauber': 'kicksauber' };
+const TRACKS = ('AUS|au|Australien|Melbourne;CHN|cn|China|Shanghai;JPN|jp|Japan|Suzuka;BHR|bh|Bahrain|Sachir;SAU|sa|Saudi-Arabien|Dschidda;MIA|us|USA|Miami;IMO|it|Emilia-Romagna|Imola;MCO|mc|Monaco|Monte Carlo;ESP|es|Spanien|Barcelona;CAN|ca|Kanada|Montreal;AUT|at|Österreich|Spielberg;GBR|gb|Großbritannien|Silverstone;BEL|be|Belgien|Spa-Francorchamps;HUN|hu|Ungarn|Hungaroring;NLD|nl|Niederlande|Zandvoort;ITA|it|Italien|Monza;AZE|az|Aserbaidschan|Baku;SGP|sg|Singapur|Singapur;USA|us|USA|Austin;MEX|mx|Mexiko|Mexiko-Stadt;BRA|br|Brasilien|São Paulo;VGS|us|USA|Las Vegas;QAT|qa|Katar|Lusail;UAE|ae|Ver. Arab. Emirate|Abu Dhabi')
+  .split(';').map(x => { const [code, cc, country, city] = x.split('|'); return { code, cc, country, city }; });
+const TIER_NAME = { B: 'Bronze', S: 'Silber', G: 'Gold', X: 'Spezial' };
+const STARS = { B: '★', S: '★★', G: '★★★' };
+const STAT_LABELS = [['tmp', 'TMP', 'Tempo'], ['pac', 'PAC', 'Rennpace'], ['con', 'KON', 'Konstanz'], ['ang', 'ANG', 'Angriff'], ['rel', 'ZUV', 'Zuverlässigkeit']];
+const PACK_NAME = { bronze: 'Bronze-Pack', silber: 'Silber-Pack', gold: 'Gold-Pack', spezial: 'Spezial-Pack' };
+const PACK_COLOR = { bronze: 'linear-gradient(135deg,#d89a63,#8a5330)', silber: 'linear-gradient(135deg,#eef1f5,#98a2b0)', gold: 'linear-gradient(135deg,#ffe58a,#c7961c)', spezial: 'linear-gradient(135deg,#27f4d2,#8a5cff 55%,#ff5fd0)' };
+const safe = k => String(k).replace(/[.#$\[\]\/]/g, '_');
+const fmtLap = sec => `${Math.floor(sec / 60)}:${(sec % 60).toFixed(3).padStart(6, '0')}`;
+const pAt = (P, tier) => 1 - (1 - P.p.slice(['B', 'S', 'G', 'X'].indexOf(tier)).reduce((a, b) => a + b, 0)) ** P.n;
+const pct = x => (x < 0.1 ? (x * 100).toFixed(1) : String(Math.round(x * 100))).replace('.', ',') + ' %';
+
+if (!document.getElementById('gc-style')) {
+  const st = document.createElement('style'); st.id = 'gc-style';
+  st.textContent = `
+.gc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.gc-wrap{container-type:inline-size;position:relative;cursor:pointer}
+.gc{position:relative;aspect-ratio:5/7;border-radius:9% / 6.5%;padding:6cqw 6cqw 5cqw 8cqw;display:flex;flex-direction:column;font-size:11px;font-size:7.4cqw;color:#1a1400;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.5);user-select:none;box-sizing:border-box}
+.gc-B{background:linear-gradient(160deg,#d89a63,#8a5330)}
+.gc-S{background:linear-gradient(160deg,#eef1f5,#98a2b0)}
+.gc-G{background:linear-gradient(160deg,#ffe58a,#c7961c)}
+.gc-X{background:linear-gradient(135deg,#27f4d2,#8a5cff 55%,#ff5fd0);color:#0b0620}
+.gc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:4%}
+.gc-ges{font:800 3em var(--hd);line-height:.9}
+.gc-kind{font-size:.62em;font-weight:800;letter-spacing:.04em;text-align:right;opacity:.8;max-width:62%;line-height:1.1}
+.gc-art{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;margin:3% 0}
+.gc-art img{max-width:100%;max-height:100%;object-fit:contain}
+.gc-emoji{font-size:3.2em}
+.gc-name{font-weight:800;font-size:1.1em;text-align:center;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gc-sub{font-size:.66em;text-align:center;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3%}
+.gc-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:1%;font-size:.58em;text-align:center;font-weight:700;border-top:1px solid rgba(0,0,0,.25);padding-top:3%}
+.gc-stats b{display:block;font-size:1.55em;font-family:var(--hd)}
+.gc-bar{position:absolute;left:0;top:0;bottom:0;width:3.5%}
+.gc-locked{filter:grayscale(1) brightness(.32)}
+.gc-lockq{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:800 4em var(--hd);color:rgba(255,255,255,.55)}
+.gc-cnt,.gc-new{position:absolute;top:4px;z-index:2;border-radius:10px;padding:1px 6px;font:800 11px var(--bd)}
+.gc-cnt{right:4px;background:#e10600;color:#fff}
+.gc-new{left:4px;background:#ffd23f;color:#1a1400}
+.gc-flip{container-type:inline-size;perspective:900px;cursor:pointer}
+.gc-flip-in{position:relative;aspect-ratio:5/7;transform-style:preserve-3d;transition:transform .7s}
+.gc-flip.open .gc-flip-in{transform:rotateY(180deg)}
+.gc-cover,.gc-face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.gc-face{transform:rotateY(180deg)}
+.gc-cover{border-radius:9% / 6.5%;background:linear-gradient(160deg,#1f3a2b,#0e1a14);border:2px solid #ffd23f;display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:36px;font-size:16cqw;color:#ffd23f;font-weight:800;text-align:center}
+.gc-cover small{font-size:.28em;letter-spacing:.08em;margin-top:6%}
+.gc-flip.open.t-G .gc{box-shadow:0 0 22px 6px rgba(255,210,63,.75)}
+.gc-flip.open.t-X .gc{box-shadow:0 0 26px 8px rgba(138,92,255,.85)}
+#gardenOverlay{position:fixed;inset:0;z-index:60;background:rgba(5,10,8,.95);display:none;overflow:auto;padding:16px}
+#gardenOverlay.on{display:block}
+.gc-pack{border-radius:12px;padding:12px;margin-bottom:10px;color:#1a1400;display:flex;gap:12px;align-items:center}
+.gc-pack.x{color:#0b0620}
+.gc-bars div{display:flex;align-items:center;gap:8px;font-size:.78rem;margin-top:5px}
+.gc-bars i{flex:1;height:6px;background:rgba(255,255,255,.12);border-radius:3px;overflow:hidden}
+.gc-bars i u{display:block;height:100%;background:var(--y)}`;
+  document.head.appendChild(st);
+}
+
 const root = document.getElementById('gardenModule');
 if (root) init();
 
@@ -40,9 +101,9 @@ function init() {
   const db = getDatabase(app);
 
   let DRIVERS = ['Timo', 'Pascale', 'Niklas', 'Tim', 'Marcel', 'Yannis', 'Eric', 'Philipp', 'Vivien', 'Cedric'];
-  const S = { tab: 'garden', login: readLogin(), garden: {}, daily: null, pending: '', msg: '', info: '' };
+  const S = { tab: 'garden', login: readLogin(), garden: {}, daily: null, pending: '', msg: '', info: '', defs: null, roster: [], cal: [], TR: {}, cardsTab: 'shop', album: { kind: 'driver', tier: 'all' } };
   const drafts = {};
-  let dailyDate = today(), dailyUnsub = null, dailyLoaded = false, quizInit = '';
+  let dailyDate = today(), dailyUnsub = null, dailyLoaded = false, quizInit = '', defsLoaded = false, defsInit = '';
 
   // ---------- Firebase ----------
   onValue(ref(db, 'press/garden'), s => { S.garden = s.val() || {}; render(); });
@@ -50,8 +111,12 @@ function init() {
     const r = s.val(), list = r ? (Array.isArray(r) ? r : Object.values(r)) : [];
     const names = list.filter(d => d && d.human).map(d => d.human);
     if (names.length) DRIVERS = names;
+    S.roster = list.filter(d => d && d.name);
     render();
   });
+  onValue(ref(db, 'press/cardDefs'), s => { S.defs = s.val(); defsLoaded = true; render(); });
+  onValue(ref(db, 'raceCalendarCodes'), s => { const r = s.val(); S.cal = r ? (Array.isArray(r) ? r : Object.values(r)).filter(Boolean) : []; render(); });
+  onValue(ref(db, 'trackRecords'), s => { S.TR = s.val() || {}; render(); });
   function watchDaily() {
     if (dailyUnsub) dailyUnsub();
     dailyDate = today();
@@ -178,18 +243,133 @@ function init() {
       garden: m && !m.done,
       quiz: m && !!(S.daily && S.daily.quiz) && Object.keys(m.quiz).length < Object.values(S.daily.quiz.items || {}).length,
       gossip: !!(S.daily && S.daily.gossip) && seenGossip() !== dailyDate && S.tab !== 'gossip',
+      cards: m && m.points >= ((S.defs && S.defs.config) ? Math.min(...Object.values(S.defs.config.packs).map(x => x.price)) : 100) && S.tab !== 'cards',
     };
-    const tabs = [['garden', '🥒 Garten'], ['quiz', '🧠 Quiz'], ['gossip', '🗞️ Klatsch'], ['liga', '👥 Liga']];
-    const body = { garden: gardenHtml, quiz: quizHtml, gossip: gossipHtml, liga: ligaHtml }[S.tab]();
+    const tabs = [['garden', '🥒 Garten'], ['quiz', '🧠 Quiz'], ['gossip', '🗞️ Klatsch'], ['cards', '🃏 Karten'], ['liga', '👥 Liga']];
+    const body = { garden: gardenHtml, quiz: quizHtml, gossip: gossipHtml, cards: cardsHtml, liga: ligaHtml }[S.tab]();
     root.innerHTML = `<div class="card-title"><span>🥒 Gurkengarten</span>${m ? `<span style="font-size:0.85rem;color:var(--y);">${m.points} Punkte</span>` : ''}</div>
       <div class="tabs" style="margin-bottom:12px;flex-wrap:nowrap;overflow-x:auto;">${tabs.map(([k, l]) =>
         `<button class="tab-btn ${S.tab === k ? 'active' : ''}" data-act="tab" data-tab="${k}">${l}${dot[k] ? ' <span style="color:#e10600;" aria-label="neu">●</span>' : ''}</button>`).join('')}</div>
       ${S.msg ? `<div style="color:#ff5555;font-size:0.8rem;margin-bottom:8px;">${esc(S.msg)}</div>` : ''}${S.info ? `<div style="color:#27f4d2;font-size:0.8rem;margin-bottom:8px;">${esc(S.info)}</div>` : ''}${body}`;
     if (S.tab === 'quiz' && S.login && dailyLoaded && !(S.daily && S.daily.quiz) && quizInit !== dailyDate && !S.pending) { quizInit = dailyDate; setTimeout(() => api('quiz', {}), 0); }
+    if (S.tab === 'cards' && S.login && defsLoaded && !(S.defs && S.defs.config) && defsInit !== dailyDate && !S.pending) { defsInit = dailyDate; setTimeout(() => api('buy', { prepare: true }), 0); }
     if (focus) {
       const el = document.getElementById(focus.id);
       if (el) { el.focus(); try { el.setSelectionRange(focus.start, focus.end); } catch (e) { /* z.B. <select> */ } }
     }
+  }
+
+  // ---------- Sammelkarten ----------
+  const ov = document.createElement('div'); ov.id = 'gardenOverlay'; document.body.appendChild(ov);
+  const shortName = d => d.human || String(d.name).split(' ').slice(-1)[0];
+  const helmetOf = team => (HELM[team] ? `helmet_${HELM[team]}.png` : '');
+  const imgOr = (src, emoji) => (src ? `<img src="${esc(src)}" alt="" onerror="this.remove()">` : `<span class="gc-emoji">${emoji}</span>`);
+  const teamsList = () => [...new Set(S.roster.map(d => d.team).filter(Boolean))];
+  const trackCodes = () => (S.cal.length ? S.cal : TRACKS.map(t => t.code)).filter(c => TRACKS.some(t => t.code === c));
+  const poolKeys = (kind, tiers = ['B', 'S', 'G']) => {
+    if (kind === 'driver') return S.roster.flatMap(d => tiers.map(t => `driver:${safe(d.name)}:${t}`));
+    if (kind === 'team') return teamsList().flatMap(n => tiers.map(t => `team:${safe(n)}:${t}`));
+    if (kind === 'track') return trackCodes().flatMap(c => tiers.map(t => `track:${c}:${t}`));
+    const sp = (S.defs && S.defs.specials) || {};
+    return Object.values(sp).sort((a, b) => (b.season - a.season) || (b.race - a.race)).map(x => `special:${x.id}`);
+  };
+
+  function resolveCard(key) {
+    const p = key.split(':'), kind = p[0], tier = kind === 'special' ? 'X' : p[p.length - 1];
+    const id = kind === 'special' ? p.slice(1).join(':') : p.slice(1, -1).join(':');
+    const defs = S.defs || {}, bonus = (defs.config && defs.config.bonus) || { B: 0, S: 3, G: 6 };
+    const neutral = { tmp: 60, pac: 60, con: 60, ang: 60, rel: 60, ges: 60 };
+    if (kind === 'driver') {
+      const d = S.roster.find(x => safe(x.name) === id) || { name: id, team: '' }, st = (defs.stats || {})[id] || neutral, b = bonus[tier] || 0;
+      return { tier, kind: 'FAHRER', big: Math.min(99, st.ges + b), name: shortName(d), sub: d.team + (d.human ? '' : ' · KI'), color: TC[d.team],
+        art: imgOr(d.photo || helmetOf(d.team), '🏎️'), stats: STAT_LABELS.map(([k, l, f]) => [l, Math.min(99, st[k] + b), f]) };
+    }
+    if (kind === 'team') {
+      const name = teamsList().find(t => safe(t) === id) || id, ds = S.roster.filter(d => d.team === name);
+      return { tier, kind: 'TEAM', big: STARS[tier], small: true, name, sub: ds.map(shortName).slice(0, 2).join(' & '), color: TC[name], art: imgOr(helmetOf(name), '🏁'), extra: `${ds.length} Fahrer` };
+    }
+    if (kind === 'track') {
+      const t = TRACKS.find(x => x.code === id) || { cc: 'un', country: id, city: id }, rec = S.TR[id];
+      return { tier, kind: 'STRECKE', big: STARS[tier], small: true, name: t.city, sub: t.country,
+        art: `<img src="https://flagcdn.com/w160/${t.cc}.png" alt="" style="border-radius:6%;max-height:62%" onerror="this.remove()">`,
+        extra: rec ? `Rekord ${fmtLap(rec.time)} · ${rec.driver}` : 'noch kein Rekord' };
+    }
+    const sp = (defs.specials || {})[id];
+    if (!sp) return { tier: 'X', kind: 'SPEZIAL', big: '?', name: 'Spezialkarte', sub: '', art: '', extra: '' };
+    const d = S.roster.find(x => x.name === sp.driver) || { name: sp.driver, team: '' };
+    return { tier: 'X', kind: sp.title.toUpperCase(), big: sp.ges, name: shortName(d), sub: d.team, color: TC[d.team], art: imgOr(d.photo || helmetOf(d.team), '🏎️'),
+      stats: STAT_LABELS.map(([k, l, f]) => [l, sp.stats[k], f]) };
+  }
+  const cardBody = (key, locked) => {
+    const c = resolveCard(key);
+    return `<div class="gc gc-${c.tier}${locked ? ' gc-locked' : ''}">${c.color ? `<div class="gc-bar" style="background:${c.color}"></div>` : ''}
+      <div class="gc-top"><div class="gc-ges" ${c.small ? 'style="font-size:1.7em;margin-top:.15em"' : ''}>${esc(c.big)}</div><div class="gc-kind">${esc(c.kind)}</div></div>
+      <div class="gc-art">${c.art}</div><div class="gc-name">${esc(c.name)}</div><div class="gc-sub">${esc(c.sub)}</div>
+      ${c.stats ? `<div class="gc-stats">${c.stats.map(([l, v]) => `<span>${l}<b>${v}</b></span>`).join('')}</div>` : `<div class="gc-sub" style="margin:2% 0 0">${esc(c.extra || '')}</div>`}
+      ${locked ? '<div class="gc-lockq">?</div>' : ''}</div>`;
+  };
+  const cardHtml = (key, o = {}) => `<div class="gc-wrap">${cardBody(key, o.locked)}${o.count > 1 ? `<span class="gc-cnt">×${o.count}</span>` : ''}${o.isNew ? '<span class="gc-new">NEU</span>' : ''}</div>`;
+
+  function openReveal(keys, isNew, allOpen) {
+    ov.innerHTML = `<div style="max-width:560px;margin:0 auto;"><h2 style="text-align:center;">Pack geöffnet 🎉</h2>
+      <div style="font-size:.8rem;color:var(--m);text-align:center;margin-bottom:12px;">Tippe die Karten an, um sie aufzudecken.</div>
+      <div class="gc-grid">${keys.map((k, i) => `<div class="gc-wrap" style="position:relative"><div class="gc-flip t-${k.startsWith('special:') ? 'X' : k.split(':').pop()}${allOpen ? ' open' : ''}"><div class="gc-flip-in">
+        <div class="gc-cover">🥒<small>GURKENSÖHNE CUP</small></div><div class="gc-face">${cardBody(k)}</div></div></div>${isNew && isNew[i] ? '<span class="gc-new">NEU</span>' : ''}</div>`).join('')}</div>
+      <button class="btn ghost" data-act="revealall">Alle aufdecken</button><button class="btn" data-act="close">Fertig</button></div>`;
+    ov.classList.add('on'); ov.scrollTop = 0;
+  }
+  function openDetail(key) {
+    const m = me(), n = (m.g.inv || {})[key] || 0, c = resolveCard(key), cfg = S.defs && S.defs.config, qs = cfg ? cfg.quicksell[c.tier] : 0;
+    ov.innerHTML = `<div style="max-width:320px;margin:10px auto 24px;">${cardHtml(key, { locked: !n, count: n })}
+      <div style="text-align:center;margin-top:12px;font-size:.9rem;">${n ? `Du besitzt <b>${n}×</b> ${TIER_NAME[c.tier]}-Karte` : 'Noch nicht in deiner Sammlung'}</div>
+      ${c.stats ? `<div class="gc-bars" style="margin-top:8px;">${c.stats.map(([l, v, f]) => `<div><span style="width:110px;">${f}</span><i><u style="width:${v}%"></u></i><b style="width:26px;text-align:right;">${v}</b></div>`).join('')}</div>` : ''}
+      ${n > 1 ? `<button class="btn ghost" data-act="melt" data-key="${esc(key)}" data-all="0" ${S.pending ? 'disabled' : ''}>1 Duplikat einschmelzen (+${qs})</button>${n > 2 ? `<button class="btn ghost" data-act="melt" data-key="${esc(key)}" data-all="1" ${S.pending ? 'disabled' : ''}>Alle ${n - 1} Duplikate einschmelzen (+${qs * (n - 1)})</button>` : ''}` : ''}
+      <button class="btn" data-act="close">Schließen</button></div>`;
+    ov.classList.add('on'); ov.scrollTop = 0;
+  }
+  const closeOv = () => { ov.classList.remove('on'); ov.innerHTML = ''; };
+  ov.addEventListener('click', e => {
+    const f = e.target.closest('.gc-flip'); if (f) { f.classList.add('open'); return; }
+    const t = e.target.closest('[data-act]'); if (t) act(t.dataset.act, t.dataset);
+  });
+
+  function shopHtml(m) {
+    const cfg = S.defs && S.defs.config;
+    if (!cfg) return '<div style="color:var(--m);font-size:0.85rem;">Der Shop wird gerade vorbereitet ...</div>';
+    const sp = Object.values(S.defs.specials || {}).filter(x => x.season === S.defs.season), maxR = Math.max(0, ...sp.map(x => x.race));
+    const active = sp.filter(x => x.race >= maxR - 2).sort((a, b) => b.race - a.race);
+    const inv = m.g.inv || {};
+    return Object.entries(cfg.packs).map(([k, P]) => {
+      const can = m.points >= P.price;
+      return `<div class="gc-pack${k === 'spezial' ? ' x' : ''}" style="background:${PACK_COLOR[k]}"><div style="flex:1;min-width:0;">
+          <div style="font:800 1.1rem var(--hd);">${PACK_NAME[k]}</div><div style="font-size:.78rem;">${P.n} Karten · ${P.price} Punkte</div>
+          <div style="font-size:.7rem;margin-top:4px;opacity:.85;">Mind. 1× Silber+ ${pct(pAt(P, 'S'))} · Gold+ ${pct(pAt(P, 'G'))} · Spezial ${pct(pAt(P, 'X'))}</div></div>
+        <button class="btn" style="margin:0;width:auto;padding:10px 16px;background:#0e1a14;color:var(--y);${can ? '' : 'opacity:.45;'}" data-act="buy" data-pack="${k}" ${can && !S.pending ? '' : 'disabled'}>${S.pending === 'buy' ? '...' : 'Kaufen'}</button></div>`;
+    }).join('') + (m.g.last ? '<button class="btn ghost" data-act="lastpack">Letztes Pack nochmal ansehen</button>' : '')
+      + `<div style="font-weight:700;margin:16px 0 6px;">Aktuell im Spezial-Pack</div>` + (active.length
+        ? `<div class="gc-grid">${active.slice(0, 9).map(x => `<div data-act="detail" data-key="special:${esc(x.id)}">${cardHtml('special:' + x.id, { locked: !inv['special:' + x.id], count: inv['special:' + x.id] })}</div>`).join('')}</div><div style="font-size:.72rem;color:var(--m);margin-top:6px;">Es gibt immer nur die Spezialkarten der letzten 3 Rennen.</div>`
+        : '<div style="color:var(--m);font-size:.85rem;">Sobald Rennergebnisse da sind, erscheinen hier die Sonderkarten (Sieger, Pole, schnellste Runde, In Form).</div>');
+  }
+
+  function albumHtml(m) {
+    const inv = m.g.inv || {}, A = S.album;
+    const kinds = [['driver', 'Fahrer'], ['team', 'Teams'], ['track', 'Strecken'], ['special', 'Spezial']];
+    const stat = kind => { const ks = poolKeys(kind); return [ks.filter(k => inv[k]).length, ks.length]; };
+    const allBase = ['driver', 'team', 'track'].map(stat), own = allBase.reduce((t, x) => t + x[0], 0), tot = allBase.reduce((t, x) => t + x[1], 0);
+    const tiers = A.kind === 'special' ? ['B', 'S', 'G'] : (A.tier === 'all' ? ['B', 'S', 'G'] : [A.tier]);
+    const keys = poolKeys(A.kind, tiers);
+    return `<div style="font-size:.8rem;margin-bottom:6px;">Sammlung: <b>${own}/${tot}</b> Basiskarten (${tot ? Math.round(100 * own / tot) : 0} %)</div>
+      <div style="height:6px;background:rgba(255,255,255,.12);border-radius:3px;overflow:hidden;margin-bottom:10px;"><div style="width:${tot ? 100 * own / tot : 0}%;height:100%;background:var(--y);"></div></div>
+      <div class="tabs" style="flex-wrap:nowrap;overflow-x:auto;margin-bottom:8px;">${kinds.map(([k, l]) => { const [o, t] = stat(k); return `<button class="tab-btn ${A.kind === k ? 'active' : ''}" data-act="album" data-kind="${k}">${l} ${o}/${t}</button>`; }).join('')}</div>
+      ${A.kind === 'special' ? '' : `<div class="tabs" style="flex-wrap:nowrap;overflow-x:auto;margin-bottom:10px;">${[['all', 'Alle'], ['B', 'Bronze'], ['S', 'Silber'], ['G', 'Gold']].map(([k, l]) => `<button class="tab-btn ${A.tier === k ? 'active' : ''}" data-act="album" data-tier="${k}">${l}</button>`).join('')}</div>`}
+      ${keys.length ? `<div class="gc-grid">${keys.map(k => `<div data-act="detail" data-key="${esc(k)}">${cardHtml(k, { locked: !inv[k], count: inv[k] })}</div>`).join('')}</div>` : '<div style="color:var(--m);font-size:.85rem;">Hier gibt es noch keine Karten.</div>'}`;
+  }
+
+  function cardsHtml() {
+    if (!S.login) return loginHtml();
+    const m = me();
+    return loginHtml() + `<div class="tabs" style="margin-bottom:10px;"><button class="tab-btn ${S.cardsTab === 'shop' ? 'active' : ''}" data-act="cardsTab" data-v="shop">🛒 Shop</button><button class="tab-btn ${S.cardsTab === 'album' ? 'active' : ''}" data-act="cardsTab" data-v="album">📖 Album</button></div>`
+      + (S.cardsTab === 'shop' ? shopHtml(m) : albumHtml(m));
   }
 
   // ---------- Events ----------
@@ -201,6 +381,12 @@ function init() {
   });
 
   async function act(a, data = {}) {
+    if (a === 'close') return closeOv();
+    if (a === 'revealall') { ov.querySelectorAll('.gc-flip').forEach((f, i) => setTimeout(() => f.classList.add('open'), i * 250)); return; }
+    if (a === 'cardsTab') { S.cardsTab = data.v; S.msg = ''; return render(); }
+    if (a === 'album') { if (data.kind) S.album.kind = data.kind; if (data.tier) S.album.tier = data.tier; return render(); }
+    if (a === 'detail') return openDetail(data.key);
+    if (a === 'lastpack') { const l = S.login && S.garden[S.login.name] && S.garden[S.login.name].last; if (l) openReveal(Object.values(l.keys), l.isNew && Object.values(l.isNew), true); return; }
     if (a === 'tab') { S.tab = data.tab; S.msg = ''; S.info = ''; return render(); }
     if (a === 'logout') { S.login = null; localStorage.removeItem('pressLogin'); return render(); }
     if (a === 'login') {
@@ -213,6 +399,12 @@ function init() {
     if (a === 'claim') {
       const j = await api('claim', {});
       if (j) { S.info = `+${j.gain} Gurkenpunkte${j.first ? `, Serie: ${j.streak} Tag${j.streak === 1 ? '' : 'e'}` : ''}`; render(); }
+    } else if (a === 'buy') {
+      const j = await api('buy', { pack: data.pack });
+      if (j) openReveal(j.keys, j.isNew);
+    } else if (a === 'melt') {
+      const j = await api('melt', { key: data.key, all: data.all === '1' });
+      if (j) { closeOv(); S.info = `+${j.gain} Gurkenpunkte durch Einschmelzen`; render(); }
     } else if (a === 'answer') {
       const it = S.daily && S.daily.quiz && Object.values(S.daily.quiz.items || {})[+data.i];
       if (!it || !it.opts) return;
