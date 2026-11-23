@@ -12,7 +12,7 @@ const WORKER_URL = 'https://laetti-press.der-alles-schecker.workers.dev';
 const STAGES = [['🌱', 'Keimling'], ['🌿', 'Spross'], ['🌼', 'Blüte'], ['🥒', 'Gurke'], ['🥒✨', 'Prachtgurke']];
 const STAGE_FROM = [0, 2, 4, 7, 14];
 const stageOf = s => STAGE_FROM.filter(t => s >= t).length - 1;
-const payFor = (stage, first) => (first ? 20 + 10 * stage : 10 + 5 * stage);
+const payFor = (stage, slot) => (slot === 'am' ? 20 + 10 * stage : 10 + 5 * stage);
 
 const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
 const hourNow = () => parseInt(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Berlin', hour: 'numeric', hourCycle: 'h23' }).format(new Date()), 10);
@@ -101,7 +101,7 @@ function init() {
   const db = getDatabase(app);
 
   let DRIVERS = ['Timo', 'Pascale', 'Niklas', 'Tim', 'Marcel', 'Yannis', 'Eric', 'Philipp', 'Vivien', 'Cedric'];
-  const S = { tab: 'garden', login: readLogin(), garden: {}, daily: null, pending: '', msg: '', info: '', defs: null, roster: [], cal: [], TR: {}, cardsTab: 'shop', album: { kind: 'driver', tier: 'all' } };
+  const S = { tab: 'garden', login: readLogin(), garden: {}, daily: null, pending: '', msg: '', info: '', defs: null, roster: [], cal: [], TR: {}, cardsTab: 'shop', album: { kind: 'driver', rarity: 'all', season: null } };
   const drafts = {};
   let dailyDate = today(), dailyUnsub = null, dailyLoaded = false, quizInit = '', defsLoaded = false, defsInit = '';
 
@@ -158,7 +158,7 @@ function init() {
     const missed = g.lastDay ? dayDiff(date, g.lastDay) - 1 : 0;
     const qz = g.quiz && g.quiz.date === date ? (g.quiz.r || {}) : {};
     return { g, date, slot, t, first, streak, missed, wilted: missed > 0 && first, nStreak, stage: stageOf(streak),
-      gain: payFor(stageOf(nStreak), first), done: !!t[slot], quiz: qz, points: g.points || 0 };
+      gain: payFor(stageOf(nStreak), slot), done: !!t[slot], quiz: qz, points: g.points || 0 };
   }
 
   // ---------- Views ----------
@@ -260,50 +260,43 @@ function init() {
   }
 
   // ---------- Sammelkarten ----------
+  const CARD_VER = 2;
   const ov = document.createElement('div'); ov.id = 'gardenOverlay'; document.body.appendChild(ov);
-  const shortName = d => d.human || String(d.name).split(' ').slice(-1)[0];
+  const invOf = g => (g && g.cardVer === CARD_VER ? g.inv || {} : {});          // Karten der alten Version zählen nicht mehr (werden erstattet)
+  const curSeason = () => (S.defs && S.defs.season) || 1;
+  const cardsMap = () => (S.defs && S.defs.cards) || {};
+  const infoOf = key => (key.startsWith('special:') ? ((S.defs && S.defs.specials) || {})[key.slice(8)] : cardsMap()[key]);
+  const seasonsList = () => [...new Set(Object.values(cardsMap()).map(c => c.season))].sort((a, b) => a - b);
   const helmetOf = team => (HELM[team] ? `helmet_${HELM[team]}.png` : '');
   const imgOr = (src, emoji) => (src ? `<img src="${esc(src)}" alt="" onerror="this.remove()">` : `<span class="gc-emoji">${emoji}</span>`);
-  const teamsList = () => [...new Set(S.roster.map(d => d.team).filter(Boolean))];
-  const trackCodes = () => (S.cal.length ? S.cal : TRACKS.map(t => t.code)).filter(c => TRACKS.some(t => t.code === c));
-  const poolKeys = (kind, tiers = ['B', 'S', 'G']) => {
-    if (kind === 'driver') return S.roster.flatMap(d => tiers.map(t => `driver:${safe(d.name)}:${t}`));
-    if (kind === 'team') return teamsList().flatMap(n => tiers.map(t => `team:${safe(n)}:${t}`));
-    if (kind === 'track') return trackCodes().flatMap(c => tiers.map(t => `track:${c}:${t}`));
-    const sp = (S.defs && S.defs.specials) || {};
-    return Object.values(sp).sort((a, b) => (b.season - a.season) || (b.race - a.race)).map(x => `special:${x.id}`);
+  const activeSpecials = () => {
+    const sp = Object.values((S.defs && S.defs.specials) || {}).filter(x => x.season === curSeason()), maxR = Math.max(0, ...sp.map(x => x.race));
+    return sp.filter(x => x.race >= maxR - 2).sort((a, b) => b.race - a.race || b.ges - a.ges);
+  };
+  const poolKeys = (kind, rarity, season) => {
+    if (kind === 'special') return Object.values((S.defs && S.defs.specials) || {}).filter(x => x.season === season).sort((a, b) => b.race - a.race || b.ges - a.ges).map(x => 'special:' + x.id);
+    return Object.values(cardsMap()).filter(c => c.season === season && c.kind === kind && (rarity === 'all' || c.rarity === rarity)).sort((a, b) => b.ges - a.ges).map(c => c.key);
   };
 
   function resolveCard(key) {
-    const p = key.split(':'), kind = p[0], tier = kind === 'special' ? 'X' : p[p.length - 1];
-    const id = kind === 'special' ? p.slice(1).join(':') : p.slice(1, -1).join(':');
-    const defs = S.defs || {}, bonus = (defs.config && defs.config.bonus) || { B: 0, S: 3, G: 6 };
-    const neutral = { tmp: 60, pac: 60, con: 60, ang: 60, rel: 60, ges: 60 };
-    if (kind === 'driver') {
-      const d = S.roster.find(x => safe(x.name) === id) || { name: id, team: '' }, st = (defs.stats || {})[id] || neutral, b = bonus[tier] || 0;
-      return { tier, kind: 'FAHRER', big: Math.min(99, st.ges + b), name: shortName(d), sub: d.team + (d.human ? '' : ' · KI'), color: TC[d.team],
-        art: imgOr(d.photo || helmetOf(d.team), '🏎️'), stats: STAT_LABELS.map(([k, l, f]) => [l, Math.min(99, st[k] + b), f]) };
+    const c = infoOf(key);
+    if (!c) return { tier: 'B', kind: 'KARTE', big: '?', name: 'Unbekannt', sub: '', art: '', extra: '' };
+    const stats = o => STAT_LABELS.map(([k, l, f]) => [l, o[k], f]);
+    if (c.kind === 'driver') return { tier: c.rarity, kind: 'FAHRER', big: c.ges, name: c.short, sub: (c.team || '') + (c.human ? '' : ' · KI'), color: TC[c.team], art: imgOr(c.photo || helmetOf(c.team), '🏎️'), stats: stats(c.stats), badges: c.badges };
+    if (c.kind === 'team') {
+      const ds = S.roster.filter(d => d.team === c.name);
+      return { tier: c.rarity, kind: 'TEAM', big: c.ges, name: c.name, sub: ds.map(d => d.human || String(d.name).split(' ').pop()).slice(0, 2).join(' & '), color: TC[c.name], art: imgOr(helmetOf(c.name), '🏁'), extra: `${ds.length} Fahrer in der Liga` };
     }
-    if (kind === 'team') {
-      const name = teamsList().find(t => safe(t) === id) || id, ds = S.roster.filter(d => d.team === name);
-      return { tier, kind: 'TEAM', big: STARS[tier], small: true, name, sub: ds.map(shortName).slice(0, 2).join(' & '), color: TC[name], art: imgOr(helmetOf(name), '🏁'), extra: `${ds.length} Fahrer` };
+    if (c.kind === 'track') {
+      const t = TRACKS.find(x => x.code === c.code) || { cc: 'un' }, rec = S.TR[c.code];
+      return { tier: c.rarity, kind: 'STRECKE', big: c.ges, name: c.name, sub: c.country, art: `<img src="https://flagcdn.com/w160/${t.cc}.png" alt="" style="border-radius:6%;max-height:62%" onerror="this.remove()">`, extra: rec ? `Rekord ${fmtLap(rec.time)} · ${rec.driver}` : 'noch kein Rekord' };
     }
-    if (kind === 'track') {
-      const t = TRACKS.find(x => x.code === id) || { cc: 'un', country: id, city: id }, rec = S.TR[id];
-      return { tier, kind: 'STRECKE', big: STARS[tier], small: true, name: t.city, sub: t.country,
-        art: `<img src="https://flagcdn.com/w160/${t.cc}.png" alt="" style="border-radius:6%;max-height:62%" onerror="this.remove()">`,
-        extra: rec ? `Rekord ${fmtLap(rec.time)} · ${rec.driver}` : 'noch kein Rekord' };
-    }
-    const sp = (defs.specials || {})[id];
-    if (!sp) return { tier: 'X', kind: 'SPEZIAL', big: '?', name: 'Spezialkarte', sub: '', art: '', extra: '' };
-    const d = S.roster.find(x => x.name === sp.driver) || { name: sp.driver, team: '' };
-    return { tier: 'X', kind: sp.title.toUpperCase(), big: sp.ges, name: shortName(d), sub: d.team, color: TC[d.team], art: imgOr(d.photo || helmetOf(d.team), '🏎️'),
-      stats: STAT_LABELS.map(([k, l, f]) => [l, sp.stats[k], f]) };
+    return { tier: 'X', kind: c.title.toUpperCase(), big: c.ges, name: c.short, sub: c.team, color: TC[c.team], art: imgOr(c.photo || helmetOf(c.team), '🏎️'), stats: stats(c.stats), badges: c.reasons };
   }
   const cardBody = (key, locked) => {
     const c = resolveCard(key);
     return `<div class="gc gc-${c.tier}${locked ? ' gc-locked' : ''}">${c.color ? `<div class="gc-bar" style="background:${c.color}"></div>` : ''}
-      <div class="gc-top"><div class="gc-ges" ${c.small ? 'style="font-size:1.7em;margin-top:.15em"' : ''}>${esc(c.big)}</div><div class="gc-kind">${esc(c.kind)}</div></div>
+      <div class="gc-top"><div class="gc-ges">${esc(c.big)}</div><div class="gc-kind">${esc(c.kind)}</div></div>
       <div class="gc-art">${c.art}</div><div class="gc-name">${esc(c.name)}</div><div class="gc-sub">${esc(c.sub)}</div>
       ${c.stats ? `<div class="gc-stats">${c.stats.map(([l, v]) => `<span>${l}<b>${v}</b></span>`).join('')}</div>` : `<div class="gc-sub" style="margin:2% 0 0">${esc(c.extra || '')}</div>`}
       ${locked ? '<div class="gc-lockq">?</div>' : ''}</div>`;
@@ -313,15 +306,18 @@ function init() {
   function openReveal(keys, isNew, allOpen) {
     ov.innerHTML = `<div style="max-width:560px;margin:0 auto;"><h2 style="text-align:center;">Pack geöffnet 🎉</h2>
       <div style="font-size:.8rem;color:var(--m);text-align:center;margin-bottom:12px;">Tippe die Karten an, um sie aufzudecken.</div>
-      <div class="gc-grid">${keys.map((k, i) => `<div class="gc-wrap" style="position:relative"><div class="gc-flip t-${k.startsWith('special:') ? 'X' : k.split(':').pop()}${allOpen ? ' open' : ''}"><div class="gc-flip-in">
+      <div class="gc-grid">${keys.map((k, i) => `<div class="gc-wrap" style="position:relative"><div class="gc-flip t-${resolveCard(k).tier}${allOpen ? ' open' : ''}"><div class="gc-flip-in">
         <div class="gc-cover">🥒<small>GURKENSÖHNE CUP</small></div><div class="gc-face">${cardBody(k)}</div></div></div>${isNew && isNew[i] ? '<span class="gc-new">NEU</span>' : ''}</div>`).join('')}</div>
       <button class="btn ghost" data-act="revealall">Alle aufdecken</button><button class="btn" data-act="close">Fertig</button></div>`;
     ov.classList.add('on'); ov.scrollTop = 0;
   }
   function openDetail(key) {
-    const m = me(), n = (m.g.inv || {})[key] || 0, c = resolveCard(key), cfg = S.defs && S.defs.config, qs = cfg ? cfg.quicksell[c.tier] : 0;
+    const m = me(), n = invOf(m.g)[key] || 0, c = resolveCard(key), info = infoOf(key) || {}, cfg = S.defs && S.defs.config;
+    const qs = cfg ? cfg.quicksell[c.tier] : 0, range = cfg && cfg.ranges && cfg.ranges[c.tier] ? ` (${cfg.ranges[c.tier][0]} bis ${cfg.ranges[c.tier][1]} GES)` : '';
     ov.innerHTML = `<div style="max-width:320px;margin:10px auto 24px;">${cardHtml(key, { locked: !n, count: n })}
-      <div style="text-align:center;margin-top:12px;font-size:.9rem;">${n ? `Du besitzt <b>${n}×</b> ${TIER_NAME[c.tier]}-Karte` : 'Noch nicht in deiner Sammlung'}</div>
+      <div style="text-align:center;margin-top:12px;font-size:.9rem;">${n ? `Du besitzt <b>${n}×</b>` : 'Noch nicht in deiner Sammlung'} · ${TIER_NAME[c.tier]}${esc(range)}${info.season ? ` · Saison ${info.season}` : ''}</div>
+      ${c.badges && c.badges.length ? `<div style="text-align:center;margin-top:6px;">${c.badges.map(b => `<span class="chip" style="font-size:.72rem;">${esc(b)}</span>`).join(' ')}</div>` : ''}
+      ${info.boost ? `<div style="text-align:center;font-size:.78rem;color:var(--m);margin-top:6px;">Inform-Karte: +${info.boost} auf alle Werte</div>` : ''}
       ${c.stats ? `<div class="gc-bars" style="margin-top:8px;">${c.stats.map(([l, v, f]) => `<div><span style="width:110px;">${f}</span><i><u style="width:${v}%"></u></i><b style="width:26px;text-align:right;">${v}</b></div>`).join('')}</div>` : ''}
       ${n > 1 ? `<button class="btn ghost" data-act="melt" data-key="${esc(key)}" data-all="0" ${S.pending ? 'disabled' : ''}>1 Duplikat einschmelzen (+${qs})</button>${n > 2 ? `<button class="btn ghost" data-act="melt" data-key="${esc(key)}" data-all="1" ${S.pending ? 'disabled' : ''}>Alle ${n - 1} Duplikate einschmelzen (+${qs * (n - 1)})</button>` : ''}` : ''}
       <button class="btn" data-act="close">Schließen</button></div>`;
@@ -336,39 +332,38 @@ function init() {
   function shopHtml(m) {
     const cfg = S.defs && S.defs.config;
     if (!cfg) return '<div style="color:var(--m);font-size:0.85rem;">Der Shop wird gerade vorbereitet ...</div>';
-    const sp = Object.values(S.defs.specials || {}).filter(x => x.season === S.defs.season), maxR = Math.max(0, ...sp.map(x => x.race));
-    const active = sp.filter(x => x.race >= maxR - 2).sort((a, b) => b.race - a.race);
-    const inv = m.g.inv || {};
+    const active = activeSpecials(), inv = invOf(m.g);
     return Object.entries(cfg.packs).map(([k, P]) => {
-      const can = m.points >= P.price;
+      const blocked = k === 'spezial' && !active.length, can = m.points >= P.price && !blocked;
       return `<div class="gc-pack${k === 'spezial' ? ' x' : ''}" style="background:${PACK_COLOR[k]}"><div style="flex:1;min-width:0;">
           <div style="font:800 1.1rem var(--hd);">${PACK_NAME[k]}</div><div style="font-size:.78rem;">${P.n} Karten · ${P.price} Punkte</div>
-          <div style="font-size:.7rem;margin-top:4px;opacity:.85;">Mind. 1× Silber+ ${pct(pAt(P, 'S'))} · Gold+ ${pct(pAt(P, 'G'))} · Spezial ${pct(pAt(P, 'X'))}</div></div>
+          <div style="font-size:.7rem;margin-top:4px;opacity:.85;">${blocked ? 'Verfügbar, sobald nach einem Rennen Spezialkarten entstanden sind.' : `Mind. 1× Silber+ ${pct(pAt(P, 'S'))} · Gold+ ${pct(pAt(P, 'G'))} · Spezial ${pct(pAt(P, 'X'))}`}</div></div>
         <button class="btn" style="margin:0;width:auto;padding:10px 16px;background:#0e1a14;color:var(--y);${can ? '' : 'opacity:.45;'}" data-act="buy" data-pack="${k}" ${can && !S.pending ? '' : 'disabled'}>${S.pending === 'buy' ? '...' : 'Kaufen'}</button></div>`;
-    }).join('') + (m.g.last ? '<button class="btn ghost" data-act="lastpack">Letztes Pack nochmal ansehen</button>' : '')
+    }).join('') + (m.g.last && m.g.cardVer === CARD_VER ? '<button class="btn ghost" data-act="lastpack">Letztes Pack nochmal ansehen</button>' : '')
       + `<div style="font-weight:700;margin:16px 0 6px;">Aktuell im Spezial-Pack</div>` + (active.length
-        ? `<div class="gc-grid">${active.slice(0, 9).map(x => `<div data-act="detail" data-key="special:${esc(x.id)}">${cardHtml('special:' + x.id, { locked: !inv['special:' + x.id], count: inv['special:' + x.id] })}</div>`).join('')}</div><div style="font-size:.72rem;color:var(--m);margin-top:6px;">Es gibt immer nur die Spezialkarten der letzten 3 Rennen.</div>`
-        : '<div style="color:var(--m);font-size:.85rem;">Sobald Rennergebnisse da sind, erscheinen hier die Sonderkarten (Sieger, Pole, schnellste Runde, In Form).</div>');
+        ? `<div class="gc-grid">${active.slice(0, 9).map(x => `<div data-act="detail" data-key="special:${esc(x.id)}">${cardHtml('special:' + x.id, { locked: !inv['special:' + x.id], count: inv['special:' + x.id] })}</div>`).join('')}</div><div style="font-size:.72rem;color:var(--m);margin-top:6px;">Im Pack stecken nur die Inform-Karten der letzten 3 Rennen.</div>`
+        : '<div style="color:var(--m);font-size:.85rem;">Nach jedem Rennen entstehen Inform-Karten für Sieger, Podium, Pole, schnellste Runde und Aufholjagd.</div>');
   }
 
   function albumHtml(m) {
-    const inv = m.g.inv || {}, A = S.album;
-    const kinds = [['driver', 'Fahrer'], ['team', 'Teams'], ['track', 'Strecken'], ['special', 'Spezial']];
-    const stat = kind => { const ks = poolKeys(kind); return [ks.filter(k => inv[k]).length, ks.length]; };
+    const inv = invOf(m.g), A = S.album, season = A.season || curSeason(), seasons = seasonsList();
+    const kinds = [['driver', 'Fahrer'], ['team', 'Teams'], ['track', 'Strecken'], ['special', 'Inform']];
+    const stat = kind => { const ks = poolKeys(kind, 'all', season); return [ks.filter(k => inv[k]).length, ks.length]; };
     const allBase = ['driver', 'team', 'track'].map(stat), own = allBase.reduce((t, x) => t + x[0], 0), tot = allBase.reduce((t, x) => t + x[1], 0);
-    const tiers = A.kind === 'special' ? ['B', 'S', 'G'] : (A.tier === 'all' ? ['B', 'S', 'G'] : [A.tier]);
-    const keys = poolKeys(A.kind, tiers);
-    return `<div style="font-size:.8rem;margin-bottom:6px;">Sammlung: <b>${own}/${tot}</b> Basiskarten (${tot ? Math.round(100 * own / tot) : 0} %)</div>
+    const keys = poolKeys(A.kind, A.kind === 'special' ? 'all' : A.rarity, season);
+    return `${seasons.length > 1 ? `<div class="tabs" style="flex-wrap:nowrap;overflow-x:auto;margin-bottom:8px;">${seasons.map(n => `<button class="tab-btn ${n === season ? 'active' : ''}" data-act="album" data-season="${n}">Saison ${n}${n === curSeason() ? '' : ' (Archiv)'}</button>`).join('')}</div>` : ''}
+      <div style="font-size:.8rem;margin-bottom:6px;">Sammlung Saison ${season}: <b>${own}/${tot}</b> Basiskarten (${tot ? Math.round(100 * own / tot) : 0} %)</div>
       <div style="height:6px;background:rgba(255,255,255,.12);border-radius:3px;overflow:hidden;margin-bottom:10px;"><div style="width:${tot ? 100 * own / tot : 0}%;height:100%;background:var(--y);"></div></div>
       <div class="tabs" style="flex-wrap:nowrap;overflow-x:auto;margin-bottom:8px;">${kinds.map(([k, l]) => { const [o, t] = stat(k); return `<button class="tab-btn ${A.kind === k ? 'active' : ''}" data-act="album" data-kind="${k}">${l} ${o}/${t}</button>`; }).join('')}</div>
-      ${A.kind === 'special' ? '' : `<div class="tabs" style="flex-wrap:nowrap;overflow-x:auto;margin-bottom:10px;">${[['all', 'Alle'], ['B', 'Bronze'], ['S', 'Silber'], ['G', 'Gold']].map(([k, l]) => `<button class="tab-btn ${A.tier === k ? 'active' : ''}" data-act="album" data-tier="${k}">${l}</button>`).join('')}</div>`}
+      ${A.kind === 'special' ? '' : `<div class="tabs" style="flex-wrap:nowrap;overflow-x:auto;margin-bottom:10px;">${[['all', 'Alle'], ['B', 'Bronze'], ['S', 'Silber'], ['G', 'Gold']].map(([k, l]) => `<button class="tab-btn ${A.rarity === k ? 'active' : ''}" data-act="album" data-rarity="${k}">${l}</button>`).join('')}</div>`}
       ${keys.length ? `<div class="gc-grid">${keys.map(k => `<div data-act="detail" data-key="${esc(k)}">${cardHtml(k, { locked: !inv[k], count: inv[k] })}</div>`).join('')}</div>` : '<div style="color:var(--m);font-size:.85rem;">Hier gibt es noch keine Karten.</div>'}`;
   }
 
   function cardsHtml() {
     if (!S.login) return loginHtml();
-    const m = me();
-    return loginHtml() + `<div class="tabs" style="margin-bottom:10px;"><button class="tab-btn ${S.cardsTab === 'shop' ? 'active' : ''}" data-act="cardsTab" data-v="shop">🛒 Shop</button><button class="tab-btn ${S.cardsTab === 'album' ? 'active' : ''}" data-act="cardsTab" data-v="album">📖 Album</button></div>`
+    const m = me(), old = (m.g.inv || m.g.spent) && m.g.cardVer !== CARD_VER;
+    return loginHtml() + (old ? '<div class="note gold">Das Kartensystem wurde umgebaut: Dein altes Album wird beim nächsten Gießen oder Kauf zurückgesetzt, alle dafür ausgegebenen Punkte bekommst du zurück.</div>' : '')
+      + `<div class="tabs" style="margin-bottom:10px;"><button class="tab-btn ${S.cardsTab === 'shop' ? 'active' : ''}" data-act="cardsTab" data-v="shop">🛒 Shop</button><button class="tab-btn ${S.cardsTab === 'album' ? 'active' : ''}" data-act="cardsTab" data-v="album">📖 Album</button></div>`
       + (S.cardsTab === 'shop' ? shopHtml(m) : albumHtml(m));
   }
 
@@ -384,7 +379,7 @@ function init() {
     if (a === 'close') return closeOv();
     if (a === 'revealall') { ov.querySelectorAll('.gc-flip').forEach((f, i) => setTimeout(() => f.classList.add('open'), i * 250)); return; }
     if (a === 'cardsTab') { S.cardsTab = data.v; S.msg = ''; return render(); }
-    if (a === 'album') { if (data.kind) S.album.kind = data.kind; if (data.tier) S.album.tier = data.tier; return render(); }
+    if (a === 'album') { if (data.kind) S.album.kind = data.kind; if (data.rarity) S.album.rarity = data.rarity; if (data.season) S.album.season = +data.season; return render(); }
     if (a === 'detail') return openDetail(data.key);
     if (a === 'lastpack') { const l = S.login && S.garden[S.login.name] && S.garden[S.login.name].last; if (l) openReveal(Object.values(l.keys), l.isNew && Object.values(l.isNew), true); return; }
     if (a === 'tab') { S.tab = data.tab; S.msg = ''; S.info = ''; return render(); }
