@@ -6,12 +6,12 @@ export const CARD_VERSION = 2;                 // bei Änderungen an Formeln, Se
 export const TIERS = ['B', 'S', 'G', 'X'];     // Bronze, Silber, Gold, Spezial
 export const PACKS = {
   //            Karten, Preis, Wahrscheinlichkeit PRO KARTE für B / S / G / X
-  bronze:  { n: 3, price: 100, p: [0.80, 0.17, 0.027, 0.003] },
-  silber:  { n: 4, price: 250, p: [0.45, 0.42, 0.115, 0.015] },
-  gold:    { n: 5, price: 600, p: [0.15, 0.45, 0.360, 0.040] },
-  spezial: { n: 3, price: 900, p: [0.03, 0.17, 0.450, 0.350] },
+  bronze:  { n: 3, price: 100, p: [0.78, 0.18, 0.035, 0.005] },
+  silber:  { n: 4, price: 250, p: [0.42, 0.42, 0.140, 0.020] },
+  gold:    { n: 5, price: 575, p: [0.10, 0.43, 0.420, 0.050] },
+  spezial: { n: 5, price: 900, p: [0.02, 0.13, 0.450, 0.400] },
 };
-export const QUICKSELL = { B: 4, S: 12, G: 40, X: 120 };       // Duplikat einschmelzen (ca. 20 % vom Packpreis)
+export const QUICKSELL = { B: 4, S: 12, G: 40, X: 60 };        // Duplikat einschmelzen (je nach Pack ca. 21 bis 24 % vom Packpreis)
 export const RARITY_RANGE = { B: [58, 64], S: [65, 74], G: [75, 90] };
 export const STAT_KEYS = ['tmp', 'pac', 'con', 'ang', 'rel'];  // Tempo, Rennpace, Konstanz, Angriff, Zuverlässigkeit
 export const STAT_WEIGHTS = { tmp: 0.2, pac: 0.2, con: 0.2, ang: 0.2, rel: 0.2 }; // GES = Durchschnitt der 5 Werte (so rechnen auch deine Vorgaben)
