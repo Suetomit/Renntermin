@@ -243,7 +243,7 @@ function init() {
       garden: m && !m.done,
       quiz: m && !!(S.daily && S.daily.quiz) && Object.keys(m.quiz).length < Object.values(S.daily.quiz.items || {}).length,
       gossip: !!(S.daily && S.daily.gossip) && seenGossip() !== dailyDate && S.tab !== 'gossip',
-      cards: m && m.points >= ((S.defs && S.defs.config) ? Math.min(...Object.values(S.defs.config.packs).map(x => x.price)) : 100) && S.tab !== 'cards',
+      cards: m && m.points >= (defsOk() ? Math.min(...Object.values(S.defs.config.packs).map(x => x.price)) : 100) && S.tab !== 'cards',
     };
     const tabs = [['garden', '🥒 Garten'], ['quiz', '🧠 Quiz'], ['gossip', '🗞️ Klatsch'], ['cards', '🃏 Karten'], ['liga', '👥 Liga']];
     const body = { garden: gardenHtml, quiz: quizHtml, gossip: gossipHtml, cards: cardsHtml, liga: ligaHtml }[S.tab]();
@@ -252,7 +252,7 @@ function init() {
         `<button class="tab-btn ${S.tab === k ? 'active' : ''}" data-act="tab" data-tab="${k}">${l}${dot[k] ? ' <span style="color:#e10600;" aria-label="neu">●</span>' : ''}</button>`).join('')}</div>
       ${S.msg ? `<div style="color:#ff5555;font-size:0.8rem;margin-bottom:8px;">${esc(S.msg)}</div>` : ''}${S.info ? `<div style="color:#27f4d2;font-size:0.8rem;margin-bottom:8px;">${esc(S.info)}</div>` : ''}${body}`;
     if (S.tab === 'quiz' && S.login && dailyLoaded && !(S.daily && S.daily.quiz) && quizInit !== dailyDate && !S.pending) { quizInit = dailyDate; setTimeout(() => api('quiz', {}), 0); }
-    if (S.tab === 'cards' && S.login && defsLoaded && !(S.defs && S.defs.config) && defsInit !== dailyDate && !S.pending) { defsInit = dailyDate; setTimeout(() => api('buy', { prepare: true }), 0); }
+    if (S.tab === 'cards' && S.login && defsLoaded && defsInit !== dailyDate && !S.pending) { defsInit = dailyDate; setTimeout(() => api('buy', { prepare: true }), 0); }
     if (focus) {
       const el = document.getElementById(focus.id);
       if (el) { el.focus(); try { el.setSelectionRange(focus.start, focus.end); } catch (e) { /* z.B. <select> */ } }
@@ -263,6 +263,8 @@ function init() {
   const CARD_VER = 2;
   const ov = document.createElement('div'); ov.id = 'gardenOverlay'; document.body.appendChild(ov);
   const invOf = g => (g && g.cardVer === CARD_VER ? g.inv || {} : {});          // Karten der alten Version zählen nicht mehr (werden erstattet)
+  const defsOk = () => !!(S.defs && S.defs.version === CARD_VER && S.defs.cards && S.defs.config);
+  const prepMsg = () => `<div style="color:var(--m);font-size:0.85rem;">${defsInit === dailyDate && !S.pending ? 'Die Karten konnten nicht vorbereitet werden. Ist der aktuelle press-worker.js in Cloudflare deployt? Falls ja, versuch es gleich nochmal.' : 'Die Karten werden gerade vorbereitet ...'}</div>`;
   const curSeason = () => (S.defs && S.defs.season) || 1;
   const cardsMap = () => (S.defs && S.defs.cards) || {};
   const infoOf = key => (key.startsWith('special:') ? ((S.defs && S.defs.specials) || {})[key.slice(8)] : cardsMap()[key]);
@@ -330,14 +332,14 @@ function init() {
   });
 
   function shopHtml(m) {
-    const cfg = S.defs && S.defs.config;
-    if (!cfg) return '<div style="color:var(--m);font-size:0.85rem;">Der Shop wird gerade vorbereitet ...</div>';
+    if (!defsOk()) return prepMsg();
+    const cfg = S.defs.config;
     const active = activeSpecials(), inv = invOf(m.g);
-    return Object.entries(cfg.packs).map(([k, P]) => {
-      const blocked = k === 'spezial' && !active.length, can = m.points >= P.price && !blocked;
+    return ['bronze', 'silber', 'gold', 'spezial'].filter(k => cfg.packs[k]).map(k => {
+      const P = cfg.packs[k], blocked = k === 'spezial' && !active.length, can = m.points >= P.price && !blocked;
       return `<div class="gc-pack${k === 'spezial' ? ' x' : ''}" style="background:${PACK_COLOR[k]}"><div style="flex:1;min-width:0;">
           <div style="font:800 1.1rem var(--hd);">${PACK_NAME[k]}</div><div style="font-size:.78rem;">${P.n} Karten · ${P.price} Punkte</div>
-          <div style="font-size:.7rem;margin-top:4px;opacity:.85;">${blocked ? 'Verfügbar, sobald nach einem Rennen Spezialkarten entstanden sind.' : `Mind. 1× Silber+ ${pct(pAt(P, 'S'))} · Gold+ ${pct(pAt(P, 'G'))} · Spezial ${pct(pAt(P, 'X'))}`}</div></div>
+          <div style="font-size:.7rem;margin-top:4px;opacity:.85;">${blocked ? 'Verfügbar, sobald nach einem Rennen Spezialkarten entstanden sind.' : [['S', 'Silber+'], ['G', 'Gold+'], ['X', 'Spezial']].map(([t, l]) => [l, pAt(P, t)]).filter(x => x[1] < 0.995).map(([l, v]) => `Mind. 1× ${l} ${pct(v)}`).join(' · ')}</div></div>
         <button class="btn" style="margin:0;width:auto;padding:10px 16px;background:#0e1a14;color:var(--y);${can ? '' : 'opacity:.45;'}" data-act="buy" data-pack="${k}" ${can && !S.pending ? '' : 'disabled'}>${S.pending === 'buy' ? '...' : 'Kaufen'}</button></div>`;
     }).join('') + (m.g.last && m.g.cardVer === CARD_VER ? '<button class="btn ghost" data-act="lastpack">Letztes Pack nochmal ansehen</button>' : '')
       + `<div style="font-weight:700;margin:16px 0 6px;">Aktuell im Spezial-Pack</div>` + (active.length
@@ -346,6 +348,7 @@ function init() {
   }
 
   function albumHtml(m) {
+    if (!defsOk()) return prepMsg();
     const inv = invOf(m.g), A = S.album, season = A.season || curSeason(), seasons = seasonsList();
     const kinds = [['driver', 'Fahrer'], ['team', 'Teams'], ['track', 'Strecken'], ['special', 'Inform']];
     const stat = kind => { const ks = poolKeys(kind, 'all', season); return [ks.filter(k => inv[k]).length, ks.length]; };
