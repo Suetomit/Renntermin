@@ -1,0 +1,23 @@
+name: Patches anwenden (einmalig)
+# Manuell starten: GitHub -> Actions -> "Patches anwenden (einmalig)" -> Run workflow
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Patches anwenden
+        run: node patcher/apply-patches.mjs .
+      - name: Sicherungen entfernen und committen
+        run: |
+          find . -name "*.bak" -not -path "./.git/*" -delete
+          git config user.name "patch-bot"
+          git config user.email "patch-bot@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && echo "Keine Änderungen." || git commit -m "Karten v3, Punkte-Grid-Flag, Casino-Tab (automatisch gepatcht)"
+          git push
