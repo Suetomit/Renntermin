@@ -1,0 +1,210 @@
+@@FILE cards-core.mjs
+@@SKIPIF CARD_VERSION = 3
+@@FIND
+export const CARD_VERSION = 2;
+@@REPLACE
+export const CARD_VERSION = 3;
+@@END
+
+@@FILE rivalry.js
+@@SKIPIF inGrid
+@@FIND
+export const pp = e =>
+@@REPLACE
+// Fahrer mit inPointsGrid:false haben nur Bild/Karte und nehmen nie an Wertung, Elo, Rivalitäten oder Ansehen teil
+export const inGrid = d => !!d && d.inPointsGrid !== false;
+export const pp = e =>
+@@END
+
+@@FILE index.html
+@@SKIPIF gridR
+@@FIND
+const humans = () => roster.filter(d => d.human);
+@@REPLACE
+const gridR = () => roster.filter(RL.inGrid);
+const humans = () => gridR().filter(d => d.human);
+@@END
+@@FIND
+  roster.forEach(d => m[d.name] = 0);
+@@REPLACE
+  gridR().forEach(d => m[d.name] = 0);
+@@END
+@@FIND
+return roster.map(d => ({ ...d, pts: m[d.name] }))
+@@REPLACE
+return gridR().map(d => ({ ...d, pts: m[d.name] }))
+@@END
+@@FIND
+const rctx = () => ({ RR, TA, roster, races:
+@@REPLACE
+const rctx = () => ({ RR, TA, roster: gridR(), races:
+@@END
+@@FIND
+<optgroup label="KI-Fahrer">${roster.filter(d => !d.human)
+@@REPLACE
+<optgroup label="KI-Fahrer">${gridR().filter(d => !d.human)
+@@END
+@@FIND
+const rank = [...roster].sort(
+@@REPLACE
+const rank = [...gridR()].sort(
+@@END
+
+@@FILE admin.html
+@@SKIPIF noGrid
+@@FIND
+${(roster || DEF).map((d, i) => { const e = cur[d.name] || {};
+@@REPLACE
+${(roster || DEF).map((d, i) => [d, i]).filter(([d]) => RL.inGrid(d)).map(([d, i]) => { const e = cur[d.name] || {};
+@@END
+@@FIND
+document.querySelector(`.rp[data-i="${i}"]`).value.trim()
+@@REPLACE
+(document.querySelector(`.rp[data-i="${i}"]`) || { value: '' }).value.trim()
+@@END
+@@FIND
+document.querySelector(`.rq[data-i="${i}"]`).value.trim()
+@@REPLACE
+(document.querySelector(`.rq[data-i="${i}"]`) || { value: '' }).value.trim()
+@@END
+@@FIND
+photo: d.photo || '', noRivalry: !!d.noRivalry }));
+@@REPLACE
+photo: d.photo || '', noRivalry: !!d.noRivalry, noGrid: d.inPointsGrid === false, cardGes: d.cardGes || '' }));
+@@END
+@@FIND
+<button class="del" data-a="del" data-v="${i}">
+@@REPLACE
+<label class="sub" style="display:flex;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" data-i="${i}" data-k="noGrid" ${d.noGrid ? 'checked' : ''}> Nur Bild/Karte, nicht im Punkte-Grid</label>
+      <input data-i="${i}" data-k="cardGes" value="${esc(d.cardGes)}" placeholder="Karten-GES (nur Karten-Fahrer, Standard 60)" style="margin-bottom:8px">
+      <button class="del" data-a="del" data-v="${i}">
+@@END
+@@FIND
+photo: '', noRivalry: false })
+@@REPLACE
+photo: '', noRivalry: false, noGrid: false, cardGes: '' })
+@@END
+@@FIND
+human: d.human.trim() || null,
+@@REPLACE
+human: d.noGrid ? null : (d.human.trim() || null),
+@@END
+@@FIND
+noRivalry: d.noRivalry ? true : null }));
+@@REPLACE
+noRivalry: d.noRivalry ? true : null, inPointsGrid: d.noGrid ? false : null, cardGes: d.noGrid ? (parseInt(d.cardGes, 10) || null) : null }));
+@@END
+@@FIND
+const rctx = () => ({ RR, TA, roster: roster || DEF,
+@@REPLACE
+const rctx = () => ({ RR, TA, roster: (roster || DEF).filter(RL.inGrid),
+@@END
+@@FIND
+const L = roster || DEF, c = rctx(),
+@@REPLACE
+const L = (roster || DEF).filter(RL.inGrid), c = rctx(),
+@@END
+
+@@FILE racenet-import.js
+@@SKIPIF RL.inGrid
+@@FIND
+findDriver(C.roster, r.PlayerName, RL)
+@@REPLACE
+findDriver(C.roster.filter(RL.inGrid), r.PlayerName, RL)
+@@END
+
+@@FILE rivalry-bot.mjs
+@@SKIPIF inPointsGrid
+@@FIND
+return !d || !!d.noRivalry; };
+@@REPLACE
+return !d || !!d.noRivalry || d.inPointsGrid === false; };
+@@END
+@@FIND
+const usable = roster.filter(d => !d.noRivalry);
+@@REPLACE
+const usable = roster.filter(d => !d.noRivalry && d.inPointsGrid !== false);
+@@END
+
+@@FILE garden-module.js
+@@SKIPIF createCasino
+@@FIND
+import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+@@REPLACE
+import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { createCasino } from './casino-ui.mjs';
+@@END
+@@FIND
+  const drafts = {};
+@@REPLACE
+  const drafts = {};
+  const casino = createCasino({ S, api: (r, p) => api(r, p), render: () => render(), esc, db, ref, onValue });
+@@END
+@@FIND
+['liga', '
+@@REPLACE
+['casino', '🎰 Casino'], ['liga', '
+@@END
+@@FIND
+cards: cardsHtml, liga: ligaHtml }
+@@REPLACE
+cards: cardsHtml, casino: casino.html, liga: ligaHtml }
+@@END
+@@FIND
+    if (!S.login || S.pending) return;
+@@REPLACE
+    if (a.startsWith('cs_')) return S.login ? casino.act(a, data) : undefined;
+    if (!S.login || S.pending) return;
+@@END
+@@FIND
+const TIER_NAME = { B: 'Bronze', S: 'Silber', G: 'Gold', X: 'Spezial' };
+@@REPLACE
+const TIER_NAME = { B: 'Bronze', S: 'Silber', G: 'Gold', X: 'Spezial', IB: 'Baby-Icon', IN: 'Icon', IP: 'Prime-Icon' };
+const PR_LABELS = [['str', 'STR', 'Strategie'], ['dev', 'ENT', 'Entwicklung'], ['lea', 'FÜH', 'Führung'], ['pit', 'BOX', 'Boxencrew'], ['nrv', 'NRV', 'Nerven']];
+@@END
+@@FIND
+.gc-X{background:linear-gradient(135deg,#27f4d2,#8a5cff 55%,#ff5fd0);color:#0b0620}
+@@REPLACE
+.gc-X{background:linear-gradient(135deg,#27f4d2,#8a5cff 55%,#ff5fd0);color:#0b0620}
+.gc-IB{background:linear-gradient(160deg,#cfe9ff,#7fa8d6)}
+.gc-IN{background:linear-gradient(160deg,#ffd9f0,#c9709e)}
+.gc-IP{background:linear-gradient(135deg,#111,#3a2a00 40%,#ffd23f 75%,#fff6c2);color:#fff}
+.gc-IP .gc-stats{border-color:rgba(255,255,255,.4)}
+@@END
+@@FIND
+return { tier: 'X', kind: c.title.toUpperCase(),
+@@REPLACE
+if (c.kind === 'principal') return { tier: c.rarity, kind: 'TEAMCHEF', big: c.ges, name: c.short, sub: c.team || 'Legende', color: TC[c.team], art: imgOr(c.photo, '🧑‍💼'), stats: PR_LABELS.map(([k, l, f]) => [l, c.stats[k], f]), badges: c.badges };
+    if (c.kind === 'icon') return { tier: c.rarity, kind: ({ baby: 'ICON · BABY', normal: 'ICON', prime: 'ICON · PRIME' })[c.stage], big: c.ges, name: c.short, sub: c.name, art: imgOr(c.photo, '⭐'), stats: stats(c.stats), badges: c.badges };
+    return { tier: 'X', kind: c.title.toUpperCase(),
+@@END
+@@FIND
+const kinds = [['driver', 'Fahrer'], ['team', 'Teams'], ['track', 'Strecken'], ['special', 'Inform']];
+@@REPLACE
+const kinds = [['driver', 'Fahrer'], ['team', 'Teams'], ['principal', 'Chefs'], ['icon', 'Icons'], ['track', 'Strecken'], ['special', 'Inform']];
+@@END
+@@FIND
+const allBase = ['driver', 'team', 'track'].map(stat)
+@@REPLACE
+const allBase = ['driver', 'team', 'track', 'principal', 'icon'].map(stat)
+@@END
+@@FIND
+filter(c => c.season === season && c.kind === kind &&
+@@REPLACE
+filter(c => (c.season === season || c.season === 0) && c.kind === kind &&
+@@END
+@@FIND
+poolKeys(A.kind, A.kind === 'special' ? 'all' : A.rarity, season)
+@@REPLACE
+poolKeys(A.kind, A.kind === 'special' || A.kind === 'icon' ? 'all' : A.rarity, season)
+@@END
+@@FIND
+${A.kind === 'special' ? '' : 
+@@REPLACE
+${A.kind === 'special' || A.kind === 'icon' ? '' : 
+@@END
+@@FIND
+.join(' · ')}</div></div>
+@@REPLACE
+.join(' · ')}${cfg.icon && cfg.icon.chance[k] ? ' · Mind. 1× Icon ' + pct(1 - (1 - cfg.icon.chance[k]) ** P.n) : ''}</div></div>
+@@END
