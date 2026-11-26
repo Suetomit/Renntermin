@@ -1,5 +1,7 @@
 // Rivalitäten- und Ansehen-Logik, gemeinsam genutzt von index_v2.html und admin.html.
 // Das sportliche Elo wird hier NICHT berührt.
+// Fahrer mit inPointsGrid:false haben nur Bild/Karte und nehmen nie an Wertung, Elo, Rivalitäten oder Ansehen teil
+export const inGrid = d => !!d && d.inPointsGrid !== false;
 export const pp = e => { const p = e && e.pos != null ? String(e.pos).trim() : ''; return /^\d+$/.test(p) ? +p : null; };
 export const hasPos = e => !!e && e.pos != null && String(e.pos).trim() !== '';
 export const qg = e => { const q = e && e.qualGap != null ? String(e.qualGap).trim() : ''; if (!q) return { h: 0 }; if (/^(dnf|dsq|dns)$/i.test(q)) return { h: 1, dnf: 1 }; const g = parseFloat(q.replace(',', '.')); return isNaN(g) ? { h: 0 } : { h: 1, g }; };

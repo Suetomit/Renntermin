@@ -101,7 +101,7 @@ function secRes() {
   return `<div class="card"><h2>Rennergebnis eintragen</h2>
     <select id="rsel">${rs.map(r => `<option value="${r.num}" ${r.num === rn ? 'selected' : ''}>#${r.num} ${r.country} (${r.code})</option>`).join('')}</select>
     <div class="sub" style="margin:8px 0">Platz (1 bis 20 oder DNF), Quali-Abstand zur Pole in Sekunden (oder DNF), ⚡ = schnellste Runde.</div>
-    ${(roster || DEF).map((d, i) => { const e = cur[d.name] || {};
+    ${(roster || DEF).map((d, i) => [d, i]).filter(([d]) => RL.inGrid(d)).map(([d, i]) => { const e = cur[d.name] || {};
       return `<div class="rr"><b>${esc(d.human || d.name)}</b><input class="rp" data-i="${i}" placeholder="Platz" value="${esc(e.pos)}"><input class="rq" data-i="${i}" placeholder="Quali-Gap" value="${esc(e.qualGap)}"><input type="radio" name="fl" value="${i}" ${e.fastestLap ? 'checked' : ''} aria-label="Schnellste Runde"></div>`; }).join('')}
     <button class="btn" data-a="saveRes">Ergebnis speichern</button>
     <button class="btn ghost" data-a="nofl">Schnellste Runde abwählen</button></div>`;
@@ -109,7 +109,7 @@ function secRes() {
 async function saveRes() {
   const o = {}, fl = document.querySelector('input[name=fl]:checked');
   (roster || DEF).forEach((d, i) => {
-    const p = document.querySelector(`.rp[data-i="${i}"]`).value.trim(), q = document.querySelector(`.rq[data-i="${i}"]`).value.trim(), f = !!fl && +fl.value === i;
+    const p = (document.querySelector(`.rp[data-i="${i}"]`) || { value: '' }).value.trim(), q = (document.querySelector(`.rq[data-i="${i}"]`) || { value: '' }).value.trim(), f = !!fl && +fl.value === i;
     if (p || q || f) o[d.name] = { pos: p, qualGap: q, fastestLap: f };
   });
   await w(() => set(ref(db, 'raceResults/' + rn), Object.keys(o).length ? o : null), 'Ergebnis gespeichert ✓');
@@ -127,7 +127,7 @@ function secCal() {
 }
 
 function secDrv() {
-  if (!rd) rd = (roster || DEF).map(d => ({ name: d.name, racenet: d.racenet || '', racenetName: d.racenetName || '', team: d.team, human: d.human || '', code: d.code || '', photo: d.photo || '', noRivalry: !!d.noRivalry }));
+  if (!rd) rd = (roster || DEF).map(d => ({ name: d.name, racenet: d.racenet || '', racenetName: d.racenetName || '', team: d.team, human: d.human || '', code: d.code || '', photo: d.photo || '', noRivalry: !!d.noRivalry, noGrid: d.inPointsGrid === false, cardGes: d.cardGes || '' }));
   return `<div class="card"><h2>Fahrer</h2>
     ${roster ? '' : '<div class="sub" style="color:var(--gold)">In Firebase ist noch kein Roster gespeichert. Das hier ist die Standardliste, bitte Ingame- und Racenet-Namen ergänzen und speichern.</div>'}
     <div class="sub">Liga-Name leer lassen = KI-Fahrer. Wird der volle Name geändert, passen alte Ergebnisse nicht mehr zu diesem Fahrer.</div></div>
@@ -136,6 +136,8 @@ function secDrv() {
       <div class="g2"><select data-i="${i}" data-k="team">${TEAMS.map(t => `<option ${d.team === t ? 'selected' : ''}>${t}</option>`).join('')}</select><input data-i="${i}" data-k="human" value="${esc(d.human)}" placeholder="Liga-Name (leer = KI)"></div>
       <div class="g2"><input data-i="${i}" data-k="code" maxlength="3" value="${esc(d.code)}" placeholder="Code, 3 Buchstaben"><input data-i="${i}" data-k="photo" value="${esc(d.photo)}" placeholder="Foto-Dateiname"></div>
       <label class="sub" style="display:flex;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" data-i="${i}" data-k="noRivalry" ${d.noRivalry ? 'checked' : ''}> Keine Rivalitäten (ersetzt/ausgeschieden)</label>
+      <label class="sub" style="display:flex;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" data-i="${i}" data-k="noGrid" ${d.noGrid ? 'checked' : ''}> Nur Bild/Karte, nicht im Punkte-Grid</label>
+      <input data-i="${i}" data-k="cardGes" value="${esc(d.cardGes)}" placeholder="Karten-GES (nur Karten-Fahrer, Standard 60)" style="margin-bottom:8px">
       <button class="del" data-a="del" data-v="${i}">✕ Fahrer entfernen</button></div>`).join('')}
     <button class="btn ghost" data-a="add">+ Fahrer hinzufügen</button>
     <button class="btn" data-a="saveRos">Fahrer speichern</button>`;
@@ -167,13 +169,13 @@ function secSea() {
     ${arch.length ? `<div class="card"><h2>Archiv</h2>${arch.map(n => `<div class="row">Saison ${n}<span class="sub grow" style="text-align:right">${Object.keys((SA[n] && SA[n].raceResults) || {}).length} Rennen, beendet am ${new Date(SA[n].endedAt).toLocaleDateString('de-DE')}</span></div>`).join('')}</div>` : ''}`;
 }
 
-const rctx = () => ({ RR, TA, roster: roster || DEF, races: races().map(r => ({ num: r.num, country: r.country, done: !!RS[r.num] })) });
+const rctx = () => ({ RR, TA, roster: (roster || DEF).filter(RL.inGrid), races: races().map(r => ({ num: r.num, country: r.country, done: !!RS[r.num] })) });
 async function settle() {
   const upd = RL.planSettle(rctx(), RV);
   for (const [id, rv] of Object.entries(upd)) { await set(ref(db, 'rivalries/' + id), rv); RV[id] = rv; }
 }
 function secRiv() {
-  const L = roster || DEF, c = rctx(), lab = n => esc((L.find(d => d.name === n) || {}).human || n);
+  const L = (roster || DEF).filter(RL.inGrid), c = rctx(), lab = n => esc((L.find(d => d.name === n) || {}).human || n);
   const opt = '<option value="">Fahrer wählen</option>' + L.map(d => `<option value="${esc(d.name)}">${esc(d.human || d.name)}</option>`).join('');
   return `<div class="card"><h2>Neue Rivalität</h2><div class="g2"><select id="rv_a">${opt}</select><select id="rv_b">${opt}</select></div>
     <select id="rv_t"><option value="press">Presse</option><option value="points">Nahe WM-Punkte</option><option value="title">Meisterschaftskampf</option><option value="team">Teamrivalität</option></select>
@@ -235,11 +237,11 @@ const A = {
     }, nv ? 'Als gefahren markiert ✓' : 'Zurückgesetzt ✓');
   },
   saveCal: () => w(() => set(ref(db, 'raceCalendarCodes'), cd), 'Kalender gespeichert ✓'),
-  add: () => rd.push({ name: 'Neuer Fahrer', racenet: '', racenetName: '', team: TEAMS[0], human: '', code: '', photo: '', noRivalry: false }),
+  add: () => rd.push({ name: 'Neuer Fahrer', racenet: '', racenetName: '', team: TEAMS[0], human: '', code: '', photo: '', noRivalry: false, noGrid: false, cardGes: '' }),
   del: t => { const d = rd[+t.dataset.v]; if (confirm(`"${d.name}" wirklich entfernen?`)) rd.splice(+t.dataset.v, 1); },
   saveRos: () => {
     if (!rd.length) { msg = 'Die Fahrerliste darf nicht leer sein.'; return; }
-    const out = rd.map(d => ({ name: d.name.trim(), racenet: d.racenet.trim() || null, racenetName: (d.racenetName || '').trim() || null, team: d.team, human: d.human.trim() || null, code: d.code.trim().toUpperCase() || null, photo: d.photo.trim() || '', noRivalry: d.noRivalry ? true : null }));
+    const out = rd.map(d => ({ name: d.name.trim(), racenet: d.racenet.trim() || null, racenetName: (d.racenetName || '').trim() || null, team: d.team, human: d.noGrid ? null : (d.human.trim() || null), code: d.code.trim().toUpperCase() || null, photo: d.photo.trim() || '', noRivalry: d.noRivalry ? true : null, inPointsGrid: d.noGrid ? false : null, cardGes: d.noGrid ? (parseInt(d.cardGes, 10) || null) : null }));
     return w(() => set(ref(db, 'driverRoster'), out), 'Fahrer gespeichert ✓');
   },
   pd: t => { pickD = t.dataset.v; },

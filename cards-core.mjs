@@ -2,7 +2,7 @@
 // Der Worker enthält eine eingebettete Kopie dieser Datei (Build-Skript), hochladen musst du sie nicht.
 // Zufall IMMER im Worker mit crypto, nie im Browser.
 
-export const CARD_VERSION = 2;                 // bei Änderungen an Formeln, Seeds oder Pool erhöhen (alte Karten werden dann erstattet)
+export const CARD_VERSION = 3;                 // bei Änderungen an Formeln, Seeds oder Pool erhöhen (alte Karten werden dann erstattet)
 export const TIERS = ['B', 'S', 'G', 'X'];     // Bronze, Silber, Gold, Spezial
 export const PACKS = {
   //            Karten, Preis, Wahrscheinlichkeit PRO KARTE für B / S / G / X

@@ -156,7 +156,8 @@ let view = 'home', me = '', sel = [], tm = {}, wt = 'd', sv = 'elo', msg = '', S
 const toArr = v => v ? (Array.isArray(v) ? v : Object.values(v)) : [];
 const nm = d => d.human || d.name;
 const av = d => d.photo ? `<img class="av" src="${d.photo}" alt="" onerror="this.remove()">` : '';
-const humans = () => roster.filter(d => d.human);
+const gridR = () => roster.filter(RL.inGrid);
+const humans = () => gridR().filter(d => d.human);
 const races = () => {
   const codes = cal && cal.length ? cal : MASTER.map(r => r.code);
   return codes.map((c, i) => ({ ...MASTER.find(r => r.code === c), num: i + 1 })).filter(r => r.code);
@@ -169,12 +170,12 @@ const flag = cc => `<img class="flag" src="https://flagcdn.com/w40/${cc}.png" al
 
 function standings() {
   const m = {};
-  roster.forEach(d => m[d.name] = 0);
+  gridR().forEach(d => m[d.name] = 0);
   Object.values(RR).forEach(r => Object.entries(r || {}).forEach(([n, e]) => {
     const p = parseInt(e && e.pos);
     if (F1[p] && n in m) m[n] += F1[p];
   }));
-  return roster.map(d => ({ ...d, pts: m[d.name] })).sort((a, b) => b.pts - a.pts || a.name.localeCompare(b.name));
+  return gridR().map(d => ({ ...d, pts: m[d.name] })).sort((a, b) => b.pts - a.pts || a.name.localeCompare(b.name));
 }
 function teamStandings() {
   const t = {};
@@ -466,7 +467,7 @@ function renderRennen() {
 }
 
 const RTYPE = { press: 'Presse', points: 'WM-Punkte', title: 'Titelkampf', team: 'Teamrivalität' };
-const rctx = () => ({ RR, TA, roster, races: races().map(r => ({ num: r.num, country: r.country, done: isDone(r) })) });
+const rctx = () => ({ RR, TA, roster: gridR(), races: races().map(r => ({ num: r.num, country: r.country, done: isDone(r) })) });
 
 const rf = { d: '', st: 'all', ty: 'all' }; // Filter im Rivalen-Tab: Fahrer, Status, Typ
 const pic = d => d.photo || (HELM[d.team] ? `helmet_${HELM[d.team]}.png` : '');
@@ -492,7 +493,7 @@ function rivHtml() {
   const filter = `<div style="display:grid;grid-template-columns:1.2fr 1fr 1fr${active ? ' auto' : ''};gap:6px;align-items:center;margin-bottom:12px">
     <select id="rfD" ${sel} aria-label="Fahrer"><option value="">Alle Fahrer</option>
       <optgroup label="Liga">${roster.filter(d => d.human).map(opt).join('')}</optgroup>
-      <optgroup label="KI-Fahrer">${roster.filter(d => !d.human).map(opt).join('')}</optgroup></select>
+      <optgroup label="KI-Fahrer">${gridR().filter(d => !d.human).map(opt).join('')}</optgroup></select>
     <select id="rfS" ${sel} aria-label="Status">${sopt('all', `Alle (${byDrv.length})`, rf.st)}${Object.entries(RCAT).map(([k, l]) => sopt(k, `${l} (${cnt(k)})`, rf.st)).join('')}</select>
     <select id="rfT" ${sel} aria-label="Typ">${sopt('all', 'Alle Typen', rf.ty)}${Object.entries(RTYPE).map(([k, l]) => sopt(k, l, rf.ty)).join('')}</select>
     ${active ? '<button class="mini" data-a="rfr" aria-label="Filter zurücksetzen">✕</button>' : ''}</div>`;
@@ -521,7 +522,7 @@ function rivHtml() {
 
   const A = RL.ansehenMap(c, RV), wins = {};
   all.forEach(({ v }) => { if (v && v.done && v.winner) wins[v.winner] = (wins[v.winner] || 0) + 1; });
-  const rank = [...roster].sort((x, y) => A[y.name] - A[x.name]);
+  const rank = [...gridR()].sort((x, y) => A[y.name] - A[x.name]);
   const empty = !all.length
     ? '<div class="card"><div class="sub">Noch keine Rivalitäten. Der Admin legt sie an oder die Presse stößt sie an.</div></div>'
     : '<div class="card"><div class="sub">Keine Rivalität passt zu diesem Filter.</div></div>';

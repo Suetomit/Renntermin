@@ -46,7 +46,7 @@ export function analyseBatch(b, C, RL) {
   if (lastFin > firstDnf) A.warn.push('DNF-Erkennung unsicher (Platzierungen und Rennzeiten passen nicht zusammen). Bitte Ergebnisse prüfen.');
   let best = null, flag = null; const seen = [];
   rows.forEach(r => {
-    const d = findDriver(C.roster, r.PlayerName, RL), t = lap3(r.FastestLap), ai = r.IsAi === 'True';
+    const d = findDriver(C.roster.filter(RL.inGrid), r.PlayerName, RL), t = lap3(r.FastestLap), ai = r.IsAi === 'True';
     if (!d) { A.unknown.push(r.PlayerName); return; }
     const nm = ai ? r.PlayerName : (d.racenet || r.PlayerName); // Menschen unter ihrem Ingame-Namen speichern, damit Website und Rivalität sie wie bisher finden
     const key = safe((ai ? '_KI_ ' : '') + nm); // gleiche Schreibweise wie das Telemetrie-Skript

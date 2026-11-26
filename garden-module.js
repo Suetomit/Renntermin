@@ -6,6 +6,7 @@
  */
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { createCasino } from './casino-ui.mjs';
 
 const WORKER_URL = 'https://laetti-press.der-alles-schecker.workers.dev';
 
@@ -32,7 +33,8 @@ const TC = { 'Ferrari': '#e8002d', 'McLaren': '#ff8000', 'Red Bull': '#3671c6', 
 const HELM = { 'McLaren': 'mclaren', 'Mercedes-AMG Petronas': 'mercedes', 'Ferrari': 'ferrari', 'Red Bull': 'redbull', 'Aston Martin': 'astonmartin', 'Williams': 'williams', 'Alpine': 'alpine', 'Haas': 'haas', 'Visa Cash App RB': 'racingbulls', 'Kick Sauber': 'kicksauber' };
 const TRACKS = ('AUS|au|Australien|Melbourne;CHN|cn|China|Shanghai;JPN|jp|Japan|Suzuka;BHR|bh|Bahrain|Sachir;SAU|sa|Saudi-Arabien|Dschidda;MIA|us|USA|Miami;IMO|it|Emilia-Romagna|Imola;MCO|mc|Monaco|Monte Carlo;ESP|es|Spanien|Barcelona;CAN|ca|Kanada|Montreal;AUT|at|Österreich|Spielberg;GBR|gb|Großbritannien|Silverstone;BEL|be|Belgien|Spa-Francorchamps;HUN|hu|Ungarn|Hungaroring;NLD|nl|Niederlande|Zandvoort;ITA|it|Italien|Monza;AZE|az|Aserbaidschan|Baku;SGP|sg|Singapur|Singapur;USA|us|USA|Austin;MEX|mx|Mexiko|Mexiko-Stadt;BRA|br|Brasilien|São Paulo;VGS|us|USA|Las Vegas;QAT|qa|Katar|Lusail;UAE|ae|Ver. Arab. Emirate|Abu Dhabi')
   .split(';').map(x => { const [code, cc, country, city] = x.split('|'); return { code, cc, country, city }; });
-const TIER_NAME = { B: 'Bronze', S: 'Silber', G: 'Gold', X: 'Spezial' };
+const TIER_NAME = { B: 'Bronze', S: 'Silber', G: 'Gold', X: 'Spezial', IB: 'Baby-Icon', IN: 'Icon', IP: 'Prime-Icon' };
+const PR_LABELS = [['str', 'STR', 'Strategie'], ['dev', 'ENT', 'Entwicklung'], ['lea', 'FÜH', 'Führung'], ['pit', 'BOX', 'Boxencrew'], ['nrv', 'NRV', 'Nerven']];
 const STARS = { B: '★', S: '★★', G: '★★★' };
 const STAT_LABELS = [['tmp', 'TMP', 'Tempo'], ['pac', 'PAC', 'Rennpace'], ['con', 'KON', 'Konstanz'], ['ang', 'ANG', 'Angriff'], ['rel', 'ZUV', 'Zuverlässigkeit']];
 const PACK_NAME = { bronze: 'Bronze-Pack', silber: 'Silber-Pack', gold: 'Gold-Pack', spezial: 'Spezial-Pack' };
@@ -52,6 +54,10 @@ if (!document.getElementById('gc-style')) {
 .gc-S{background:linear-gradient(160deg,#eef1f5,#98a2b0)}
 .gc-G{background:linear-gradient(160deg,#ffe58a,#c7961c)}
 .gc-X{background:linear-gradient(135deg,#27f4d2,#8a5cff 55%,#ff5fd0);color:#0b0620}
+.gc-IB{background:linear-gradient(160deg,#cfe9ff,#7fa8d6)}
+.gc-IN{background:linear-gradient(160deg,#ffd9f0,#c9709e)}
+.gc-IP{background:linear-gradient(135deg,#111,#3a2a00 40%,#ffd23f 75%,#fff6c2);color:#fff}
+.gc-IP .gc-stats{border-color:rgba(255,255,255,.4)}
 .gc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:4%}
 .gc-ges{font:800 3em var(--hd);line-height:.9}
 .gc-kind{font-size:.62em;font-weight:800;letter-spacing:.04em;text-align:right;opacity:.8;max-width:62%;line-height:1.1}
@@ -103,6 +109,7 @@ function init() {
   let DRIVERS = ['Timo', 'Pascale', 'Niklas', 'Tim', 'Marcel', 'Yannis', 'Eric', 'Philipp', 'Vivien', 'Cedric'];
   const S = { tab: 'garden', login: readLogin(), garden: {}, daily: null, pending: '', msg: '', info: '', defs: null, roster: [], cal: [], TR: {}, cardsTab: 'shop', album: { kind: 'driver', rarity: 'all', season: null } };
   const drafts = {};
+  const casino = createCasino({ S, api: (r, p) => api(r, p), render: () => render(), esc, db, ref, onValue });
   let dailyDate = today(), dailyUnsub = null, dailyLoaded = false, quizInit = '', defsLoaded = false, defsInit = '';
 
   // ---------- Firebase ----------
@@ -245,8 +252,8 @@ function init() {
       gossip: !!(S.daily && S.daily.gossip) && seenGossip() !== dailyDate && S.tab !== 'gossip',
       cards: m && m.points >= (defsOk() ? Math.min(...Object.values(S.defs.config.packs).map(x => x.price)) : 100) && S.tab !== 'cards',
     };
-    const tabs = [['garden', '🥒 Garten'], ['quiz', '🧠 Quiz'], ['gossip', '🗞️ Klatsch'], ['cards', '🃏 Karten'], ['liga', '👥 Liga']];
-    const body = { garden: gardenHtml, quiz: quizHtml, gossip: gossipHtml, cards: cardsHtml, liga: ligaHtml }[S.tab]();
+    const tabs = [['garden', '🥒 Garten'], ['quiz', '🧠 Quiz'], ['gossip', '🗞️ Klatsch'], ['cards', '🃏 Karten'], ['casino', '🎰 Casino'], ['liga', '👥 Liga']];
+    const body = { garden: gardenHtml, quiz: quizHtml, gossip: gossipHtml, cards: cardsHtml, casino: casino.html, liga: ligaHtml }[S.tab]();
     root.innerHTML = `<div class="card-title"><span>🥒 Gurkengarten</span>${m ? `<span style="font-size:0.85rem;color:var(--y);">${m.points} Punkte</span>` : ''}</div>
       <div class="tabs" style="margin-bottom:12px;flex-wrap:nowrap;overflow-x:auto;">${tabs.map(([k, l]) =>
         `<button class="tab-btn ${S.tab === k ? 'active' : ''}" data-act="tab" data-tab="${k}">${l}${dot[k] ? ' <span style="color:#e10600;" aria-label="neu">●</span>' : ''}</button>`).join('')}</div>
@@ -277,7 +284,7 @@ function init() {
   };
   const poolKeys = (kind, rarity, season) => {
     if (kind === 'special') return Object.values((S.defs && S.defs.specials) || {}).filter(x => x.season === season).sort((a, b) => b.race - a.race || b.ges - a.ges).map(x => 'special:' + x.id);
-    return Object.values(cardsMap()).filter(c => c.season === season && c.kind === kind && (rarity === 'all' || c.rarity === rarity)).sort((a, b) => b.ges - a.ges).map(c => c.key);
+    return Object.values(cardsMap()).filter(c => (c.season === season || c.season === 0) && c.kind === kind && (rarity === 'all' || c.rarity === rarity)).sort((a, b) => b.ges - a.ges).map(c => c.key);
   };
 
   function resolveCard(key) {
@@ -293,6 +300,8 @@ function init() {
       const t = TRACKS.find(x => x.code === c.code) || { cc: 'un' }, rec = S.TR[c.code];
       return { tier: c.rarity, kind: 'STRECKE', big: c.ges, name: c.name, sub: c.country, art: `<img src="https://flagcdn.com/w160/${t.cc}.png" alt="" style="border-radius:6%;max-height:62%" onerror="this.remove()">`, extra: rec ? `Rekord ${fmtLap(rec.time)} · ${rec.driver}` : 'noch kein Rekord' };
     }
+    if (c.kind === 'principal') return { tier: c.rarity, kind: 'TEAMCHEF', big: c.ges, name: c.short, sub: c.team || 'Legende', color: TC[c.team], art: imgOr(c.photo, '🧑‍💼'), stats: PR_LABELS.map(([k, l, f]) => [l, c.stats[k], f]), badges: c.badges };
+    if (c.kind === 'icon') return { tier: c.rarity, kind: ({ baby: 'ICON · BABY', normal: 'ICON', prime: 'ICON · PRIME' })[c.stage], big: c.ges, name: c.short, sub: c.name, art: imgOr(c.photo, '⭐'), stats: stats(c.stats), badges: c.badges };
     return { tier: 'X', kind: c.title.toUpperCase(), big: c.ges, name: c.short, sub: c.team, color: TC[c.team], art: imgOr(c.photo || helmetOf(c.team), '🏎️'), stats: stats(c.stats), badges: c.reasons };
   }
   const cardBody = (key, locked) => {
@@ -339,7 +348,7 @@ function init() {
       const P = cfg.packs[k], blocked = k === 'spezial' && !active.length, can = m.points >= P.price && !blocked;
       return `<div class="gc-pack${k === 'spezial' ? ' x' : ''}" style="background:${PACK_COLOR[k]}"><div style="flex:1;min-width:0;">
           <div style="font:800 1.1rem var(--hd);">${PACK_NAME[k]}</div><div style="font-size:.78rem;">${P.n} Karten · ${P.price} Punkte</div>
-          <div style="font-size:.7rem;margin-top:4px;opacity:.85;">${blocked ? 'Verfügbar, sobald nach einem Rennen Spezialkarten entstanden sind.' : [['S', 'Silber+'], ['G', 'Gold+'], ['X', 'Spezial']].map(([t, l]) => [l, pAt(P, t)]).filter(x => x[1] < 0.995).map(([l, v]) => `Mind. 1× ${l} ${pct(v)}`).join(' · ')}</div></div>
+          <div style="font-size:.7rem;margin-top:4px;opacity:.85;">${blocked ? 'Verfügbar, sobald nach einem Rennen Spezialkarten entstanden sind.' : [['S', 'Silber+'], ['G', 'Gold+'], ['X', 'Spezial']].map(([t, l]) => [l, pAt(P, t)]).filter(x => x[1] < 0.995).map(([l, v]) => `Mind. 1× ${l} ${pct(v)}`).join(' · ')}${cfg.icon && cfg.icon.chance[k] ? ' · Mind. 1× Icon ' + pct(1 - (1 - cfg.icon.chance[k]) ** P.n) : ''}</div></div>
         <button class="btn" style="margin:0;width:auto;padding:10px 16px;background:#0e1a14;color:var(--y);${can ? '' : 'opacity:.45;'}" data-act="buy" data-pack="${k}" ${can && !S.pending ? '' : 'disabled'}>${S.pending === 'buy' ? '...' : 'Kaufen'}</button></div>`;
     }).join('') + (m.g.last && m.g.cardVer === CARD_VER ? '<button class="btn ghost" data-act="lastpack">Letztes Pack nochmal ansehen</button>' : '')
       + `<div style="font-weight:700;margin:16px 0 6px;">Aktuell im Spezial-Pack</div>` + (active.length
@@ -350,15 +359,15 @@ function init() {
   function albumHtml(m) {
     if (!defsOk()) return prepMsg();
     const inv = invOf(m.g), A = S.album, season = A.season || curSeason(), seasons = seasonsList();
-    const kinds = [['driver', 'Fahrer'], ['team', 'Teams'], ['track', 'Strecken'], ['special', 'Inform']];
+    const kinds = [['driver', 'Fahrer'], ['team', 'Teams'], ['principal', 'Chefs'], ['icon', 'Icons'], ['track', 'Strecken'], ['special', 'Inform']];
     const stat = kind => { const ks = poolKeys(kind, 'all', season); return [ks.filter(k => inv[k]).length, ks.length]; };
-    const allBase = ['driver', 'team', 'track'].map(stat), own = allBase.reduce((t, x) => t + x[0], 0), tot = allBase.reduce((t, x) => t + x[1], 0);
-    const keys = poolKeys(A.kind, A.kind === 'special' ? 'all' : A.rarity, season);
+    const allBase = ['driver', 'team', 'track', 'principal', 'icon'].map(stat), own = allBase.reduce((t, x) => t + x[0], 0), tot = allBase.reduce((t, x) => t + x[1], 0);
+    const keys = poolKeys(A.kind, A.kind === 'special' || A.kind === 'icon' ? 'all' : A.rarity, season);
     return `${seasons.length > 1 ? `<div class="tabs" style="flex-wrap:nowrap;overflow-x:auto;margin-bottom:8px;">${seasons.map(n => `<button class="tab-btn ${n === season ? 'active' : ''}" data-act="album" data-season="${n}">Saison ${n}${n === curSeason() ? '' : ' (Archiv)'}</button>`).join('')}</div>` : ''}
       <div style="font-size:.8rem;margin-bottom:6px;">Sammlung Saison ${season}: <b>${own}/${tot}</b> Basiskarten (${tot ? Math.round(100 * own / tot) : 0} %)</div>
       <div style="height:6px;background:rgba(255,255,255,.12);border-radius:3px;overflow:hidden;margin-bottom:10px;"><div style="width:${tot ? 100 * own / tot : 0}%;height:100%;background:var(--y);"></div></div>
       <div class="tabs" style="flex-wrap:nowrap;overflow-x:auto;margin-bottom:8px;">${kinds.map(([k, l]) => { const [o, t] = stat(k); return `<button class="tab-btn ${A.kind === k ? 'active' : ''}" data-act="album" data-kind="${k}">${l} ${o}/${t}</button>`; }).join('')}</div>
-      ${A.kind === 'special' ? '' : `<div class="tabs" style="flex-wrap:nowrap;overflow-x:auto;margin-bottom:10px;">${[['all', 'Alle'], ['B', 'Bronze'], ['S', 'Silber'], ['G', 'Gold']].map(([k, l]) => `<button class="tab-btn ${A.rarity === k ? 'active' : ''}" data-act="album" data-rarity="${k}">${l}</button>`).join('')}</div>`}
+      ${A.kind === 'special' || A.kind === 'icon' ? '' : `<div class="tabs" style="flex-wrap:nowrap;overflow-x:auto;margin-bottom:10px;">${[['all', 'Alle'], ['B', 'Bronze'], ['S', 'Silber'], ['G', 'Gold']].map(([k, l]) => `<button class="tab-btn ${A.rarity === k ? 'active' : ''}" data-act="album" data-rarity="${k}">${l}</button>`).join('')}</div>`}
       ${keys.length ? `<div class="gc-grid">${keys.map(k => `<div data-act="detail" data-key="${esc(k)}">${cardHtml(k, { locked: !inv[k], count: inv[k] })}</div>`).join('')}</div>` : '<div style="color:var(--m);font-size:.85rem;">Hier gibt es noch keine Karten.</div>'}`;
   }
 
@@ -393,6 +402,7 @@ function init() {
       S.login = { name, pin }; localStorage.setItem('pressLogin', JSON.stringify(S.login)); drafts.gardenPin = '';
       return render();
     }
+    if (a.startsWith('cs_')) return S.login ? casino.act(a, data) : undefined;
     if (!S.login || S.pending) return;
     if (a === 'claim') {
       const j = await api('claim', {});

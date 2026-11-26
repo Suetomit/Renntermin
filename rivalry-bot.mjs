@@ -28,7 +28,7 @@ export function plan({ RR, RS, TA, roster, cal, RV, season, news, reqs }, now = 
 
   // 0. Ersetzte/ausgeschiedene Fahrer (im Admin "Keine Rivalitäten" angehakt oder nicht mehr im Roster): ihre laufenden und wartenden
   //    Rivalitäten ohne Wertung beenden (Ansehen ändert sich dabei nicht). Schon entschiedene Duelle werden normal abgerechnet.
-  const out = n => { const d = roster.find(x => x.name === n); return !d || !!d.noRivalry; };
+  const out = n => { const d = roster.find(x => x.name === n); return !d || !!d.noRivalry || d.inPointsGrid === false; };
   for (const [id, rv] of Object.entries(R)) {
     if (!['active', 'queued'].includes(rv.status) || rv.result || RL.evalRv(ctx, rv).done) continue;
     if (out(rv.a) || out(rv.b)) R[id] = writes[id] = { ...rv, status: 'ended' };
@@ -67,7 +67,7 @@ export function plan({ RR, RS, TA, roster, cal, RV, season, news, reqs }, now = 
   if (open) {
     const pts = {}; roster.forEach(d => pts[d.name] = 0);
     Object.values(RR).forEach(r => Object.entries(r || {}).forEach(([n, e]) => { const p = RL.pp(e); if (F1[p] && n in pts) pts[n] += F1[p]; }));
-    const usable = roster.filter(d => !d.noRivalry); // ersetzte Fahrer werden übersprungen
+    const usable = roster.filter(d => !d.noRivalry && d.inPointsGrid !== false); // ersetzte Fahrer werden übersprungen
     const table = [...usable].sort((a, b) => pts[b.name] - pts[a.name] || a.name.localeCompare(b.name));
     const doneCount = races.filter(r => r.done).length, cands = [], human = n => !!(roster.find(x => x.name === n) || {}).human;
     const byTeam = {}; usable.forEach(d => (byTeam[d.team] = byTeam[d.team] || []).push(d));
