@@ -292,9 +292,7 @@ function init() {
     if (!c) return { tier: 'B', kind: 'KARTE', big: '?', name: 'Unbekannt', sub: '', art: '', extra: '' };
     const stats = o => STAT_LABELS.map(([k, l, f]) => [l, o[k], f]);
     if (c.kind === 'driver') {       const rd = (S.roster || []).find(x => (c.rosterName && x.name === c.rosterName) || x.name === c.name || (x.human && x.human === c.short));       const team = (rd && rd.team) || c.team || '';       const photo = (rd && rd.photo) || c.photo || helmetOf(team);       const labelName = (rd && rd.human) || c.short;       return { tier: c.rarity, kind: 'FAHRER', big: c.ges, name: labelName, sub: team + (c.human ? '' : ' · KI'), color: TC[team], art: imgOr(photo, '🏎️'), stats: stats(c.stats), badges: c.badges };     }
-    if (c.kind === 'team') {
-      const ds = S.roster.filter(d => d.team === c.name);
-      return { tier: c.rarity, kind: 'TEAM', big: c.ges, name: c.name, sub: ds.map(d => d.human || String(d.name).split(' ').pop()).slice(0, 2).join(' & '), color: TC[c.name], art: imgOr(helmetOf(c.name), '🏁'), extra: `${ds.length} Fahrer in der Liga` };
+    if (c.kind === 'team') { const ds = S.roster.filter(d => d.team === c.name).sort((a, b) => (b.human ? 1 : 0) - (a.human ? 1 : 0)); return { tier: c.rarity, kind: 'TEAM', big: c.ges, name: c.name, sub: ds.map(d => d.human || String(d.name).split(' ').pop()).slice(0, 2).join(' & '), color: TC[c.name], art: imgOr(helmetOf(c.name), '🏁'), extra: `${ds.length} Fahrer in der Liga` }; }
     }
     if (c.kind === 'track') {
       const t = TRACKS.find(x => x.code === c.code) || { cc: 'un' }, rec = S.TR[c.code];
