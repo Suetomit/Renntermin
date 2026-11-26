@@ -267,7 +267,7 @@ function init() {
   }
 
   // ---------- Sammelkarten ----------
-  const CARD_VER = 2;
+  const CARD_VER = 3;
   const ov = document.createElement('div'); ov.id = 'gardenOverlay'; document.body.appendChild(ov);
   const invOf = g => (g && g.cardVer === CARD_VER ? g.inv || {} : {});          // Karten der alten Version zählen nicht mehr (werden erstattet)
   const defsOk = () => !!(S.defs && S.defs.version === CARD_VER && S.defs.cards && S.defs.config);
