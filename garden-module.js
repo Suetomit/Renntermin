@@ -247,11 +247,11 @@ function init() {
       .sort((a, b) => (b.g.streak || 0) - (a.g.streak || 0) || (b.g.points || 0) - (a.g.points || 0));
     return `<div style="font-size:0.75rem;color:var(--m);margin-bottom:6px;">So weit sind die Gurken der Liga:</div>` + rows.map(({ n, g }) => {
       const st = g.streak ? STAGES[stageOf(g.streak)] : ['🌰', 'noch nicht gepflanzt'];
-      const you = S.login && S.login.name === n;
+      const you = S.login && S.login.name === n;       const inv = Object.values(invOf(g)), cards = inv.reduce((a, b) => a + b, 0), uniq = inv.filter(x => x > 0).length;
       return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:0.85rem;">
         <span style="font-size:1.4rem;width:36px;text-align:center;">${st[0]}</span>
-        <span style="flex:1;min-width:0;"><strong style="${you ? 'color:var(--y);' : ''}">${esc(n)}</strong><div style="font-size:0.72rem;color:var(--m);">${st[1]}</div></span>
-        <span style="text-align:right;"><strong>${g.streak || 0}</strong> <span style="font-size:0.72rem;color:var(--m);">Tage</span></span></div>`;
+        <span style="flex:1;min-width:0;"><strong style="${you ? 'color:var(--y);' : ''}">${esc(n)}</strong><div style="font-size:0.72rem;color:var(--m);">${st[1]} · ${g.streak || 0} Tage</div></span>
+        <span style="text-align:right;line-height:1.35;">🥒 <strong>${g.points || 0}</strong><div style="font-size:0.72rem;color:var(--m);">🃏 ${cards} Karten (${uniq} versch.)</div></span></div>`;
     }).join('');
   }
 
