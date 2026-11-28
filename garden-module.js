@@ -7,6 +7,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 import { createCasino } from './casino-ui.mjs';
+import { createLotto } from './lotto-ui.mjs';
 
 const WORKER_URL = 'https://laetti-press.der-alles-schecker.workers.dev';
 
@@ -110,6 +111,7 @@ function init() {
   const S = { tab: 'garden', login: readLogin(), garden: {}, daily: null, pending: '', msg: '', info: '', defs: null, roster: [], cal: [], TR: {}, cardsTab: 'shop', album: { kind: 'driver', rarity: 'all', season: null } };
   const drafts = {};
   const casino = createCasino({ S, api: (r, p) => api(r, p), render: () => render(), esc, db, ref, onValue });
+  const lotto = createLotto({ S, api: (r, p) => api(r, p), apiQuiet: (r, p) => apiQuiet(r, p), render: () => render(), esc });
   let dailyDate = today(), dailyUnsub = null, dailyLoaded = false, quizInit = '', defsLoaded = false, defsInit = '';
 
   // ---------- Firebase ----------
@@ -153,6 +155,18 @@ function init() {
       S.msg = e.message === 'Failed to fetch' ? 'Der Server ist gerade nicht erreichbar. Versuch es gleich nochmal.' : e.message;
       return null;
     } finally { S.pending = ''; render(); }
+  }
+
+  // Stiller Worker-Aufruf für Hintergrund-Abfragen (Lotto-Status): ändert weder Meldungen noch "pending", kein Flackern
+  async function apiQuiet(route, payload) {
+    if (!S.login) return null;
+    try {
+      const r = await fetch(`${WORKER_URL}/${route}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ driver: S.login.name, pin: S.login.pin, ...payload }),
+      });
+      return r.ok ? await r.json() : null;
+    } catch (e) { return null; }
   }
 
   // ---------- Zustand des eigenen Gartens ----------
@@ -233,11 +247,11 @@ function init() {
       .sort((a, b) => (b.g.streak || 0) - (a.g.streak || 0) || (b.g.points || 0) - (a.g.points || 0));
     return `<div style="font-size:0.75rem;color:var(--m);margin-bottom:6px;">So weit sind die Gurken der Liga:</div>` + rows.map(({ n, g }) => {
       const st = g.streak ? STAGES[stageOf(g.streak)] : ['🌰', 'noch nicht gepflanzt'];
-      const you = S.login && S.login.name === n;       const inv = Object.values(invOf(g)), cards = inv.reduce((a, b) => a + b, 0), uniq = inv.filter(x => x > 0).length;
+      const you = S.login && S.login.name === n;
       return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:0.85rem;">
         <span style="font-size:1.4rem;width:36px;text-align:center;">${st[0]}</span>
-        <span style="flex:1;min-width:0;"><strong style="${you ? 'color:var(--y);' : ''}">${esc(n)}</strong><div style="font-size:0.72rem;color:var(--m);">${st[1]} · ${g.streak || 0} Tage</div></span>
-        <span style="text-align:right;line-height:1.35;">🥒 <strong>${g.points || 0}</strong><div style="font-size:0.72rem;color:var(--m);">🃏 ${cards} Karten (${uniq} versch.)</div></span></div>`;
+        <span style="flex:1;min-width:0;"><strong style="${you ? 'color:var(--y);' : ''}">${esc(n)}</strong><div style="font-size:0.72rem;color:var(--m);">${st[1]}</div></span>
+        <span style="text-align:right;"><strong>${g.streak || 0}</strong> <span style="font-size:0.72rem;color:var(--m);">Tage</span></span></div>`;
     }).join('');
   }
 
@@ -252,8 +266,8 @@ function init() {
       gossip: !!(S.daily && S.daily.gossip) && seenGossip() !== dailyDate && S.tab !== 'gossip',
       cards: m && m.points >= (defsOk() ? Math.min(...Object.values(S.defs.config.packs).map(x => x.price)) : 100) && S.tab !== 'cards',
     };
-    const tabs = [['garden', '🥒 Garten'], ['quiz', '🧠 Quiz'], ['gossip', '🗞️ Klatsch'], ['cards', '🃏 Karten'], ['casino', '🎰 Casino'], ['liga', '👥 Liga']];
-    const body = { garden: gardenHtml, quiz: quizHtml, gossip: gossipHtml, cards: cardsHtml, casino: casino.html, liga: ligaHtml }[S.tab]();
+    const tabs = [['garden', '🥒 Garten'], ['quiz', '🧠 Quiz'], ['gossip', '🗞️ Klatsch'], ['cards', '🃏 Karten'], ['casino', '🎰 Casino'], ['lotto', '🎟️ Lotto'], ['liga', '👥 Liga']];
+    const body = { garden: gardenHtml, quiz: quizHtml, gossip: gossipHtml, cards: cardsHtml, casino: casino.html, lotto: lotto.html, liga: ligaHtml }[S.tab]();
     root.innerHTML = `<div class="card-title"><span>🥒 Gurkengarten</span>${m ? `<span style="font-size:0.85rem;color:var(--y);">${m.points} Punkte</span>` : ''}</div>
       <div class="tabs" style="margin-bottom:12px;flex-wrap:nowrap;overflow-x:auto;">${tabs.map(([k, l]) =>
         `<button class="tab-btn ${S.tab === k ? 'active' : ''}" data-act="tab" data-tab="${k}">${l}${dot[k] ? ' <span style="color:#e10600;" aria-label="neu">●</span>' : ''}</button>`).join('')}</div>
@@ -291,8 +305,16 @@ function init() {
     const c = infoOf(key);
     if (!c) return { tier: 'B', kind: 'KARTE', big: '?', name: 'Unbekannt', sub: '', art: '', extra: '' };
     const stats = o => STAT_LABELS.map(([k, l, f]) => [l, o[k], f]);
-    if (c.kind === 'driver') {       const rd = (S.roster || []).find(x => (c.rosterName && x.name === c.rosterName) || x.name === c.name || (x.human && x.human === c.short));       const team = (rd && rd.team) || c.team || '';       const photo = (rd && rd.photo) || c.photo || helmetOf(team);       const labelName = (rd && rd.human) || c.short;       return { tier: c.rarity, kind: 'FAHRER', big: c.ges, name: labelName, sub: team + (c.human ? '' : ' · KI'), color: TC[team], art: imgOr(photo, '🏎️'), stats: stats(c.stats), badges: c.badges };     }
-    if (c.kind === 'team') {       const ds = S.roster.filter(d => d.team === c.name);       return { tier: c.rarity, kind: 'TEAM', big: c.ges, name: c.name, sub: ds.map(d => d.human || String(d.name).split(' ').pop()).slice(0, 2).join(' & '), color: TC[c.name], art: imgOr(helmetOf(c.name), '🏁'), extra: `${ds.length} Fahrer in der Liga` };
+    if (c.kind === 'driver') {
+      const rd = (S.roster || []).find(x => (c.rosterName && x.name === c.rosterName) || x.name === c.name || (x.human && x.human === c.short));
+      const team = (rd && rd.team) || c.team || '';
+      const photo = (rd && rd.photo) || c.photo || helmetOf(team);
+      const labelName = (rd && rd.human) || c.short;
+      return { tier: c.rarity, kind: 'FAHRER', big: c.ges, name: labelName, sub: team + (c.human ? '' : ' · KI'), color: TC[team], art: imgOr(photo, '🏎️'), stats: stats(c.stats), badges: c.badges };
+    }
+    if (c.kind === 'team') {
+      const ds = S.roster.filter(d => d.team === c.name);
+      return { tier: c.rarity, kind: 'TEAM', big: c.ges, name: c.name, sub: ds.map(d => d.human || String(d.name).split(' ').pop()).slice(0, 2).join(' & '), color: TC[c.name], art: imgOr(helmetOf(c.name), '🏁'), extra: `${ds.length} Fahrer in der Liga` };
     }
     if (c.kind === 'track') {
       const t = TRACKS.find(x => x.code === c.code) || { cc: 'un' }, rec = S.TR[c.code];
@@ -401,6 +423,7 @@ function init() {
       return render();
     }
     if (a.startsWith('cs_')) return S.login ? casino.act(a, data) : undefined;
+    if (a.startsWith('lt_')) return S.login ? lotto.act(a, data) : undefined;
     if (!S.login || S.pending) return;
     if (a === 'claim') {
       const j = await api('claim', {});
